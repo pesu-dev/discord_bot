@@ -88,39 +88,31 @@ class Events(commands.Cog):
         await bot_logs.send(f"{member.mention} Joined!!")
 
         link_record = await self.client.link_collection.find_one({"userId": str(member.id)})
+        roles_to_add = [just_joined]
+        should_delete_link = bool(link_record and not link_record.get("linkedAt"))
 
-        if link_record:
-            if link_record.get("linkedAt"):
-                prn = link_record.get("prn")
-                student_record = await self.client.student_collection.find_one({"prn": prn})
+        if link_record and link_record.get("linkedAt") and link_record.get("prn"):
+            student_record = await self.client.student_collection.find_one({"prn": link_record.get("prn")})
+            if student_record:
                 roles_to_add = []
-
-                if student_record.get("year"):
-                    year_role = self.client.config.get_role("YEAR", student_record.get("year"))
-                    if year_role:
-                        roles_to_add.append(year_role)
-
-                if student_record.get("branch") and student_record.get("branch").get("short"):
-                    branch_role = self.client.config.get_role("BRANCH", student_record.get("branch").get("short"))
-                    if branch_role:
-                        roles_to_add.append(branch_role)
-
-                if student_record.get("campus") and student_record.get("campus").get("short"):
-                    campus_role = self.client.config.get_role("CAMPUS", student_record.get("campus").get("short"))
-                    if campus_role:
-                        roles_to_add.append(campus_role)
-
+                role_configs = [("YEAR", ["year"]), ("BRANCH", ["branch", "short"]), ("CAMPUS", ["campus", "short"])]
+                for role_type, key_path in role_configs:
+                    value = student_record
+                    for key in key_path:
+                        value = value.get(key) if value else None
+                    if value and (role := self.client.config.get_role(role_type, value)):
+                        roles_to_add.append(role)
                 if len(roles_to_add) == 3:
                     roles_to_add.append(self.client.config.linked_role)
-                    await member.add_roles(*roles_to_add)
                 else:
-                    await member.add_roles(*roles_to_add)
-                    await self.client.link_collection.delete_one({"_id": link_record["_id"]})
+                    roles_to_add = [just_joined]
+                    should_delete_link = True
             else:
-                await member.add_roles(just_joined)
-                await self.client.link_collection.delete_one({"_id": link_record["_id"]})
-        else:
-            await member.add_roles(just_joined)
+                should_delete_link = True
+
+        await member.add_roles(*roles_to_add)
+        if should_delete_link and link_record:
+            await self.client.link_collection.delete_one({"_id": link_record["_id"]})
 
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member) -> None:

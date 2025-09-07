@@ -91,7 +91,7 @@ class RoleSelect(discord.ui.Select):
         if not isinstance(member, discord.Member) or not interaction.guild:
             await interaction.followup.send(content="This command can only be used in a server", ephemeral=True)
             return
-        if any(role.id == self.client.config.linked_role.id for role in member.roles):
+        if not any(role.id == self.client.config.linked_role.id for role in member.roles):
             await interaction.followup.send(content="You need to link your account first.", ephemeral=True)
             return
 

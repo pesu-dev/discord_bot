@@ -778,7 +778,9 @@ class SlashMod(commands.Cog):
             seconds = self.parse_time(time)
         except ValueError:
             await interaction.followup.send(
-                content="Mention the proper amount of time to be timed-out\nAccepted Time Format: Should end with `d/h/m/s`",  # noqa: E501
+                content=(
+                    "Mention the proper amount of time to be timed-out\nAccepted Time Format: Should end with `d/h/m/s`"
+                ),
                 ephemeral=True,
             )
             return

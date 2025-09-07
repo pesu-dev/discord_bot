@@ -99,7 +99,7 @@ class SlashLink(commands.Cog):
             )
             return
 
-        await interaction.followup.send(content=f"De-linked <@{user.id}>")
+        await interaction.followup.send(content=f"De-linked {user.mention}")
 
     @delink.error
     async def delink_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:

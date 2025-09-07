@@ -104,7 +104,7 @@ class SlashMod(commands.Cog):
                 )
                 unmute_embed.set_footer(text="PESU Bot")
                 try:
-                    await channel.send(content=f"{member.mention}", embed=unmute_embed)
+                    await channel.send(content=member.mention, embed=unmute_embed)
                 except discord.HTTPException:
                     pass
 
@@ -315,64 +315,6 @@ class SlashMod(commands.Cog):
         else:
             await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
 
-    @app_commands.command(name="changenick", description="Change someone else's nickname")
-    @app_commands.describe(
-        member="The member whose name you want to change",
-        new_nick="The new nickname you wanna give this user",
-    )
-    async def changenick(
-        self,
-        interaction: discord.Interaction,
-        member: discord.Member,
-        new_nick: str,
-    ) -> None:
-        await interaction.response.defer(ephemeral=True)
-
-        if not isinstance(interaction.user, discord.Member) or not interaction.guild:
-            await interaction.followup.send(content="This command can only be used in a server", ephemeral=True)
-            return
-
-        if not self.client.config.has_mod_permissions(interaction.user):
-            await interaction.followup.send(
-                content=f"Awwww sooo cutely you're trying to change {member.display_name}'s nickname",
-                ephemeral=True,
-            )
-            return
-
-        new_nickname = new_nick.strip()
-        await member.edit(nick=new_nickname, reason=f"Nickname changed by {interaction.user}")
-        await interaction.followup.send(
-            content=f"Nicely changed {member.display_name}'s name to {new_nickname}",
-            ephemeral=True,
-        )
-
-    @changenick.error
-    async def changenick_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError,
-    ) -> None:
-        if isinstance(error, app_commands.CommandInvokeError):
-            original = error.original
-
-            if isinstance(original, discord.NotFound):
-                await interaction.followup.send(
-                    content="This user doesn't even exist here, who are you trying to change the name of?",
-                    ephemeral=True,
-                )
-
-            elif isinstance(original, discord.Forbidden):
-                await interaction.followup.send(
-                    content="I am unable to change this user's nickname at this time",
-                    ephemeral=True,
-                )
-
-            else:
-                await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
-        else:
-            await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
     @app_commands.command(name="mute", description="Mute a member for a specified duration")
     @app_commands.describe(
         member="The member to mute (or yourself for self-mute)",
@@ -457,7 +399,7 @@ class SlashMod(commands.Cog):
             inline=False,
         )
         mute_embed.set_footer(text="PESU Bot")
-        await interaction.followup.send(embed=mute_embed)
+        await interaction.followup.send(content=member.mention, embed=mute_embed)
 
         mod_logs = self.client.config.mod_logs_channel
         mute_logs_embed = discord.Embed(
@@ -465,7 +407,7 @@ class SlashMod(commands.Cog):
             color=discord.Color.red(),
             timestamp=datetime.now(dt.UTC),
         )
-        moderator_mention = f"<@{interaction.user.id}>" if not is_self_mute else "Self"
+        moderator_mention = interaction.user.mention if not is_self_mute else "Self"
         mute_logs_embed.add_field(
             name="Muted User",
             value=f"{member.mention}\nTime: {time}\nReason: {reason}\nModerator: {moderator_mention}",
@@ -541,7 +483,7 @@ class SlashMod(commands.Cog):
             inline=False,
         )
 
-        await interaction.followup.send(embed=unmute_embed)
+        await interaction.followup.send(content=member.mention, embed=unmute_embed)
 
         mod_logs = self.client.config.mod_logs_channel
         unmute_logs_embed = discord.Embed(
@@ -587,7 +529,7 @@ class SlashMod(commands.Cog):
     @app_commands.command(name="purge", description="Delete a number of recent messages")
     @app_commands.describe(amount="Number of messages to delete")
     async def purge(self, interaction: discord.Interaction, amount: int) -> None:
-        await interaction.response.defer(ephemeral=False)
+        await interaction.response.defer(ephemeral=True)
         if not isinstance(interaction.user, discord.Member) or not interaction.guild:
             await interaction.followup.send(content="This command can only be used in a server", ephemeral=True)
             return
@@ -603,7 +545,7 @@ class SlashMod(commands.Cog):
             return
 
         deleted = await interaction.channel.purge(limit=amount)
-        await interaction.followup.send(content=f"Deleted last {len(deleted)} messages")
+        await interaction.followup.send(content=f"Deleted last {len(deleted)} messages", ephemeral=True)
         embed = discord.Embed(
             title="Messages Purged",
             color=discord.Color.green(),
@@ -871,7 +813,7 @@ class SlashMod(commands.Cog):
             inline=False,
         )
 
-        await interaction.followup.send(embed=timeout_embed)
+        await interaction.followup.send(content=member.mention, embed=timeout_embed)
 
         mod_logs = self.client.config.mod_logs_channel
         timeout_logs_embed = discord.Embed(title="Time-out", color=0x8B0000, timestamp=discord.utils.utcnow())
@@ -935,7 +877,7 @@ class SlashMod(commands.Cog):
             inline=False,
         )
 
-        await interaction.followup.send(content=f"{member.mention}", embed=detimeout_embed)
+        await interaction.followup.send(content=member.mention, embed=detimeout_embed)
 
         mod_logs = self.client.config.mod_logs_channel
         detimeout_logs_embed = discord.Embed(title="De-time-out", color=0x00FF00, timestamp=discord.utils.utcnow())

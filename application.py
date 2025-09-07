@@ -26,9 +26,7 @@ client = DiscordBot(
 connection = ""
 
 try:
-    client.mongo_client = AsyncMongoClient(
-        os.environ["MONGO_URI"], tz_aware=True
-    )
+    client.mongo_client = AsyncMongoClient(os.environ["MONGO_URI"], tz_aware=True)
     db_name = os.environ["DB_NAME"]
     client.db = client.mongo_client[db_name]
     client.link_collection = client.db["link"]
@@ -45,9 +43,7 @@ except Exception as e:
 async def on_ready() -> None:
     client.startTime = time.time()
     if client.user:
-        client.logger.info(
-            f"Logged in as {client.user.name} ({client.user.id})"
-        )
+        client.logger.info(f"Logged in as {client.user.name} ({client.user.id})")
     client.logger.info(connection)
 
     # Initialize the config instance after bot is ready
@@ -80,8 +76,9 @@ async def on_ready() -> None:
         )
     )
     client.logger.info("Set status")
-
     client.logger.info("Bot is ready")
+
+    await client.config.bot_logs_channel.send("Bot is online")
 
 
 async def clear_all_commands(client: DiscordBot) -> None:

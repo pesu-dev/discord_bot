@@ -204,7 +204,7 @@ class SlashHelp(commands.Cog):
         if any(role.id == self.client.config.just_joined_role.id for role in interaction.user.roles):
             embed = discord.Embed(
                 title="PESU Bot",
-                description=f"Visit <#{self.client.config.get_channel('WELCOME').id}> to link first!",
+                description=f"Visit {self.client.config.get_channel('WELCOME').mention} to link first!",
                 color=discord.Color.red(),
                 timestamp=discord.utils.utcnow(),
             )

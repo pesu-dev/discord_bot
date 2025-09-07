@@ -1,8 +1,8 @@
 # PESU Discord Bot
 
-[![License](https://img.shields.io/github/license/pesu-dev/discord-bot)](https://github.com/pesu-dev/discord-bot/blob/main/LICENSE)
-[![Contributors](https://img.shields.io/github/contributors/pesu-dev/discord-bot)](https://github.com/pesu-dev/discord-bot/graphs/contributors)
-[![Issues](https://img.shields.io/github/issues/pesu-dev/discord-bot)](https://github.com/pesu-dev/discord-bot/issues)
+[![License](https://img.shields.io/github/license/pesu-dev/discord_bot)](https://github.com/pesu-dev/discord_bot/blob/main/LICENSE)
+[![Contributors](https://img.shields.io/github/contributors/pesu-dev/discord_bot)](https://github.com/pesu-dev/discord_bot/graphs/contributors)
+[![Issues](https://img.shields.io/github/issues/pesu-dev/discord_bot)](https://github.com/pesu-dev/discord_bot/issues)
 [![Project Board](https://img.shields.io/badge/project-board-blue)](https://github.com/orgs/pesu-dev/projects/4/views/8)
 
 A powerful community management bot designed specifically for the PESU Discord Server. This bot provides essential moderation tools, anonymous messaging capabilities, user linking systems, and various utility commands to enhance the Discord experience for PESU students.
@@ -89,7 +89,7 @@ Stores frequently asked questions and their responses for quick access.
 
 Made with ❤️ by
 
-[![Contributors](https://contrib.rocks/image?repo=pesu-dev/discord-bot&nocache=1)](https://github.com/pesu-dev/discord-bot/graphs/contributors)
+[![Contributors](https://contrib.rocks/image?repo=pesu-dev/discord_bot&nocache=1)](https://github.com/pesu-dev/discord_bot/graphs/contributors)
 
 *Powered by [contrib.rocks](https://contrib.rocks)*
 

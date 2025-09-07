@@ -16,7 +16,7 @@ certifi==2025.8.3
     # via
     #   httpcore
     #   httpx
-discord-py==2.6.1
+discord-py==2.6.3
     # via pesu-discord-bot (pyproject.toml)
 dnspython==2.7.0
     # via pymongo

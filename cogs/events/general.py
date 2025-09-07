@@ -52,7 +52,7 @@ class Events(commands.Cog):
         if message.mention_everyone:
             embed.add_field(
                 name="@everyone/@here pings",
-                value=f"<@{message.author.id}> ghost pinged `@everyone/@here` in <#{message.channel.id}>",
+                value=f"{message.author.mention} ghost pinged `@everyone/@here` in {message.channel.mention}",
                 inline=False,
             )
 
@@ -63,7 +63,7 @@ class Events(commands.Cog):
             ping_list = " ".join(role.mention for role in role_mentions)
             embed.add_field(
                 name="Role pings",
-                value=f"<@{message.author.id}> ghost pinged {ping_list} in <#{message.channel.id}>",
+                value=f"{message.author.mention} ghost pinged {ping_list} in {message.channel.mention}",
                 inline=False,
             )
 
@@ -77,7 +77,7 @@ class Events(commands.Cog):
             ping_list = " ".join(member.mention for member in user_mentions)
             embed.add_field(
                 name="Member pings",
-                value=f"<@{message.author.id}> ghost pinged {ping_list} in <#{message.channel.id}>",
+                value=f"{message.author.mention} ghost pinged {ping_list} in {message.channel.mention}",
                 inline=False,
             )
 
@@ -87,27 +87,35 @@ class Events(commands.Cog):
         just_joined = self.client.config.just_joined_role
         await bot_logs.send(f"{member.mention} Joined!!")
 
-        link_record = await self.client.link_collection.find_one({"userId": int(member.id)})
+        link_record = await self.client.link_collection.find_one({"userId": str(member.id)})
 
         if link_record:
             if link_record.get("linkedAt"):
+                prn = link_record.get("prn")
+                student_record = await self.client.student_collection.find_one({"prn": prn})
                 roles_to_add = []
 
-                if link_record.get("year"):
-                    year_role = self.client.config.get_role("YEAR", link_record.get("year"))
+                if student_record.get("year"):
+                    year_role = self.client.config.get_role("YEAR", student_record.get("year"))
                     if year_role:
                         roles_to_add.append(year_role)
 
-                if link_record.get("branch"):
-                    branch_role = self.client.config.get_role("BRANCH", link_record.get("branch"))
+                if student_record.get("branch") and student_record.get("branch").get("short"):
+                    branch_role = self.client.config.get_role("BRANCH", student_record.get("branch").get("short"))
                     if branch_role:
                         roles_to_add.append(branch_role)
 
-                if link_record.get("campus"):
-                    campus_role = self.client.config.get_role("CAMPUS", link_record.get("campus"))
+                if student_record.get("campus") and student_record.get("campus").get("short"):
+                    campus_role = self.client.config.get_role("CAMPUS", student_record.get("campus").get("short"))
                     if campus_role:
                         roles_to_add.append(campus_role)
-                await member.add_roles(*roles_to_add)
+
+                if len(roles_to_add) == 3:
+                    roles_to_add.append(self.client.config.linked_role)
+                    await member.add_roles(*roles_to_add)
+                else:
+                    await member.add_roles(*roles_to_add)
+                    await self.client.link_collection.delete_one({"_id": link_record["_id"]})
             else:
                 await member.add_roles(just_joined)
                 await self.client.link_collection.delete_one({"_id": link_record["_id"]})
@@ -144,9 +152,6 @@ class Events(commands.Cog):
                     await message.reply(reply_text)
                     await message.channel.send(gif_url)
 
-        # Allow normal commands to keep working
-        await self.client.process_commands(message)
-
     @commands.Cog.listener()
     async def on_message_delete(self, message: discord.Message) -> None:
         if message.author.bot:
@@ -164,7 +169,7 @@ class Events(commands.Cog):
         if message.mention_everyone:
             ghost_ping_embed.add_field(
                 name="@everyone/@here pings",
-                value=f"{message.author.mention} ghost pinged `@everyone/@here` in <#{message.channel.id}>",
+                value=f"{message.author.mention} ghost pinged `@everyone/@here` in {message.channel.mention}",
                 inline=False,
             )
 
@@ -174,7 +179,7 @@ class Events(commands.Cog):
                 ping_list += role.mention + " "
             ghost_ping_embed.add_field(
                 name="Role pings",
-                value=f"{message.author.mention} ghost pinged {ping_list}in <#{message.channel.id}>",
+                value=f"{message.author.mention} ghost pinged {ping_list}in {message.channel.mention}",
                 inline=False,
             )
 
@@ -185,7 +190,7 @@ class Events(commands.Cog):
                 ping_list += member.mention + " "
             ghost_ping_embed.add_field(
                 name="Member pings",
-                value=f"{message.author.mention} ghost pinged {ping_list}in <#{message.channel.id}>",
+                value=f"{message.author.mention} ghost pinged {ping_list}in {message.channel.mention}",
                 inline=False,
             )
 

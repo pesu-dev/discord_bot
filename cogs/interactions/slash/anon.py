@@ -266,7 +266,7 @@ class SlashAnon(commands.Cog):
         else:
             anon_message = await lobby_channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
         await interaction.followup.send(
-            content=f":white_check_mark: Your anon message has been sent to <#{lobby_channel.id}>"
+            content=f":white_check_mark: Your anon message has been sent to {lobby_channel.mention}"
         )
 
         if str(interaction.user.id) not in self.anon_cache:

@@ -46,7 +46,7 @@ Summarize what this PR does:
 
 ## ✅ Checklist
 
-- [ ] My code follows repo [CONTRIBUTING.md](https://github.com/pesu-dev/discord-bot/blob/main/.github/CONTRIBUTING.md) guidelines
+- [ ] My code follows repo [CONTRIBUTING.md](https://github.com/pesu-dev/discord_bot/blob/main/.github/CONTRIBUTING.md) guidelines
 - [ ] Self-review completed
 - [ ] Added/updated comments and docstrings
 - [ ] Updated relevant docs (README, help text, etc.)

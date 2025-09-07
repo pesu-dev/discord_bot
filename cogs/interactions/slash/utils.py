@@ -159,7 +159,7 @@ class SlashUtils(commands.Cog):
     async def support(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer()
         await interaction.followup.send(
-            content="You can contribute to the bot here\nhttps://github.com/pesu-dev/discord-bot"
+            content="You can contribute to the bot here\nhttps://github.com/pesu-dev/discord_bot"
         )
 
     @support.error
@@ -315,7 +315,7 @@ class SlashUtils(commands.Cog):
     @app_commands.command(name="pride", description="Flourishes you with the pride of PESU")
     @app_commands.describe(link="The message link to reply with the pride to")
     async def pride(self, interaction: discord.Interaction, link: str | None = None) -> None:
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer()
         if not isinstance(interaction.channel, discord.TextChannel | discord.Thread):
             await interaction.followup.send(
                 content="This command can only be used in a text channel",
@@ -446,7 +446,7 @@ class SlashUtils(commands.Cog):
         category: str | None = None,
         question: str | None = None,
     ) -> None:
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer()
         data = await self.get_data()
 
         if category and category not in data:

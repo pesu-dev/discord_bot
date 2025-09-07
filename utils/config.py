@@ -83,7 +83,7 @@ class Config:
     def __init__(self, bot: DiscordBot) -> None:
         """Initialize with bot instance."""
         self.bot = bot
-        self.guild_id = int(os.getenv("GUILD_ID", 742796777634153650))
+        self.guild_id = int(os.getenv("GUILD_ID", 742797665301168220))
 
     @property
     def guild(self) -> discord.Guild:

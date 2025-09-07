@@ -68,12 +68,12 @@ This section provides instructions for setting up your development environment t
 1. **Clone the repository (or your fork) and navigate to the project:**
    ```bash
    # Option 1: Clone the main repository
-   git clone https://github.com/pesu-dev/discord-bot.git
-   cd discord-bot
+   git clone https://github.com/pesu-dev/discord_bot.git
+   cd discord_bot
    
    # Option 2: Clone your fork
-   git clone https://github.com/your-github-username/discord-bot.git
-   cd discord-bot
+   git clone https://github.com/your-github-username/discord_bot.git
+   cd discord_bot
    ```
 
 2. **Create and activate a virtual environment:**

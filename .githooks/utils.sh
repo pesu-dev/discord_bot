@@ -31,7 +31,7 @@ print_action() {
 # Check branch naming convention
 check_branch_name() {
     local branch=$(git rev-parse --abbrev-ref HEAD)
-    local branch_regex="^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$|^(main|dev|develop)$"
+    local branch_regex="^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_-]+$|^(main|dev|develop)$"
     
     print_action "Checking branch name: $branch"
     

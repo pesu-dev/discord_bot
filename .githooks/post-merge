@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# Get the repository root directory
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+# Source utilities
+source "$REPO_ROOT/.githooks/utils.sh"
+
+print_info "🔄 Running post-merge checks..."
+echo
+
+if git diff --cached --name-only | grep -q "pyproject.toml\|uv.lock"; then
+    print_action "Detected changes in dependencies. Installing packages"
+    if ! maybe_install_packages; then
+        print_warning "Failed to install dependencies after merge"
+        exit 1
+    fi
+fi
+
+print_success "🎉 Post-merge checks completed!"
+exit 0

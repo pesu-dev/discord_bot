@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from bot import DiscordBot
 import httpx
+import os
 
 
 class RoleSelect(discord.ui.Select):
@@ -396,14 +397,13 @@ class SlashUtils(commands.Cog):
         name="ask", description="Ask a question regarding PESU"
     )
     @app_commands.describe(query="The question that needs to be answered")
-    async def ask(self, interaction: discord.Interaction, query: str | None = None):
+    async def ask(self, interaction: discord.Interaction, query: str):
         await interaction.response.defer()
-        url = "https://pesu-dev-askpesu.hf.space/ask"
+        url = os.getenv("ASKPESU_API")
         payload = {"query": query}
         try:
             async with httpx.AsyncClient(timeout=500) as client:
                 resp = await client.post(url, json=payload)
-                print(resp)
                 if resp.status_code == 200:
                     data = resp.json()
                     answer = data['answer']
@@ -421,7 +421,7 @@ class SlashUtils(commands.Cog):
                         chunks.append(chunk)
 
                     first_embed = discord.Embed(
-                        title=f"{query}",
+                        title=f"{query}".capitalize(),
                         description=chunks[0].strip(),
                         color=discord.Color.orange()
                     )

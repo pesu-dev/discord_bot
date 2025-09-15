@@ -412,7 +412,31 @@ class SlashUtils(commands.Cog):
                 else:
                     await interaction.followup.send(content=f"Request failed with status {resp.status_code}.")
         except Exception as e:
-            await interaction.followup.send(e)
+            await interaction.followup.send(embed=ug.build_unknown_error_embed(e))
+
+    @ask.error
+    async def ask_error(
+        self,
+        interaction: discord.Interaction,
+        error: app_commands.AppCommandError,
+    ) -> None:
+        if isinstance(error, app_commands.CommandInvokeError):
+            if isinstance(error.original, discord.NotFound):
+                await interaction.followup.send(
+                    content="The specified message does not exist or is not in the channel", ephemeral=True
+                )
+            elif isinstance(error.original, discord.HTTPException):
+                await interaction.followup.send(content="Request failed with status 400", ephemeral=True)
+            elif isinstance(error.original, discord.Forbidden):
+                await interaction.followup.send(
+                    content="I do not have permission to reply to that message", ephemeral=True
+                )
+            elif isinstance(error.original, httpx.HTTPStatusError):
+                await interaction.followup.send(content="Request failed with status 400", ephemeral=True)
+            else:
+                await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
+        else:
+            await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
 
     async def fetch_data(self) -> dict:
         headers = {

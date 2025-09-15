@@ -386,19 +386,31 @@ class SlashUtils(commands.Cog):
                     if chunk.strip():
                         chunks.append(chunk)
 
+                    embeds_to_send = []
                     first_embed = discord.Embed(
-                        title=f"{query}".capitalize(), description=chunks[0].strip(), color=discord.Color.orange()
+                        title=f"{query}".capitalize(),
+                        description=chunks[0].strip(),
+                        color=discord.Color.orange(),
+                        timestamp=discord.utils.utcnow(),
                     )
-                    first_embed.set_footer(text="Powered by rowletLLM")
-                    await interaction.edit_original_response(embed=first_embed)
+                    first_embed.set_footer(
+                        text=f"1/{len(chunks)} • Powered by AskPESU • I am an AI bot, and can make mistakes."
+                    )
+                    embeds_to_send.append(first_embed)
 
-                    for c in chunks[1:]:
-                        embed = discord.Embed(description=c.strip(), color=discord.Color.orange())
-                        embed.set_footer(text="Powered by rowletLLM")
-                        await interaction.followup.send(embed=embed)
+                    for i, c in enumerate(chunks[1:]):
+                        embed = discord.Embed(
+                            description=c.strip(), color=discord.Color.orange(), timestamp=discord.utils.utcnow()
+                        )
+                        embed.set_footer(
+                            text=f"{i + 2}/{len(chunks)} • Powered by AskPESU • I am an AI bot, and can make mistakes."
+                        )
+                        embeds_to_send.append(embed)
+
+                    await interaction.followup.send(embeds=embeds_to_send)
 
                 else:
-                    await interaction.edit_original_response(content=f"Request failed with status {resp.status_code}.")
+                    await interaction.followup.send(content=f"Request failed with status {resp.status_code}.")
         except Exception as e:
             await interaction.followup.send(e)
 

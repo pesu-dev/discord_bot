@@ -56,16 +56,25 @@ This section provides instructions for setting up your development environment t
 
 ### Prerequisites
 
+- Linux environment (native Linux or Windows via WSL)
 - Python 3.9 or higher
 - Git
 - MongoDB (local instance or cloud service like MongoDB Atlas)
 - Discord Application with Bot Token
 
+> [!NOTE]
+> Development is supported on Linux only. On Windows, use WSL.
+
 ### Setting Up Your Environment
 
-#### Using pip
+#### Using uv (recommended)
 
-1. **Clone the repository (or your fork) and navigate to the project:**
+1. **Install uv:**
+   ```bash
+   curl -fsSL https://astral.sh/uv/install.sh | sh
+   ```
+
+2. **Clone the repository (or your fork) and navigate to the project:**
    ```bash
    # Option 1: Clone the main repository
    git clone https://github.com/pesu-dev/discord_bot.git
@@ -76,15 +85,15 @@ This section provides instructions for setting up your development environment t
    cd discord_bot
    ```
 
-2. **Create and activate a virtual environment:**
+3. **Install Git hooks (required):**
    ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   .githooks/install.sh
    ```
+   This installs symlinked hooks that run automated checks (Ruff linting, branch name warnings, and commit message validation) on commit/push.
 
-3. **Install dependencies:**
+4. **Install project dependencies from `pyproject.toml`:**
    ```bash
-   pip install -r requirements.txt
+   uv sync
    ```
 
 ### Set Up Environment Variables
@@ -95,21 +104,23 @@ This section provides instructions for setting up your development environment t
    ```
 
 2. **Configure your environment variables:**
-   Open the `.env` file and add the following variables:
+   Open the `.env` file and add the following variables (see `.env.example` for a template):
    ```env
-   GUILD_ID="YOUR_GUILD_ID_HERE"
-   BOT_TOKEN="YOUR_BOT_TOKEN_HERE"
-   MONGO_URI="YOUR_MONGO_URI_HERE"
-   DB_NAME="YOUR_DATABASE_NAME"
-   BOT_PREFIX="YOUR_BOT_PREFIX"
+   MONGO_URI=""
+   DB_NAME=""
+   ASKPESU_API=""
+   BOT_TOKEN=""
+   APP_ENV=""
+   BOT_PREFIX=""
    ```
 
    Replace the placeholder values with your actual credentials:
-   - `GUILD_ID` : Get this by right-clicking on your server icon
-   - `BOT_TOKEN`: Get this from your Discord Application's Bot section
-   - `MONGO_URI`: Your MongoDB connection string
-   - `DB_NAME`: Your database name for development
-   - `BOT_PREFIX` : Your bot prefix (ex: `!`,`@` ..)
+   - `MONGO_URI`: MongoDB connection string
+   - `DB_NAME`: Database name for the bot
+   - `ASKPESU_API`: Base URL for AskPESU API
+   - `BOT_TOKEN`: Discord bot token
+   - `APP_ENV`: Environment name (`dev` or `prod`)
+   - `BOT_PREFIX`: Command prefix for legacy/message commands
 
 ### Database Setup
 
@@ -132,7 +143,7 @@ To run the bot locally for development:
 
 1. **Run the bot:**
    ```bash
-   python3 application.py
+   uv run application.py
    ```
 
 The bot will start and connect to Discord. You should see connection logs in your terminal indicating successful startup.
@@ -163,6 +174,22 @@ git commit -m "Add new moderation command for timeout management"
 ```
 
 Use descriptive commit messages that explain what the change does.
+
+#### Commit message convention
+
+We follow a lightweight Conventional Commits style for commit subjects. The hooks will warn if the format is not followed.
+
+- Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`, `ci`, `build`, `revert`
+- Format: `type: short description`
+- Constraints: minimum 10 characters total; description up to 50 characters
+
+Examples:
+
+```text
+feat: add user authentication
+fix: handle None guild_id in moderation log
+docs: update setup instructions to use uv
+```
 
 ### 📤 Push and Open a Pull Request
 

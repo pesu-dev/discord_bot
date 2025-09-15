@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 import discord
@@ -359,6 +360,47 @@ class SlashUtils(commands.Cog):
                 await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
         else:
             await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
+
+    @app_commands.command(name="ask", description="Ask a question regarding PESU")
+    @app_commands.describe(query="The question that needs to be answered")
+    async def ask(self, interaction: discord.Interaction, query: str) -> None:
+        await interaction.response.defer()
+        url = os.getenv("ASKPESU_API")
+        payload = {"query": query}
+        try:
+            async with httpx.AsyncClient(timeout=500) as client:
+                resp = await client.post(url, json=payload)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    answer = data["answer"]
+                    lines = answer.split("\n")
+                    chunk = ""
+                    chunks = []
+                    for line in lines:
+                        if len(chunk) + len(line) + 1 > 2000:
+                            chunks.append(chunk)
+                            chunk = ""
+
+                        chunk += line + "\n"
+
+                    if chunk.strip():
+                        chunks.append(chunk)
+
+                    first_embed = discord.Embed(
+                        title=f"{query}".capitalize(), description=chunks[0].strip(), color=discord.Color.orange()
+                    )
+                    first_embed.set_footer(text="Powered by rowletLLM")
+                    await interaction.edit_original_response(embed=first_embed)
+
+                    for c in chunks[1:]:
+                        embed = discord.Embed(description=c.strip(), color=discord.Color.orange())
+                        embed.set_footer(text="Powered by rowletLLM")
+                        await interaction.followup.send(embed=embed)
+
+                else:
+                    await interaction.edit_original_response(content=f"Request failed with status {resp.status_code}.")
+        except Exception as e:
+            await interaction.followup.send(e)
 
     async def fetch_data(self) -> dict:
         headers = {

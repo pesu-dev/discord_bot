@@ -1,8 +1,8 @@
 # PESU Discord Bot
 
-[![License](https://img.shields.io/github/license/pesu-dev/discord-bot)](https://github.com/pesu-dev/discord-bot/blob/main/LICENSE)
-[![Contributors](https://img.shields.io/github/contributors/pesu-dev/discord-bot)](https://github.com/pesu-dev/discord-bot/graphs/contributors)
-[![Issues](https://img.shields.io/github/issues/pesu-dev/discord-bot)](https://github.com/pesu-dev/discord-bot/issues)
+[![License](https://img.shields.io/github/license/pesu-dev/discord_bot)](https://github.com/pesu-dev/discord_bot/blob/main/LICENSE)
+[![Contributors](https://img.shields.io/github/contributors/pesu-dev/discord_bot)](https://github.com/pesu-dev/discord_bot/graphs/contributors)
+[![Issues](https://img.shields.io/github/issues/pesu-dev/discord_bot)](https://github.com/pesu-dev/discord_bot/issues)
 [![Project Board](https://img.shields.io/badge/project-board-blue)](https://github.com/orgs/pesu-dev/projects/4/views/8)
 
 A powerful community management bot designed specifically for the PESU Discord Server. This bot provides essential moderation tools, anonymous messaging capabilities, user linking systems, and various utility commands to enhance the Discord experience for PESU students.
@@ -37,23 +37,29 @@ For detailed development setup and contribution instructions, see our [Contribut
 ### Project Structure
 
 ```
-├── application.py          # Main application entry point
-├── bot.py                 # Bot class definition with MongoDB integration
-├── config.json           # Guild and role configurations
-├── faq.json             # FAQ responses data
-├── requirements.txt     # Python dependencies
-├── cogs/               # Bot functionality modules (Discord.py cogs)
-│   ├── events/         # Event handlers
-│   │   └── general.py  # General event handling (member joins, etc.)
-│   └── interactions/   # Command interactions
-│       └── slash/      # Slash commands implementation
-│           ├── anon.py    # Anonymous messaging system
-│           ├── help.py    # Help and command documentation
+├── application.py          # Main application entry point (loads cogs, sets presence)
+├── bot.py                  # Discord bot subclass with MongoDB attributes
+├── faq.json                # FAQ responses data
+├── requirements.txt        # Python dependencies (for non-uv users)
+├── pyproject.toml          # Project metadata and tooling config
+├── uv.lock                 # uv lockfile
+├── Dockerfile              # Container image definition
+├── docker-compose.yml      # Local compose for services
+├── LICENSE                 # Project license
+├── README.md               # This file
+├── cogs/                   # Bot functionality modules (Discord.py cogs)
+│   ├── events/             # Event handlers
+│   │   └── general.py      # General event handling (member joins, etc.)
+│   └── interactions/       # Command interactions
+│       └── slash/          # Slash commands implementation
+│           ├── anon.py     # Anonymous messaging system
+│           ├── help.py     # Help and command documentation
 │           ├── link.py     # User linking and verification
-│           ├── mod.py     # Moderation commands
-│           └── utils.py   # Utility commands (ping, uptime, etc.)
-└── utils/              # Shared utility functions
-    └── general.py      # General helper functions
+│           ├── mod.py      # Moderation commands
+│           └── utils.py    # Utility commands (ping, uptime, etc.)
+└── utils/                  # Shared utilities and configuration helpers
+    ├── config.py           # Guild/role/channel IDs and access helpers
+    └── general.py          # General helper functions
 ```
 
 ### Cogs System
@@ -74,13 +80,12 @@ The bot maintains several MongoDB collections:
 
 ##  Configuration
 
-The bot's behavior is controlled through several configuration files:
+The bot's behavior is controlled primarily through environment variables and code-based configuration:
 
-### `config.json`
-Contains Discord server-specific configurations:
-- Guild ID and role mappings
-- Branch-specific role assignments
-- Permission levels for different user types
+Refer to our Contributing Guide for environment setup and the list of variables: [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md). An example file is provided at [`.env.example`](.env.example).
+
+### `utils/config.py`
+Holds guild-specific role and channel ID mappings and exposes helpers like `get_role`/`get_channel`.
 
 ### `faq.json`
 Stores frequently asked questions and their responses for quick access.
@@ -89,7 +94,7 @@ Stores frequently asked questions and their responses for quick access.
 
 Made with ❤️ by
 
-[![Contributors](https://contrib.rocks/image?repo=pesu-dev/discord-bot&nocache=1)](https://github.com/pesu-dev/discord-bot/graphs/contributors)
+[![Contributors](https://contrib.rocks/image?repo=pesu-dev/discord_bot&nocache=1)](https://github.com/pesu-dev/discord_bot/graphs/contributors)
 
 *Powered by [contrib.rocks](https://contrib.rocks)*
 

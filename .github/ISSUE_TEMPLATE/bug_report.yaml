@@ -1,5 +1,5 @@
 name: 🐛 Bug Report
-description: Report an issue with the discord-bot
+description: Report an issue with the bot
 labels: ["bug"]
 body:
   - type: markdown

@@ -1,0 +1,33 @@
+name: Lint
+
+on:
+    pull_request:
+      branches:
+        - "dev"
+    merge_group:
+      types:
+        - checks_requested
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Run Ruff Lint
+        run: |
+          ruff check . --output-format=github
+
+      - name: Run Ruff Format Check
+        run: |
+          ruff format . --check

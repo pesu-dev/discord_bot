@@ -1,11 +1,13 @@
 import discord
-import utils.general as ug
-from discord.ext import commands
 from discord import app_commands
+from discord.ext import commands
+
+import utils.general as ug
+from bot import DiscordBot
 
 
 class HelpEmbeds:
-    def __init__(self):
+    def __init__(self) -> None:
         self.anon = [
             discord.Embed(
                 title="PESU Bot",
@@ -14,9 +16,7 @@ class HelpEmbeds:
                 timestamp=discord.utils.utcnow(),
             )
             .add_field(name="Send an Anon Message", value="`/anon`", inline=False)
-            .add_field(
-                name="Ban User from an Anon Message", value="`/bananon`", inline=False
-            )
+            .add_field(name="Ban User from an Anon Message", value="`/bananon`", inline=False)
             .add_field(name="Ban a User", value="`/userbananon`", inline=False),
             discord.Embed(
                 title="PESU Bot",
@@ -25,9 +25,7 @@ class HelpEmbeds:
                 timestamp=discord.utils.utcnow(),
             )
             .add_field(name="Unban a User", value="`/userunbananon`", inline=False)
-            .add_field(
-                name="Get Ban Info of a User", value="`/anonbaninfo`", inline=False
-            ),
+            .add_field(name="Get Ban Info of a User", value="`/anonbaninfo`", inline=False),
         ]
 
         self.utils = [
@@ -106,14 +104,12 @@ class HelpEmbeds:
             .add_field(name="De-link a User", value="`/delink`", inline=False)
         ]
 
-    def get_embeds(self, category: str):
+    def get_embeds(self, category: str) -> list[discord.Embed]:
         return getattr(self, category.lower(), self.anon)
 
 
 class HelpView(discord.ui.View):
-    def __init__(
-        self, interaction: discord.Interaction, category: str = "anon", page: int = 0
-    ):
+    def __init__(self, interaction: discord.Interaction, category: str = "anon", page: int = 0) -> None:
         super().__init__(timeout=60)
         self.interaction = interaction
         self.category = category.lower()
@@ -122,21 +118,21 @@ class HelpView(discord.ui.View):
         self.embeds = HelpEmbeds().get_embeds(self.category)
         self.update_buttons()
 
-    def update_buttons(self):
+    def update_buttons(self) -> None:
         self.clear_items()
         self.add_item(HelpSelect(self.category))
         self.add_item(PrevButton(self))
         self.add_item(NextButton(self))
 
-    def get_embed(self):
+    def get_embed(self) -> discord.Embed:
         embed = self.embeds[self.page]
         total_pages = len(self.embeds)
         embed.set_footer(text=f"PESU Bot | Page {self.page + 1}/{total_pages}")
         return embed
 
-    async def on_timeout(self):
+    async def on_timeout(self) -> None:
         for item in self.children:
-            if isinstance(item, (discord.ui.Button, discord.ui.Select)):
+            if isinstance(item, discord.ui.Button | discord.ui.Select):
                 item.disabled = True
 
         if self.message:
@@ -147,7 +143,7 @@ class HelpView(discord.ui.View):
 
 
 class HelpSelect(discord.ui.Select):
-    def __init__(self, current_category: str):
+    def __init__(self, current_category: str) -> None:
         options = [
             discord.SelectOption(label="Anonymous Commands", value="anon", emoji="🖖"),
             discord.SelectOption(label="Utility Commands", value="utils", emoji="⚙️"),
@@ -157,7 +153,7 @@ class HelpSelect(discord.ui.Select):
         super().__init__(placeholder="Select category", options=options)
         self.current_category = current_category
 
-    async def callback(self, interaction: discord.Interaction):
+    async def callback(self, interaction: discord.Interaction) -> None:
         if not isinstance(self.view, HelpView):
             return
 
@@ -165,59 +161,50 @@ class HelpSelect(discord.ui.Select):
         self.view.page = 0
         self.view.embeds = HelpEmbeds().get_embeds(self.view.category)
         self.view.update_buttons()
-        await interaction.response.edit_message(
-            embed=self.view.get_embed(), view=self.view
-        )
+        await interaction.response.edit_message(embed=self.view.get_embed(), view=self.view)
 
 
 class PrevButton(discord.ui.Button):
-    def __init__(self, view: HelpView):
+    def __init__(self, view: HelpView) -> None:
         super().__init__(emoji="⬅️", style=discord.ButtonStyle.primary)
         self.view_ref = view
         self.disabled = view.page == 0
 
-    async def callback(self, interaction: discord.Interaction):
+    async def callback(self, interaction: discord.Interaction) -> None:
         if self.view_ref.page > 0:
             self.view_ref.page -= 1
             self.view_ref.update_buttons()
-            await interaction.response.edit_message(
-                embed=self.view_ref.get_embed(), view=self.view_ref
-            )
+            await interaction.response.edit_message(embed=self.view_ref.get_embed(), view=self.view_ref)
 
 
 class NextButton(discord.ui.Button):
-    def __init__(self, view: HelpView):
+    def __init__(self, view: HelpView) -> None:
         super().__init__(emoji="➡️", style=discord.ButtonStyle.primary)
         self.view_ref = view
         self.disabled = view.page >= len(view.embeds) - 1
 
-    async def callback(self, interaction: discord.Interaction):
+    async def callback(self, interaction: discord.Interaction) -> None:
         if self.view_ref.page < len(self.view_ref.embeds) - 1:
             self.view_ref.page += 1
             self.view_ref.update_buttons()
-            await interaction.response.edit_message(
-                embed=self.view_ref.get_embed(), view=self.view_ref
-            )
+            await interaction.response.edit_message(embed=self.view_ref.get_embed(), view=self.view_ref)
 
 
 class SlashHelp(commands.Cog):
-    def __init__(self, client: commands.Bot):
+    def __init__(self, client: DiscordBot) -> None:
         self.client = client
 
     @app_commands.command(name="help", description="Show the bot's help menu")
-    async def help_command(self, interaction: discord.Interaction):
+    async def help_command(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer()
 
         if not isinstance(interaction.user, discord.Member):
-            return await interaction.followup.send(
-                "This command can only be used in a server", ephemeral=True
-            )
-        if any(
-            role.id == ug.load_role_id("JUST_JOINED") for role in interaction.user.roles
-        ):
+            await interaction.followup.send(content="This command can only be used in a server", ephemeral=True)
+            return
+        if any(role.id == self.client.config.just_joined_role.id for role in interaction.user.roles):
             embed = discord.Embed(
                 title="PESU Bot",
-                description=f"Visit <#{ug.load_channel_id('WELCOME')}> to link first!",
+                description=f"Visit {self.client.config.get_channel('WELCOME').mention} to link first!",
                 color=discord.Color.red(),
                 timestamp=discord.utils.utcnow(),
             )
@@ -231,14 +218,12 @@ class SlashHelp(commands.Cog):
         view.message = message
 
     @help_command.error
-    async def help_command_error(
-        self, interaction: discord.Interaction, error: app_commands.AppCommandError
-    ):
+    async def help_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
         await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
 
 
-async def setup(client: commands.Bot):
+async def setup(client: DiscordBot) -> None:
     await client.add_cog(
         SlashHelp(client),
-        guild=discord.Object(id=ug.load_config_value("GUILD", {}).get("ID")),
+        guild=client.config.guild,
     )

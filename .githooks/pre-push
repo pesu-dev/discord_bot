@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Get the repository root directory
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+# Source utilities
+source "$REPO_ROOT/.githooks/utils.sh"
+
+print_info "🚀 Running pre-push checks..."
+echo
+
+# Check branch naming (warning only)
+check_branch_name
+echo
+
+print_success "🎉 All pre-push checks passed!"
+exit 0

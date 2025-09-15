@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# Get the repository root directory
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+# Source utilities
+source "$REPO_ROOT/.githooks/utils.sh"
+
+# Get commit message from file
+commit_msg_file="$1"
+commit_msg=$(cat "$commit_msg_file")
+
+print_info "📝 Validating commit message..."
+echo
+
+# Validate commit message
+if ! validate_commit_message "$commit_msg"; then
+    print_error "Commit message validation failed"
+    exit 1
+fi
+echo
+
+print_success "✅ Commit message validated!"
+exit 0

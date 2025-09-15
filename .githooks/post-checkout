@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Get the repository root directory
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+# Source utilities
+source "$REPO_ROOT/.githooks/utils.sh"
+
+# Get parameters: previous HEAD, new HEAD, branch checkout flag
+prev_head=$1
+new_head=$2
+branch_checkout=$3
+
+# Only run on branch checkout (not file checkout)
+if [ "$branch_checkout" = "1" ]; then
+    print_info "🔄 Running post-checkout checks..."
+    echo
+    
+    # Check if pyproject.toml or lockfile changed between branches
+    if git diff --name-only "$prev_head" "$new_head" | grep -q "pyproject.toml\|uv.lock"; then
+        print_action "Detected changes in dependencies. Installing packages"
+        if ! maybe_install_packages; then
+            print_warning "Failed to install dependencies after checkout"
+        fi
+    fi
+    echo
+
+    print_success "🎉 Post-checkout checks completed!"
+fi
+
+exit 0

@@ -1,5 +1,5 @@
 [project]
-name = "pesu-discord-bot"
+name = "pesu_discord_bot"
 version = "0.1.0"
 description = "Community management Discord Bot for PESU Discord server"
 readme = "README.md"
@@ -12,7 +12,7 @@ license-files = [
     "LICENSE"
 ]
 dependencies = [
-    "discord-py==2.6.1",
+    "discord-py==2.6.3",
     "httpx==0.28.1",
     "pymongo==4.13.2",
     "python-dotenv==1.1.0",
@@ -24,14 +24,14 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/pesu-dev/discord-bot"
-Repository = "https://github.com/pesu-dev/discord-bot"
-Issues = "https://github.com/pesu-dev/discord-bot/issues"
+Homepage = "https://github.com/pesu-dev/discord_bot"
+Repository = "https://github.com/pesu-dev/discord_bot"
+Issues = "https://github.com/pesu-dev/discord_bot/issues"
 "Project Board" = "https://github.com/orgs/pesu-dev/projects/4/"
 
 [tool.ruff]
 target-version = "py313"
-line-length = 80
+line-length = 120
 exclude = [".venv", "__pycache__"]
 
 [tool.ruff.lint]

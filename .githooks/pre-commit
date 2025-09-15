@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# Get the repository root directory
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+# Source utilities
+source "$REPO_ROOT/.githooks/utils.sh"
+
+print_info "🚀 Running pre-commit checks..."
+echo
+
+# Run quality checks (blocking)
+if ! run_quality_checks; then
+    print_error "Quality checks failed. Commit aborted."
+    exit 1
+fi
+echo
+
+print_success "🎉 All pre-commit checks passed!"
+exit 0

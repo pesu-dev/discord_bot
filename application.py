@@ -1,29 +1,18 @@
 import os
 import time
-import json
 from pathlib import Path
-from dotenv import load_dotenv
+
 import discord
 from discord import Intents
 from discord.app_commands import CommandTree
+from dotenv import load_dotenv
 from pymongo import AsyncMongoClient
+
 from bot import DiscordBot
-from utils import general as ug
+from utils.config import Config
 
 load_dotenv()
 
-new_guild_id = os.getenv("GUILD_ID")
-
-with open("config.json", "r") as f:
-    config = json.load(f)
-
-if new_guild_id is not None and new_guild_id != "":
-    config["GUILD"]["ID"] = int(new_guild_id) 
-    with open("config.json", "w") as f:
-        json.dump(config, f, indent=4)
-    print("Updated GUILD_ID with new value from .env")
-else:
-    print("Using GUILD_ID from config without any changes")
 
 bot_prefix = os.getenv("BOT_PREFIX")
 
@@ -51,11 +40,15 @@ except Exception as e:
 
 
 @client.event
-async def on_ready():
+async def on_ready() -> None:
     client.startTime = time.time()
     if client.user:
         client.logger.info(f"Logged in as {client.user.name} ({client.user.id})")
     client.logger.info(connection)
+
+    # Initialize the config instance after bot is ready
+    client.config = Config(client)
+    client.logger.info("Config initialized")
 
     # Clear all commands
     # await clear_all_commands(client=client)
@@ -83,15 +76,14 @@ async def on_ready():
         )
     )
     client.logger.info("Set status")
-
     client.logger.info("Bot is ready")
 
+    await client.config.bot_logs_channel.send("Bot is online")
 
-async def clear_all_commands(client: DiscordBot):
+
+async def clear_all_commands(client: DiscordBot) -> None:
     """Clear all guild commands"""
-    guild_config = ug.load_config_value("GUILD", {})
-    guild_id = guild_config.get("ID")
-    guild = client.get_guild(guild_id)
+    guild = client.config.guild
     try:
         # Clear all guild commands
         client.tree.clear_commands(guild=guild)
@@ -101,22 +93,14 @@ async def clear_all_commands(client: DiscordBot):
         client.logger.error(f"Failed to clear guild commands: {e}")
 
 
-async def sync_all_commands(client: DiscordBot):
+async def sync_all_commands(client: DiscordBot) -> None:
     """Sync all commands to the guild"""
-    guild_config = ug.load_config_value("GUILD", {})
-    guild_id = guild_config.get("ID")
-    if guild_id:
-        guild = client.get_guild(guild_id)
-        if guild:
-            try:
-                await client.tree.sync(guild=guild)
-                client.logger.info("Synced all commands to the guild")
-            except Exception as e:
-                client.logger.error(f"Failed to sync commands: {e}")
-        else:
-            client.logger.warning(f"Guild with ID {guild_id} not found")
-    else:
-        client.logger.warning("No guild ID found in config, skipping command sync")
+    guild = client.config.guild
+    try:
+        await client.tree.sync(guild=guild)
+        client.logger.info("Synced all commands to the guild")
+    except Exception as e:
+        client.logger.error(f"Failed to sync commands: {e}")
 
 
 bot_token = os.getenv("BOT_TOKEN")

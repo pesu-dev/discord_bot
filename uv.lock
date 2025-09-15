@@ -146,15 +146,15 @@ wheels = [
 
 [[package]]
 name = "discord-py"
-version = "2.6.1"
+version = "2.6.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "audioop-lts" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6f/77/c7d141d1c61f2c6b0d8e13851e3aab9d07611a8a6a8ddf9cb9c331589ebe/discord_py-2.6.1.tar.gz", hash = "sha256:0a30c9e4bc84d050183c5c214fd9fb2ccfaa4875f00f632629daa9e81c6acde2", size = 1091983, upload-time = "2025-08-24T13:54:54.816Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6f/00/ec765ba7d5e16dfc070953a992379c8de8489164f9e006f7ebd8870b426f/discord_py-2.6.3.tar.gz", hash = "sha256:92bb3ef9dbe08525803be1e357bc0191f59ae16956690fc96c34f40bcd02c649", size = 1092075, upload-time = "2025-08-31T19:30:23.476Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/28/e6/0aeb25a35c95ad221ebd6de19f5409fa5bdbcaaf252a36698417a531d01e/discord_py-2.6.1-py3-none-any.whl", hash = "sha256:afd91423170adc25b06871b33938ce5f858d20a8b0ca1a614cfd65fa7a74da6c", size = 1208905, upload-time = "2025-08-24T13:54:50.385Z" },
+    { url = "https://files.pythonhosted.org/packages/fd/4e/05fcecd452bde37fba8e9545c318099cbb8bad7f496b6d9322fa2b88f92f/discord_py-2.6.3-py3-none-any.whl", hash = "sha256:69835269d73d9889a2f0efff4c91264a18998db0fdc4295a3c886fe9196dea4e", size = 1208828, upload-time = "2025-08-31T19:30:21.48Z" },
 ]
 
 [[package]]
@@ -318,7 +318,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "discord-py", specifier = "==2.6.1" },
+    { name = "discord-py", specifier = "==2.6.3" },
     { name = "httpx", specifier = "==0.28.1" },
     { name = "pymongo", specifier = "==4.13.2" },
     { name = "python-dotenv", specifier = "==1.1.0" },

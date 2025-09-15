@@ -1,15 +1,11 @@
 ## 📌 Description
 
-Summarize what this PR does:
+<!-- Summarize what this PR does:
 
 - What is the purpose of these changes?
 - What problem does it solve, or what feature does it add?
 - Brief background or context (if relevant).
-
-> ℹ️ **Fixes / Related Issues**
-> Fixes: `#123`
-> Related: `#456`
-
+ -->
 ---
 
 ## 🧱 Type of Change
@@ -19,7 +15,7 @@ Summarize what this PR does:
 - [ ] ⚠️ Breaking change – Backward-incompatible change (commands, bot behavior, etc.)
 - [ ] 📝 Documentation update – README, comments, help text, etc.
 - [ ] 🧪 Test suite change – Adds/updates unit, integration, or manual tests
-- [ ] ⚙️ CI/CD pipeline update – GitHub Actions, Docker, pre-commit, etc.
+- [ ] ⚙️ CI/CD pipeline update – GitHub Actions, Docker, Git hooks, etc.
 - [ ] 🧹 Refactor – Code cleanup, improvements, or style changes
 - [ ] 🐢 Performance improvement – Faster command responses or reduced resource use
 - [ ] 🕵️ Logging/debugging – Improved diagnostics, logs, or debug output
@@ -34,12 +30,12 @@ Summarize what this PR does:
 - [ ] Unit Tests (`tests/unit/`)
 - [ ] Integration Tests (`tests/integration/`)
 - [ ] Manual testing in Discord
-- [ ] CI / pre-commit run
+- [ ] CI
 
 > **Test Environment:**
 > - OS: (e.g., `Linux`)
 > - Python: (e.g., `3.12`)
-> - Discord.py version: (e.g., `2.3.2`)
+> - Discord.py version: (e.g., `2.6.3`)
 > - [ ] Docker build tested
 
 ---
@@ -53,9 +49,8 @@ Summarize what this PR does:
 - [ ] No new warnings or errors introduced
 - [ ] Added/updated tests
 - [ ] All tests pass locally
-- [ ] Ran linting and formatting (`pre-commit run --all-files`)
+- [ ] Ran linting and formatting
 - [ ] Docker image builds and runs
-- [ ] Did not change `config.json` (unless with explicit permission)
 - [ ] Changes are backwards compatible (if applicable)
 - [ ] Feature flags or `.env` vars updated (if applicable)
 - [ ] Tested in multiple environments (if applicable)
@@ -70,9 +65,9 @@ Summarize what this PR does:
 - [ ] Database/Storage
 - [ ] Discord API/Integrations
 - [ ] Bot startup/shutdown
-- [ ] CI / pre-commit
+- [ ] CI / Git hooks
 - [ ] Dockerfile / build
-- [ ] Dependencies (`requirements.txt`)
+- [ ] Dependencies (`pyproject.toml`)
 - [ ] Tooling/scripts
 - [ ] Other (specify in Additional Notes)
 

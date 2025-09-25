@@ -87,7 +87,9 @@ class Events(commands.Cog):
         just_joined = self.client.config.just_joined_role
         await bot_logs.send(f"{member.mention} Joined!!")
 
-        link_record = await self.client.link_collection.find_one({"userId": str(member.id)})
+        link_record = await self.client.link_collection.find_one(
+            {"userId": str(member.id)}
+        )
         roles_to_add = [just_joined]
         should_delete_link = bool(link_record and not link_record.get("linkedAt"))
 
@@ -146,9 +148,195 @@ class Events(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message_delete(self, message: discord.Message) -> None:
-        if message.author.bot:
+        if message.author.bot and message.author.id != self.client.user.id:
+            # Only process if it's an anon message
+            if not (message.embeds and message.embeds[0].title == "Anon Message"):
+                return
+            # Ignore all other bots
             return
 
+        print("Testing......")
+
+        # Check if this is a reply to an anon message
+        if message.reference and message.reference.message_id:
+            await self._handle_anon_reply_deletion(message)
+
+        # Handle ghost ping detection
+        await self._handle_ghost_ping_detection(message)
+
+    async def _handle_anon_reply_deletion(self, message: discord.Message) -> None:
+        """Handle deletion of replies to anon messages."""
+        try:
+            replied_message = await message.channel.fetch_message(message.reference.message_id)
+
+            if not self._is_anon_message(replied_message):
+                return
+
+            original_sender_id = await self._find_original_anon_sender(replied_message)
+            if not original_sender_id:
+                return
+
+            current_sender_id = await self._get_current_message_sender_id(message)
+
+            # If we found the original sender and they're different from current sender
+            if original_sender_id != current_sender_id:
+                await self._notify_original_sender(message, original_sender_id, current_sender_id)
+
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            # Could not fetch the replied message
+            pass
+
+    def _is_anon_message(self, message: discord.Message) -> bool:
+        """Check if a message is an anon message."""
+        return (message.author == self.client.user and
+                message.embeds and
+                message.embeds[0].title == "Anon Message")
+
+    async def _find_original_anon_sender(self, replied_message: discord.Message) -> str | None:
+        """Find the original sender of an anon message."""
+        anon_cog = self.client.get_cog("SlashAnon")
+        if not (anon_cog and hasattr(anon_cog, "anon_cache")):
+            return None
+
+        for user_id, messages in anon_cog.anon_cache.items():
+            if any(str(replied_message.id) == msg["message_id"] for msg in messages):
+                return user_id
+        return None
+
+    async def _get_current_message_sender_id(self, message: discord.Message) -> str | None:
+        """Get the sender ID of the current message if it's anon."""
+        is_current_anon = self._is_anon_message(message)
+        print(f"is_current_anon: {is_current_anon}")
+
+        if not is_current_anon:
+            return None
+
+        anon_cog = self.client.get_cog("SlashAnon")
+        if not (anon_cog and hasattr(anon_cog, "anon_cache")):
+            return None
+
+        for user_id, messages in anon_cog.anon_cache.items():
+            if any(str(message.id) == msg["message_id"] for msg in messages):
+                return user_id
+        return None
+
+    async def _notify_original_sender(
+        self,
+        message: discord.Message,
+        original_sender_id: str,
+        current_sender_id: str | None
+    ) -> None:
+        """Notify the original anon sender about a reply."""
+        try:
+            original_sender = await self.client.fetch_user(int(original_sender_id))
+            if not original_sender:
+                return
+
+            if not await self._should_notify_user(original_sender_id):
+                return
+
+            is_current_anon = current_sender_id is not None
+            reply_type = "anon user" if is_current_anon else message.author.display_name
+            print(f"reply_type: {reply_type}")
+
+            embed = self._create_reply_notification_embed(message, reply_type, is_current_anon)
+            view = await self._create_notification_toggle_view(original_sender)
+
+            await original_sender.send(embed=embed, view=view)
+
+        except (discord.Forbidden, discord.HTTPException, discord.NotFound):
+            # Could not send DM to user
+            pass
+
+    async def _should_notify_user(self, user_id: str) -> bool:
+        """Check if user should receive notifications."""
+        link_record = await self.client.link_collection.find_one({"userId": user_id})
+        return not link_record or link_record.get("anon_notifications", True)
+
+    def _create_reply_notification_embed(
+        self,
+        message: discord.Message,
+        reply_type: str,
+        is_current_anon: bool
+    ) -> discord.Embed:
+        """Create the notification embed for reply notifications."""
+        description = (
+            f"An {reply_type} replied to your anon message"
+            if is_current_anon
+            else f"{reply_type} replied to your anon message"
+        )
+
+        embed = discord.Embed(
+            title="Reply to Your Anon Message",
+            description=description,
+            color=discord.Color.blue()
+        )
+        embed.add_field(
+            name="Jump to Reply",
+            value=f"[Click here to view the reply]({message.jump_url})",
+            inline=False
+        )
+        embed.set_footer(text="PESU Bot")
+        embed.timestamp = discord.utils.utcnow()
+        return embed
+
+    async def _create_notification_toggle_view(self, original_sender: discord.User) -> discord.ui.View:
+        """Create the view with notification toggle button."""
+        link_record = await self.client.link_collection.find_one({"userId": str(original_sender.id)})
+        is_subscribed = link_record.get("anon_notifications", True) if link_record else True
+
+        print(f"link_record: {link_record}")
+        print(f"is_subscribed: {is_subscribed}")
+        print(f"Button label: {'Unsubscribe from notifications' if is_subscribed else 'Subscribe to notifications'}")
+
+        view = discord.ui.View()
+        toggle_button = discord.ui.Button(
+            label="Unsubscribe from notifications" if is_subscribed else "Subscribe to notifications",
+            style=discord.ButtonStyle.secondary if is_subscribed else discord.ButtonStyle.primary,
+            custom_id=f"toggle_anon_notifications_{original_sender.id}",
+        )
+
+        async def toggle_callback(interaction: discord.Interaction) -> None:
+            await self._handle_notification_toggle(interaction, original_sender)
+
+        toggle_button.callback = toggle_callback
+        view.add_item(toggle_button)
+        return view
+
+    async def _handle_notification_toggle(
+        self,
+        interaction: discord.Interaction,
+        original_sender: discord.User
+    ) -> None:
+        """Handle the notification toggle button callback."""
+        if interaction.user.id != original_sender.id:
+            return
+
+        # Check current status
+        current_record = await self.client.db["anon_notifications"].find_one(
+            {"userId": str(original_sender.id)}
+        )
+
+        currently_subscribed = not (current_record and not current_record.get("subscribed"))
+
+        # Toggle status
+        new_status = not currently_subscribed
+        await self.client.link_collection.update_one(
+            {"userId": str(original_sender.id)},
+            {"$set": {"anon_notifications": new_status}},
+        )
+
+        message = (
+            "✅ You have been subscribed to anon reply notifications."
+            if new_status
+            else "❌ You have been unsubscribed from anon reply notifications."
+        )
+
+        await interaction.response.send_message(message, ephemeral=True)
+        print(f"Toggled subscription for user {original_sender.id} to {new_status}")
+
+    async def _handle_ghost_ping_detection(self, message: discord.Message) -> None:
+        """Handle ghost ping detection for deleted messages."""
         mentions = message.mentions
         role_mentions = message.role_mentions
 

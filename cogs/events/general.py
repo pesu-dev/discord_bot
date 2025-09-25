@@ -87,9 +87,7 @@ class Events(commands.Cog):
         just_joined = self.client.config.just_joined_role
         await bot_logs.send(f"{member.mention} Joined!!")
 
-        link_record = await self.client.link_collection.find_one(
-            {"userId": str(member.id)}
-        )
+        link_record = await self.client.link_collection.find_one({"userId": str(member.id)})
         roles_to_add = [just_joined]
         should_delete_link = bool(link_record and not link_record.get("linkedAt"))
 
@@ -188,9 +186,7 @@ class Events(commands.Cog):
 
     def _is_anon_message(self, message: discord.Message) -> bool:
         """Check if a message is an anon message."""
-        return (message.author == self.client.user and
-                message.embeds and
-                message.embeds[0].title == "Anon Message")
+        return message.author == self.client.user and message.embeds and message.embeds[0].title == "Anon Message"
 
     async def _find_original_anon_sender(self, replied_message: discord.Message) -> str | None:
         """Find the original sender of an anon message."""
@@ -221,10 +217,7 @@ class Events(commands.Cog):
         return None
 
     async def _notify_original_sender(
-        self,
-        message: discord.Message,
-        original_sender_id: str,
-        current_sender_id: str | None
+        self, message: discord.Message, original_sender_id: str, current_sender_id: str | None
     ) -> None:
         """Notify the original anon sender about a reply."""
         try:
@@ -254,10 +247,7 @@ class Events(commands.Cog):
         return not link_record or link_record.get("anon_notifications", True)
 
     def _create_reply_notification_embed(
-        self,
-        message: discord.Message,
-        reply_type: str,
-        is_current_anon: bool
+        self, message: discord.Message, reply_type: str, is_current_anon: bool
     ) -> discord.Embed:
         """Create the notification embed for reply notifications."""
         description = (
@@ -266,16 +256,8 @@ class Events(commands.Cog):
             else f"{reply_type} replied to your anon message"
         )
 
-        embed = discord.Embed(
-            title="Reply to Your Anon Message",
-            description=description,
-            color=discord.Color.blue()
-        )
-        embed.add_field(
-            name="Jump to Reply",
-            value=f"[Click here to view the reply]({message.jump_url})",
-            inline=False
-        )
+        embed = discord.Embed(title="Reply to Your Anon Message", description=description, color=discord.Color.blue())
+        embed.add_field(name="Jump to Reply", value=f"[Click here to view the reply]({message.jump_url})", inline=False)
         embed.set_footer(text="PESU Bot")
         embed.timestamp = discord.utils.utcnow()
         return embed
@@ -304,18 +286,14 @@ class Events(commands.Cog):
         return view
 
     async def _handle_notification_toggle(
-        self,
-        interaction: discord.Interaction,
-        original_sender: discord.User
+        self, interaction: discord.Interaction, original_sender: discord.User
     ) -> None:
         """Handle the notification toggle button callback."""
         if interaction.user.id != original_sender.id:
             return
 
         # Check current status
-        current_record = await self.client.db["anon_notifications"].find_one(
-            {"userId": str(original_sender.id)}
-        )
+        current_record = await self.client.db["anon_notifications"].find_one({"userId": str(original_sender.id)})
 
         currently_subscribed = not (current_record and not current_record.get("subscribed"))
 

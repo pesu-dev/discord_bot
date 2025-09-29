@@ -132,11 +132,11 @@ class Events(commands.Cog):
         """
         # If it's an anon bot message from any bot that's not us, only process if it's an anon message.
         if message.author.bot and message.author.id != self.client.user.id:
-            if not (message.embeds and message.embeds[0].title == "Anon Message"):
+            if not (message.embeds and len(message.embeds) > 0 and message.embeds[0].title == "Anon Message"):
                 return
             # if it is an anon message (bot message with embed), fall through — other handlers may act on it
             # (original logic only continued when it was an anon message)
-            return
+            # return
 
         # Try to handle reply-to-anon flows (separate helper to reduce complexity)
         if message.reference and message.reference.message_id:
@@ -181,9 +181,10 @@ class Events(commands.Cog):
 
     @staticmethod
     def _is_anon_message(msg: discord.Message) -> bool:
-        return msg.author.bot and msg.embeds and msg.embeds[0].title == "Anon Message"
+        return msg.author.bot and msg.embeds and len(msg.embeds) > 0 and msg.embeds[0].title == "Anon Message"
 
     @staticmethod
+    # int and str are both accepted for target_message_id for flexibility
     def _find_sender_id(anon_cog: commands.Cog, target_message_id: int | str) -> str | None:
         for user_id, messages in anon_cog.anon_cache.items():
             if any(str(target_message_id) == msg["message_id"] for msg in messages):
@@ -201,6 +202,14 @@ class Events(commands.Cog):
                     return user_id, True
             return None, True
         return str(message.author.id), False
+
+    async def _get_subscription_status(self, user_id: int) -> bool:
+        """
+        Return whether a user is currently subscribed to anon notifications.
+        Defaults to True if no record exists.
+        """
+        record = await self.client.link_collection.find_one({"userId": str(user_id)})
+        return record.get("anon_notifications", True) if record else True
 
     async def _notify_original_sender(
         self,
@@ -238,7 +247,8 @@ class Events(commands.Cog):
         embed.set_footer(text="PESU Bot")
         embed.timestamp = discord.utils.utcnow()
 
-        is_subscribed = link_record.get("anon_notifications", True) if link_record else True
+        is_subscribed = await self._get_subscription_status(original_sender.id)
+
         view = self._make_toggle_view(original_sender.id, is_subscribed)
 
         try:
@@ -260,8 +270,8 @@ class Events(commands.Cog):
                 await interaction.response.send_message("You can't toggle someone else's subscription.", ephemeral=True)
                 return
 
-            current_record = await self.client.link_collection.find_one({"userId": str(user_id)})
-            currently_subscribed = current_record.get("anon_notifications", True) if current_record else True
+            # current_record = await self.client.link_collection.find_one({"userId": str(user_id)})
+            currently_subscribed = await self._get_subscription_status(user_id)
 
             new_status = not currently_subscribed
             await self.client.link_collection.update_one(

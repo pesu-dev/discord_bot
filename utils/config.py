@@ -73,11 +73,11 @@ class Config:
 
     # Channel IDs
     CHANNELS = {
-        "BOT_LOGS": 1393983999113822399,
-        "MOD_LOGS": 1386770381733630012,
+        "BOT_LOGS": 786084620944146504,
+        "MOD_LOGS": 778678059879890944,
         "NQN_LOGS": 927077979383824484,
         "WELCOME": 742946580285620225,
-        "LOBBY": 1368604372581486634,
+        "LOBBY": 860224115633160203,
     }
 
     def __init__(self, bot: DiscordBot) -> None:

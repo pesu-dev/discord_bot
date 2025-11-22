@@ -532,20 +532,30 @@ class SlashMod(commands.Cog):
         message_link="Delete all messages after this message",
         date="Delete all messages after this date (DD-MM-YYYY)",
     )
-    async def purge(self,interaction: discord.Interaction,amount: int | None = None,message_link: str | None = None,date: str | None = None,) -> None:
+    async def purge(self,
+        interaction: discord.Interaction,
+        amount: int | None = None,
+        message_link: str | None = None,
+        date: str | None = None,
+            ) -> None:
         await interaction.response.defer(ephemeral=True)
         if not isinstance(interaction.user, discord.Member) or not interaction.guild:
-            await interaction.followup.send(content="This command can only be used in a server", ephemeral=True)
+            await interaction.followup.send(
+                content="This command can only be used in a server", 
+                ephemeral=True)
             return
 
         if not isinstance(interaction.channel, discord.TextChannel | discord.Thread):
             await interaction.followup.send(
-                content="This command can only be used in a text channel or thread", ephemeral=True
+                content="This command can only be used in a text channel or thread", 
+                ephemeral=True
             )
             return
 
         if sum(x is not None for x in [amount, message_link, date]) != 1:
-            await interaction.followup.send(content="Please provide exactly one of: `amount`, `message_link`, or `date`.", ephemeral=True)
+            await interaction.followup.send(
+                content="Please provide exactly one of: `amount`, `message_link`, or `date`.", 
+                ephemeral=True)
             return
 
         deleted_messages = []
@@ -553,7 +563,9 @@ class SlashMod(commands.Cog):
 
         if amount:
             if amount < 1 or amount > 100:
-                await interaction.followup.send(content="Please specify a number between 1 and 100", ephemeral=True)
+                await interaction.followup.send(
+                    content="Please specify a number between 1 and 100", 
+                    ephemeral=True)
                 return
             deleted_messages = await interaction.channel.purge(limit=amount)
             log_description = f"deleted {len(deleted_messages)} messages"
@@ -565,7 +577,9 @@ class SlashMod(commands.Cog):
                 deleted_messages = await interaction.channel.purge(after=message)
                 log_description = f"deleted messages after {message_link}"
             except (ValueError, IndexError, discord.NotFound):
-                await interaction.followup.send(content="Invalid message link or message not found in this channel.", ephemeral=True)
+                await interaction.followup.send(
+                    content="Invalid message link or message not found in this channel.", 
+                    ephemeral=True)
                 return
 
         elif date:
@@ -574,7 +588,9 @@ class SlashMod(commands.Cog):
                 deleted_messages = await interaction.channel.purge(after=date_obj)
                 log_description = f"deleted messages since {date}"
             except ValueError:
-                await interaction.followup.send(content="Invalid date format. Please use DD-MM-YYYY.", ephemeral=True)
+                await interaction.followup.send(
+                    content="Invalid date format. Please use DD-MM-YYYY.", 
+                    ephemeral=True)
                 return
 
         await interaction.followup.send(content=f"Deleted {len(deleted_messages)} messages.", ephemeral=True)

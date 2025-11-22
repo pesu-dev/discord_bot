@@ -541,20 +541,20 @@ class SlashMod(commands.Cog):
         await interaction.response.defer(ephemeral=True)
         if not isinstance(interaction.user, discord.Member) or not interaction.guild:
             await interaction.followup.send(
-                content="This command can only be used in a server", 
+                content="This command can only be used in a server",
                 ephemeral=True)
             return
 
         if not isinstance(interaction.channel, discord.TextChannel | discord.Thread):
             await interaction.followup.send(
-                content="This command can only be used in a text channel or thread", 
+                content="This command can only be used in a text channel or thread",
                 ephemeral=True
             )
             return
 
         if sum(x is not None for x in [amount, message_link, date]) != 1:
             await interaction.followup.send(
-                content="Please provide exactly one of: `amount`, `message_link`, or `date`.", 
+                content="Please provide exactly one of: `amount`, `message_link`, or `date`.",
                 ephemeral=True)
             return
 
@@ -564,7 +564,7 @@ class SlashMod(commands.Cog):
         if amount:
             if amount < 1 or amount > 100:
                 await interaction.followup.send(
-                    content="Please specify a number between 1 and 100", 
+                    content="Please specify a number between 1 and 100",
                     ephemeral=True)
                 return
             deleted_messages = await interaction.channel.purge(limit=amount)
@@ -578,7 +578,7 @@ class SlashMod(commands.Cog):
                 log_description = f"deleted messages after {message_link}"
             except (ValueError, IndexError, discord.NotFound):
                 await interaction.followup.send(
-                    content="Invalid message link or message not found in this channel.", 
+                    content="Invalid message link or message not found in this channel.",
                     ephemeral=True)
                 return
 
@@ -589,7 +589,7 @@ class SlashMod(commands.Cog):
                 log_description = f"deleted messages since {date}"
             except ValueError:
                 await interaction.followup.send(
-                    content="Invalid date format. Please use DD-MM-YYYY.", 
+                    content="Invalid date format. Please use DD-MM-YYYY.",
                     ephemeral=True)
                 return
 

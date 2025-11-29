@@ -201,6 +201,78 @@ class SlashMod(commands.Cog):
         else:
             await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
 
+    @app_commands.command(name="ban", description="Ban a member from the server")
+    @app_commands.describe(member="The member to ban", reason="Reason for the ban")
+    async def ban(
+        self,
+        interaction: discord.Interaction,
+        member: discord.Member,
+        reason: str = "No reason provided",
+            ) -> None:
+        await interaction.response.defer(ephemeral=False)
+
+        if not isinstance(interaction.user, discord.Member) or not interaction.guild:
+            await interaction.followup.send(
+                content="This command can only be used in a server.",
+                ephemeral=True,
+            )
+            return
+
+        if not self.client.config.has_mod_permissions(interaction.user):
+            await interaction.followup.send(content="Noob you can't do that", ephemeral=True)
+            return
+
+        if member.bot:
+            await interaction.followup.send(
+                content="You dare ban one of my brothers you little twat",
+                ephemeral=True,
+            )
+            return
+
+        if self.client.config.has_mod_permissions(member):
+            await interaction.followup.send(content="Gomma you can't ban admin/mod")
+            return
+
+        try:
+            await member.send(content=f"You have been banned from **{interaction.guild.name}**\nReason: {reason}")
+        except (discord.Forbidden, discord.HTTPException):
+            pass
+
+        # opinion needed!
+        await member.ban(reason=f"Banned by {interaction.user} | {reason}", delete_message_seconds=1440)
+        
+        embed = discord.Embed(
+            title="Member Banned",
+            color=discord.Color.red(),
+            description=(f"{member.mention} was banned by {interaction.user.mention}\n**Reason:** {reason}"),
+            timestamp=discord.utils.utcnow(),
+        )
+        embed.set_footer(text="PESU Bot")
+        await interaction.followup.send(embed=embed)
+        mod_logs_channel = self.client.config.mod_logs_channel
+        await mod_logs_channel.send(embed=embed)
+
+    @ban.error
+    async def ban_error(
+        self,
+        interaction: discord.Interaction,
+        error: app_commands.AppCommandError,
+    ) -> None:
+        if isinstance(error, app_commands.CommandInvokeError):
+            original = error.original
+
+            if isinstance(original, discord.NotFound):
+                await interaction.followup.send(
+                    content="This user doesn't even exist here, whom are you trying to ban?",
+                    ephemeral=True,
+                )
+            elif isinstance(original, discord.Forbidden):
+                await interaction.followup.send(content="I am unable to ban this user at this time", ephemeral=True)
+            else:
+                await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
+        else:
+            await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
+
     @commands.command(name="echo", description="Echoes a message to the target channel", aliases=["e"])
     async def echo_prefix(
         self,

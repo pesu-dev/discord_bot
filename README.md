@@ -4,13 +4,14 @@
 [![Contributors](https://img.shields.io/github/contributors/pesu-dev/discord_bot)](https://github.com/pesu-dev/discord_bot/graphs/contributors)
 [![Issues](https://img.shields.io/github/issues/pesu-dev/discord_bot)](https://github.com/pesu-dev/discord_bot/issues)
 [![Project Board](https://img.shields.io/badge/project-board-blue)](https://github.com/orgs/pesu-dev/projects/4/views/8)
+![RepoVital](https://api.repovital.com/badge/pesu-dev/discord_bot)
 
 A powerful community management bot designed specifically for the PESU Discord Server. This bot provides essential moderation tools, anonymous messaging capabilities, user linking systems, and various utility commands to enhance the Discord experience for PESU students.
 
 The bot is built with security and privacy in mind, ensuring safe and effective community management while maintaining user confidentiality.
 
 > [!WARNING]
-> The bot is hosted on a free tier AWS server with limited hardware. Users may experience lag during peak usage times.
+> The bot is hosted on a free-tier GCP `e2-micro` VM with limited hardware. Users may experience lag during peak usage times.
 
 ## 🚀 Quick Start
 
@@ -36,7 +37,7 @@ For detailed development setup and contribution instructions, see our [Contribut
 
 ### Project Structure
 
-```
+```text
 ├── application.py          # Main application entry point (loads cogs, sets presence)
 ├── bot.py                  # Discord bot subclass with MongoDB attributes
 ├── faq.json                # FAQ responses data
@@ -73,21 +74,24 @@ The bot uses Discord.py's cogs system to organize functionality into modular com
 ### Database Collections
 
 The bot maintains several MongoDB collections:
+
 - `link`: Stores Discord-PESU account links
 - `student`: Student linking data
 - `anonban`: Anonymous messaging ban records
 - `mute`: Server mute records
 
-##  Configuration
+## Configuration
 
 The bot's behavior is controlled primarily through environment variables and code-based configuration:
 
 Refer to our Contributing Guide for environment setup and the list of variables: [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md). An example file is provided at [`.env.example`](.env.example).
 
 ### `utils/config.py`
+
 Holds guild-specific role and channel ID mappings and exposes helpers like `get_role`/`get_channel`.
 
 ### `faq.json`
+
 Stores frequently asked questions and their responses for quick access.
 
 ## 🤝 Contributing to PESU Discord Bot
@@ -101,6 +105,30 @@ Made with ❤️ by
 We welcome contributions from the PESU community! Whether you're fixing bugs, adding new features, or improving documentation, your help is appreciated.
 
 **👉 [Read our detailed Contributing Guide](.github/CONTRIBUTING.md)** for complete setup instructions and development workflow.
+
+## 🚢 CI/CD and Deployment
+
+The project uses an immutable-image promotion flow designed for free-tier hosting:
+
+- PR to `dev`: lint + source checks + Docker image build validation (no push)
+- Merge to `dev`: checks run again, image is pushed to GHCR as `sha_<commit_sha>`, then deployed to dev
+- Post-dev health success: deployed SHA is retagged as `dev`
+- Manual prod promotion: `dev -> main` fast-forward, deploy the same immutable SHA, and retag as `prod` only on success
+- Prod failure path: automatic rollback deploy to the previous `prod` tag
+
+Key deployment files:
+
+- [`.github/workflows/dev_deploy.yml`](.github/workflows/dev_deploy.yml)
+- [`.github/workflows/prod_deploy.yml`](.github/workflows/prod_deploy.yml)
+- [`.github/workflows/build_and_push_image.yml`](.github/workflows/build_and_push_image.yml)
+- [`.github/workflows/ghcr_cleanup.yml`](.github/workflows/ghcr_cleanup.yml)
+- [`ops/deploy/README.md`](ops/deploy/README.md)
+
+VM runtime on the same host uses one compose file:
+
+- `docker-compose.yml` for local and VM deploys
+- local defaults: `TARGET_ENV=local`, `ENV_FILE=.env`
+- deploy runtime: `TARGET_ENV=dev|prod`, `ENV_FILE=.env.<env>`
 
 ## 🔐 Security and Privacy
 
@@ -121,8 +149,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 For questions, support, or feature requests, please visit our [project board](https://github.com/orgs/pesu-dev/projects/4/views/8) or join the discussion on the PESU Discord server.
-
-
-
-
-

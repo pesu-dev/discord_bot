@@ -1,35 +1,40 @@
-name: Enforce PR Origin Policy
+name: Source Checks
 
 on:
-    pull_request:
-        branches:
-            - "dev"
+  pull_request:
+    branches:
+      - dev
+  push:
+    branches:
+      - dev
+      - main
 
 jobs:
-    validate-pr-origin:
-        runs-on: ubuntu-latest
-        env:
-            PR_NUMBER: ${{ github.event.pull_request.number }}
-            SOURCE_REPO: ${{ github.event.pull_request.head.repo.full_name }}
-            SOURCE_BRANCH: ${{ github.event.pull_request.head.ref }}
-            TARGET_REPO: ${{ github.repository }}
-            TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
+  source_checks:
+    name: Python source compilation checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-        steps:
-            - name: Print PR source info
-              run: |
-                  echo "PR source information:"
-                  echo "  - PR Number: $PR_NUMBER"
-                  echo "  - Source repo: $SOURCE_REPO"
-                  echo "  - Source branch: $SOURCE_BRANCH"
-                  echo "  - Target repo: $TARGET_REPO"
-                  echo "  - Target branch: $TARGET_BRANCH"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
 
-            - name: Validate PR target branch
-              run: |
-                  if [ "$TARGET_BRANCH" != "dev" ]; then
-                    echo "❌ PR must target the 'dev' branch."
-                    exit 1
-                  fi
+      - name: Compile all Python modules
+        run: python -m compileall -q .
 
-                  echo "✅ PR passed origin and target branch checks."
+  validate_pr_target:
+    name: Validate PR target branch
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
+    steps:
+      - name: Validate PR target is dev
+        run: |
+          if [ "$TARGET_BRANCH" != "dev" ]; then
+            echo "PR must target the dev branch."
+            exit 1
+          fi

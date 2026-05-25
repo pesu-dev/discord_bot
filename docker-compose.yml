@@ -1,6 +1,7 @@
 services:
-  discord-bot:
-    image: ghcr.io/${REPO_OWNER}/discord-bot:${IMAGE_TAG}
-    container_name: discord-bot-${IMAGE_TAG}
+  discord_bot:
+    image: ghcr.io/${REPO_OWNER:-pesu-dev}/${DOCKER_IMAGE_NAME:-discord_bot}:${IMAGE_TAG:-dev}
+    container_name: discord_bot_${TARGET_ENV:-local}
     restart: always
-    env_file: .env
+    env_file:
+      - ${ENV_FILE:-.env}

@@ -1,0 +1,96 @@
+name: Dev CI and Deploy
+
+on:
+  push:
+    branches:
+      - dev
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  DOCKER_IMAGE_NAME: ${{ vars.DOCKER_IMAGE_NAME || 'discord_bot' }}
+  SHA_TAG: sha_${{ github.sha }}
+  IMAGE: ghcr.io/${{ github.repository_owner }}/${{ vars.DOCKER_IMAGE_NAME || 'discord_bot' }}
+
+concurrency:
+  group: dev_deploy
+  cancel-in-progress: false
+
+jobs:
+  ci_checks:
+    name: Lint + Source checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install quality tools
+        run: pip install ruff
+
+      - name: Run Ruff lint
+        run: ruff check . --output-format=github
+
+      - name: Run Ruff format check
+        run: ruff format . --check
+
+      - name: Run source compile checks
+        run: python -m compileall -q .
+
+  build_and_push_image:
+    name: Build and push SHA image
+    needs: [ci_checks]
+    uses: ./.github/workflows/build_and_push_image.yml
+    with:
+      image_tag: sha_${{ github.sha }}
+      push: true
+
+  deploy_dev:
+    name: Deploy SHA to dev
+    needs: [build_and_push_image]
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Trigger VM deploy gate (dev)
+        uses: appleboy/ssh-action@v1.2.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USERNAME }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          fingerprint: ${{ secrets.VM_FINGERPRINT }}
+          script: dev ${{ env.SHA_TAG }}
+
+  tag_dev:
+    name: Tag deployed SHA as dev
+    needs: [deploy_dev]
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: GHCR login
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Retag SHA image as dev
+        run: docker buildx imagetools create -t "${IMAGE}:dev" "${IMAGE}:${SHA_TAG}"
+
+  cleanup_ghcr:
+    name: Cleanup old SHA tags in GHCR
+    needs: [tag_dev]
+    uses: ./.github/workflows/ghcr_cleanup.yml
+    with:
+      keep_sha_tags: 20

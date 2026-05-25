@@ -1,0 +1,60 @@
+name: Build Docker Image
+
+on:
+  workflow_call:
+    inputs:
+      image_tag:
+        required: true
+        type: string
+      push:
+        required: false
+        default: false
+        type: boolean
+    outputs:
+      image:
+        description: "Fully qualified GHCR image name"
+        value: ${{ jobs.build.outputs.image }}
+      image_tag:
+        description: "Built image tag"
+        value: ${{ jobs.build.outputs.image_tag }}
+
+jobs:
+  build:
+    name: Build image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+    env:
+      DOCKER_IMAGE_NAME: ${{ vars.DOCKER_IMAGE_NAME || 'discord_bot' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Compute image metadata
+        id: meta
+        run: |
+          IMAGE="ghcr.io/${{ github.repository_owner }}/${DOCKER_IMAGE_NAME}"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+
+      - name: GHCR login
+        if: inputs.push
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.image_tag }}" \
+            .
+
+      - name: Push image to GHCR
+        if: inputs.push
+        run: docker push "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.image_tag }}"

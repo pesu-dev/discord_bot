@@ -10,9 +10,9 @@ permissions:
   packages: write
 
 env:
-  DOCKER_IMAGE_NAME: ${{ vars.DOCKER_IMAGE_NAME || 'discord_bot' }}
+  DOCKER_IMAGE_NAME: ${{ vars.DOCKER_IMAGE_NAME }}
   SHA_TAG: sha_${{ github.sha }}
-  IMAGE: ghcr.io/${{ github.repository_owner }}/${{ vars.DOCKER_IMAGE_NAME || 'discord_bot' }}
+  IMAGE: ghcr.io/${{ github.repository_owner }}/${{ vars.DOCKER_IMAGE_NAME }}
 
 concurrency:
   group: dev_deploy

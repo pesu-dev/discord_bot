@@ -6,13 +6,13 @@ on:
       keep_sha_tags:
         description: Number of newest sha_* tags to keep
         required: false
-        default: 20
+        default: 5
         type: number
   workflow_call:
     inputs:
       keep_sha_tags:
         required: false
-        default: 20
+        default: 5
         type: number
 
 permissions:
@@ -23,77 +23,59 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     env:
-      DOCKER_IMAGE_NAME: ${{ vars.DOCKER_IMAGE_NAME || 'discord_bot' }}
+      DOCKER_IMAGE_NAME: ${{ vars.DOCKER_IMAGE_NAME }}
       KEEP_SHA_TAGS: ${{ inputs.keep_sha_tags }}
     steps:
       - name: Delete stale sha_* package versions
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const owner = context.repo.owner;
-            const packageName = process.env.DOCKER_IMAGE_NAME;
-            const keep = Number(process.env.KEEP_SHA_TAGS || "20");
-            const shaTagRegex = /^sha_[0-9a-f]{40}$/;
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          PACKAGE_NAME: ${{ env.DOCKER_IMAGE_NAME }}
+        run: |
+          set -euo pipefail
 
-            const isOrg = await github.rest.orgs
-              .get({ org: owner })
-              .then(() => true)
-              .catch(() => false);
+          endpoint="/orgs/${OWNER}/packages/container/${PACKAGE_NAME}/versions"
 
-            const listFn = isOrg
-              ? (params) =>
-                  github.rest.packages.getAllPackageVersionsForPackageOwnedByOrg({
-                    org: owner,
-                    package_type: "container",
-                    package_name: packageName,
-                    ...params,
-                  })
-              : (params) =>
-                  github.rest.packages.getAllPackageVersionsForPackageOwnedByUser({
-                    username: owner,
-                    package_type: "container",
-                    package_name: packageName,
-                    ...params,
-                  });
+          versions_json="$(gh api --paginate "${endpoint}?per_page=100" | jq -s 'add // []')"
 
-            const deleteFn = isOrg
-              ? (versionId) =>
-                  github.rest.packages.deletePackageVersionForOrg({
-                    org: owner,
-                    package_type: "container",
-                    package_name: packageName,
-                    package_version_id: versionId,
-                  })
-              : (versionId) =>
-                  github.rest.packages.deletePackageVersionForUser({
-                    username: owner,
-                    package_type: "container",
-                    package_name: packageName,
-                    package_version_id: versionId,
-                  });
+          to_delete_ids="$(echo "${versions_json}" | jq -r --argjson keep "${KEEP_SHA_TAGS}" '
+            [ .[]
+              | . as $v
+              | ($v.metadata.container.tags // []) as $tags
+              | (any($tags[]?; test("^sha_[0-9a-f]{40}$"))) as $has_sha
+              | (any($tags[]?; . == "dev" or . == "prod" or . == "latest")) as $has_stable
+              | select($has_sha and (not $has_stable))
+            ]
+            | sort_by(.created_at)
+            | reverse
+            | .[$keep:]
+            | .[].id
+          ')"
 
-            const versions = await github.paginate(listFn, { per_page: 100 });
-            const pruneCandidates = versions
-              .map((version) => {
-                const tags = version.metadata?.container?.tags || [];
-                const hasStableTag = tags.some((tag) => ["dev", "prod", "latest", "rollback"].includes(tag));
-                const hasShaTag = tags.some((tag) => shaTagRegex.test(tag));
-                return { version, tags, hasStableTag, hasShaTag };
-              })
-              .filter(({ hasStableTag, hasShaTag }) => hasShaTag && !hasStableTag)
-              .sort((a, b) => new Date(b.version.created_at) - new Date(a.version.created_at));
+          total_candidates="$(echo "${versions_json}" | jq '
+            [ .[]
+              | . as $v
+              | ($v.metadata.container.tags // []) as $tags
+              | (any($tags[]?; test("^sha_[0-9a-f]{40}$"))) as $has_sha
+              | (any($tags[]?; . == "dev" or . == "prod" or . == "latest")) as $has_stable
+              | select($has_sha and (not $has_stable))
+            ] | length
+          ')"
 
-            const toDelete = pruneCandidates.slice(keep);
-            core.info(
-              `Found ${pruneCandidates.length} sha_only versions, keeping ${Math.min(
-                keep,
-                pruneCandidates.length,
-              )}, deleting ${toDelete.length}.`,
-            );
+          delete_count=0
+          if [ -n "${to_delete_ids}" ]; then
+            delete_count="$(echo "${to_delete_ids}" | wc -l | tr -d ' ')"
+          fi
 
-            for (const entry of toDelete) {
-              const versionId = entry.version.id;
-              const tags = entry.tags.join(", ");
-              core.info(`Deleting package version ${versionId} (tags: ${tags})`);
-              await deleteFn(versionId);
-            }
+          echo "Found ${total_candidates} sha_only versions, keeping ${KEEP_SHA_TAGS}, deleting ${delete_count}."
+
+          if [ -z "${to_delete_ids}" ]; then
+            echo "No stale sha_* versions to delete."
+            exit 0
+          fi
+
+          while IFS= read -r version_id; do
+            [ -z "${version_id}" ] && continue
+            echo "Deleting package version ${version_id}"
+            gh api -X DELETE "${endpoint}/${version_id}"
+          done <<< "${to_delete_ids}"

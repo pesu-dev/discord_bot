@@ -1,0 +1,74 @@
+name: CI Checks
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+  push:
+    branches:
+      - dev
+  merge_group:
+    types:
+      - checks_requested
+
+jobs:
+  pr_source_checker:
+    name: PR source checker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR target branch
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "Non-PR event (${{ github.event_name }}): PR source checker passes by default."
+            exit 0
+          fi
+
+          echo "PR source information:"
+          echo "  - PR Number: ${{ github.event.pull_request.number }}"
+          echo "  - Source repo: ${{ github.event.pull_request.head.repo.full_name }}"
+          echo "  - Source branch: ${{ github.event.pull_request.head.ref }}"
+          echo "  - Target repo: ${{ github.repository }}"
+          echo "  - Target branch: ${{ github.event.pull_request.base.ref }}"
+
+          if [ "${{ github.event.pull_request.base.ref }}" != "dev" ]; then
+            echo "PR must target dev branch."
+            exit 1
+          fi
+
+  lint_checks:
+    name: Ruff lint and format checks
+    needs: [pr_source_checker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Run Ruff Lint
+        run: |
+          ruff check . --output-format=github
+
+      - name: Run Ruff Format Check
+        run: |
+          ruff format . --check
+
+  pr_image_build:
+    name: Build image on PR
+    needs: [pr_source_checker]
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/build_and_push_image.yml
+    with:
+      image_tag: sha_${{ github.event.pull_request.head.sha }}
+      push: false

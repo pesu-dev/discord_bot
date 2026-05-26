@@ -3,6 +3,10 @@ name: Build Docker Image
 on:
   workflow_call:
     inputs:
+      ref:
+        required: false
+        default: ""
+        type: string
       image_tag:
         required: true
         type: string
@@ -31,7 +35,14 @@ jobs:
     env:
       DOCKER_IMAGE_NAME: ${{ vars.DOCKER_IMAGE_NAME }}
     steps:
-      - name: Checkout code
+      - name: Checkout code at provided ref
+        if: inputs.ref != ''
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Checkout code (default ref)
+        if: inputs.ref == ''
         uses: actions/checkout@v4
 
       - name: Compute image metadata

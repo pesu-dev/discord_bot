@@ -64,11 +64,14 @@ jobs:
         run: |
           ruff format . --check
 
+      - name: Run source compile checks
+        run: python -m compileall -q .
+
   pr_image_build:
     name: Build image on PR
     needs: [pr_source_checker]
     if: github.event_name == 'pull_request'
     uses: ./.github/workflows/build_and_push_image.yml
     with:
-      image_tag: sha_${{ github.event.pull_request.head.sha }}
+      image_tag: ${{ github.event.pull_request.head.sha }}
       push: false

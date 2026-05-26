@@ -1,9 +1,11 @@
-name: Dev CI and Deploy
+name: Dev Deploy
 
 on:
-  push:
-    branches:
-      - dev
+  workflow_run:
+    workflows:
+      - CI Checks
+    types:
+      - completed
 
 permissions:
   contents: read
@@ -11,7 +13,7 @@ permissions:
 
 env:
   DOCKER_IMAGE_NAME: ${{ vars.DOCKER_IMAGE_NAME }}
-  SHA_TAG: sha_${{ github.sha }}
+  SHA_TAG: ${{ github.event.workflow_run.head_sha }}
   IMAGE: ghcr.io/${{ github.repository_owner }}/${{ vars.DOCKER_IMAGE_NAME }}
 
 concurrency:
@@ -19,41 +21,17 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  ci_checks:
-    name: Lint + Source checks
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-          cache: "pip"
-
-      - name: Install quality tools
-        run: pip install ruff
-
-      - name: Run Ruff lint
-        run: ruff check . --output-format=github
-
-      - name: Run Ruff format check
-        run: ruff format . --check
-
-      - name: Run source compile checks
-        run: python -m compileall -q .
-
   build_and_push_image:
-    name: Build and push SHA image
-    needs: [ci_checks]
+    name: Build and push commit image
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'dev'
     uses: ./.github/workflows/build_and_push_image.yml
     with:
-      image_tag: sha_${{ github.sha }}
+      ref: ${{ github.event.workflow_run.head_sha }}
+      image_tag: ${{ github.event.workflow_run.head_sha }}
       push: true
 
   deploy_dev:
-    name: Deploy SHA to dev
+    name: Deploy commit image to dev
     needs: [build_and_push_image]
     runs-on: ubuntu-latest
     environment: dev
@@ -68,16 +46,13 @@ jobs:
           script: dev ${{ env.SHA_TAG }}
 
   tag_dev:
-    name: Tag deployed SHA as dev
+    name: Tag deployed commit image as dev
     needs: [deploy_dev]
     runs-on: ubuntu-latest
     permissions:
       packages: write
       contents: read
     steps:
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: GHCR login
         uses: docker/login-action@v3
         with:
@@ -85,11 +60,14 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Retag SHA image as dev
-        run: docker buildx imagetools create -t "${IMAGE}:dev" "${IMAGE}:${SHA_TAG}"
+      - name: Retag commit image as dev
+        run: |
+          docker pull "${IMAGE}:${SHA_TAG}"
+          docker tag "${IMAGE}:${SHA_TAG}" "${IMAGE}:dev"
+          docker push "${IMAGE}:dev"
 
   cleanup_ghcr:
-    name: Cleanup old SHA tags in GHCR
+    name: Cleanup old package versions in GHCR
     needs: [tag_dev]
     uses: ./.github/workflows/ghcr_cleanup.yml
     with:

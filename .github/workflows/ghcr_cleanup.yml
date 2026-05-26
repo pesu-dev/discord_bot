@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       keep_sha_tags:
-        description: Number of newest sha_* tags to keep
+        description: Number of newest commit-sha tags to keep
         required: false
         default: 5
         type: number
@@ -26,7 +26,7 @@ jobs:
       DOCKER_IMAGE_NAME: ${{ vars.DOCKER_IMAGE_NAME }}
       KEEP_SHA_TAGS: ${{ inputs.keep_sha_tags }}
     steps:
-      - name: Delete stale sha_* package versions
+      - name: Delete stale package versions
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OWNER: ${{ github.repository_owner }}
@@ -38,39 +38,32 @@ jobs:
 
           versions_json="$(gh api --paginate "${endpoint}?per_page=100" | jq -s 'add // []')"
 
-          to_delete_ids="$(echo "${versions_json}" | jq -r --argjson keep "${KEEP_SHA_TAGS}" '
-            [ .[]
-              | . as $v
-              | ($v.metadata.container.tags // []) as $tags
-              | (any($tags[]?; test("^sha_[0-9a-f]{40}$"))) as $has_sha
-              | (any($tags[]?; . == "dev" or . == "prod" or . == "latest")) as $has_stable
-              | select($has_sha and (not $has_stable))
-            ]
-            | sort_by(.created_at)
-            | reverse
-            | .[$keep:]
-            | .[].id
+          cleanup_plan="$(echo "${versions_json}" | jq --argjson keep_sha "${KEEP_SHA_TAGS}" '
+            def tags: (.metadata.container.tags // []);
+            def has_stable: any(tags[]?; . == "dev" or . == "prod" or . == "latest");
+            def has_commit_sha_tag: any(tags[]?; test("^[0-9a-f]{40}$"));
+            def is_untagged: ((tags | length) == 0);
+
+            {
+              sha_candidates: ([ .[] | select(has_commit_sha_tag and (has_stable | not)) ] | sort_by(.created_at) | reverse),
+              untagged_candidates: ([ .[] | select(is_untagged) ] | sort_by(.created_at) | reverse)
+            }
+            | {
+              sha_total: (.sha_candidates | length),
+              untagged_total: (.untagged_candidates | length),
+              delete_ids: ((.sha_candidates[$keep_sha:] + .untagged_candidates) | map(.id) | unique)
+            }
           ')"
 
-          total_candidates="$(echo "${versions_json}" | jq '
-            [ .[]
-              | . as $v
-              | ($v.metadata.container.tags // []) as $tags
-              | (any($tags[]?; test("^sha_[0-9a-f]{40}$"))) as $has_sha
-              | (any($tags[]?; . == "dev" or . == "prod" or . == "latest")) as $has_stable
-              | select($has_sha and (not $has_stable))
-            ] | length
-          ')"
+          sha_candidates_total="$(echo "${cleanup_plan}" | jq -r '.sha_total')"
+          untagged_candidates_total="$(echo "${cleanup_plan}" | jq -r '.untagged_total')"
+          to_delete_ids="$(echo "${cleanup_plan}" | jq -r '.delete_ids[]?')"
+          delete_count="$(echo "${cleanup_plan}" | jq -r '.delete_ids | length')"
 
-          delete_count=0
-          if [ -n "${to_delete_ids}" ]; then
-            delete_count="$(echo "${to_delete_ids}" | wc -l | tr -d ' ')"
-          fi
-
-          echo "Found ${total_candidates} sha_only versions, keeping ${KEEP_SHA_TAGS}, deleting ${delete_count}."
+          echo "Found ${sha_candidates_total} sha-tag versions (keeping ${KEEP_SHA_TAGS}) and ${untagged_candidates_total} untagged versions (keeping 0); deleting ${delete_count} total."
 
           if [ -z "${to_delete_ids}" ]; then
-            echo "No stale sha_* versions to delete."
+            echo "No stale package versions to delete."
             exit 0
           fi
 

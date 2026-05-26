@@ -111,7 +111,7 @@ We welcome contributions from the PESU community! Whether you're fixing bugs, ad
 The project uses an immutable-image promotion flow designed for free-tier hosting:
 
 - PR to `dev`: lint + source checks + Docker image build validation (no push)
-- Merge to `dev`: checks run again, image is pushed to GHCR as `sha_<commit_sha>`, then deployed to dev
+- Merge to `dev`: checks run again, image is pushed to GHCR as `<commit_sha>`, then deployed to dev
 - Post-dev health success: deployed SHA is retagged as `dev`
 - Manual prod promotion: `dev -> main` fast-forward, deploy the same immutable SHA, and retag as `prod` only on success
 - Prod failure path: automatic rollback deploy to the previous `prod` tag

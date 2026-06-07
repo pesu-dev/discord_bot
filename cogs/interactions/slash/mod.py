@@ -526,9 +526,19 @@ class SlashMod(commands.Cog):
         else:
             await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
 
-    @app_commands.command(name="purge", description="Delete a number of recent messages")
-    @app_commands.describe(amount="Number of messages to delete")
-    async def purge(self, interaction: discord.Interaction, amount: int) -> None:
+    @app_commands.command(name="purge", description="Delete messages by amount, date, or message link")
+    @app_commands.describe(
+        amount="Number of messages to delete (1-100)",
+        message_link="Delete all messages after this message",
+        date="Delete all messages after this date (DD-MM-YYYY)",
+    )
+    async def purge(
+        self,
+        interaction: discord.Interaction,
+        amount: int | None = None,
+        message_link: str | None = None,
+        date: str | None = None,
+    ) -> None:
         await interaction.response.defer(ephemeral=True)
         if not isinstance(interaction.user, discord.Member) or not interaction.guild:
             await interaction.followup.send(content="This command can only be used in a server", ephemeral=True)
@@ -540,16 +550,48 @@ class SlashMod(commands.Cog):
             )
             return
 
-        if amount < 1 or amount > 100:
-            await interaction.followup.send(content="Please specify a number between 1 and 100", ephemeral=True)
+        if sum(x is not None for x in [amount, message_link, date]) != 1:
+            await interaction.followup.send(
+                content="Please provide exactly one of: `amount`, `message_link`, or `date`.", ephemeral=True
+            )
             return
 
-        deleted = await interaction.channel.purge(limit=amount)
-        await interaction.followup.send(content=f"Deleted last {len(deleted)} messages", ephemeral=True)
+        deleted_messages = []
+        log_description = ""
+
+        if amount:
+            if amount < 1 or amount > 100:
+                await interaction.followup.send(content="Please specify a number between 1 and 100", ephemeral=True)
+                return
+            deleted_messages = await interaction.channel.purge(limit=amount)
+            log_description = f"deleted {len(deleted_messages)} messages"
+
+        elif message_link:
+            try:
+                msg_id = int(message_link.split("/")[-1])
+                message = await interaction.channel.fetch_message(msg_id)
+                deleted_messages = await interaction.channel.purge(after=message)
+                log_description = f"deleted messages after {message_link}"
+            except (ValueError, IndexError, discord.NotFound):
+                await interaction.followup.send(
+                    content="Invalid message link or message not found in this channel.", ephemeral=True
+                )
+                return
+
+        elif date:
+            try:
+                date_obj = datetime.strptime(date, "%d-%m-%Y").replace(tzinfo=dt.UTC)
+                deleted_messages = await interaction.channel.purge(after=date_obj)
+                log_description = f"deleted messages since {date}"
+            except ValueError:
+                await interaction.followup.send(content="Invalid date format. Please use DD-MM-YYYY.", ephemeral=True)
+                return
+
+        await interaction.followup.send(content=f"Deleted {len(deleted_messages)} messages.", ephemeral=True)
         embed = discord.Embed(
             title="Messages Purged",
             color=discord.Color.green(),
-            description=f"{interaction.user.mention} deleted {len(deleted)} messages in {interaction.channel.mention}",
+            description=f"{interaction.user.mention} {log_description} in {interaction.channel.mention}",
             timestamp=discord.utils.utcnow(),
         )
         embed.set_footer(text="PESU Bot")

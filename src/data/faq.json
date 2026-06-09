@@ -1,0 +1,177 @@
+{
+    "categories": [
+        {
+            "category": "Admission / Counselling / Branches",
+            "questions": [
+                {
+                    "question": "What are the pros and cons of PESU?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/13ygg68/comment/jmmro6e)"
+                },
+                {
+                    "question": "What are the differences between RR and EC campuses?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/14anjmd/comment/jobruzy/)"
+                },
+                {
+                    "question": "Why do people prefer RR over EC campuses if they are the same?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/1e6b648/comment/ldseej3/?utm_source=share&amp;utm_medium=web3x&amp;utm_name=web3xcss&amp;utm_term=1&amp;utm_content=share_button)"
+                },
+                {
+                    "question": "How do I switch branches/campuses at PESU?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/z0u39b/comment/ix8arci/)"
+                },
+                {
+                    "question": "Should I pick CS+AIML or CSE?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/147gamv/comment/jnve51g/?utm_source=share&amp;utm_medium=web2x&amp;context=3"
+                },
+                {
+                    "question": "Difference in conferred degree between CS and CS-AIML?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/1e22uwp/comment/lcyano7/?utm_source=share&amp;utm_medium=web3x&amp;utm_name=web3xcss&amp;utm_term=1&amp;utm_content=share_button"
+                },
+                {
+                    "question": "How to pick between branch and college? Does the reputation or course matter more?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/1dz5ydc/comment/lcdi0ra/?utm_source=share&amp;utm_medium=web3x&amp;utm_name=web3xcss&amp;utm_term=1&amp;utm_content=share_button)"
+                },
+                {
+                    "question": "How does PESSAT counselling work?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/1cxq14v/comment/l54ifi3)"
+                },
+                {
+                    "question": "Where can I find the placement statistics?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/1l16bng/placement_statistics_compilation_2022_to_present/"
+                }
+            ]
+        },
+        {
+            "category": "Hostel and Bus",
+            "questions": [
+                {
+                    "question": "What are my accommodation options (pros and cons) at EC campus?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/1d696yh/looking_for_a_roommate_in_ec_campus/)"
+                },
+                {
+                    "question": "Where can I find information about bus services at RR Campus?",
+                    "answer": "https://pes.edu/transportation-ring-road/)"
+                },
+                {
+                    "question": "Where can I find information about bus services at EC Campus?",
+                    "answer": "https://pes.edu/transportation-electronic-city-campus/"
+                }
+            ]
+        },
+        {
+            "category": "General",
+            "questions": [
+                {
+                    "question": "What is the server link to PESU Discord?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/142gani/pesu_discord/)"
+                },
+                {
+                    "question": "What are the do's and don't's as an incoming Freshman?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/1ek15de/comment/lghpvqh/?utm_source=share&amp;utm_medium=web3x&amp;utm_name=web3xcss&amp;utm_term=1&amp;utm_content=share_button)"
+                },
+                {
+                    "question": "What is bootstrap?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/1eidefn/comment/lg5sitk/?utm_source=share&amp;utm_medium=web3x&amp;utm_name=web3xcss&amp;utm_term=1&amp;utm_content=share_button)"
+                },
+                {
+                    "question": "Where can I find more information about the campus? (PESUpedia)",
+                    "answer": "https://pesupedia.vercel.app/)"
+                },
+                {
+                    "question": "How do I calculate my SGPA and CGPA? Is there a calculator?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/13wdtcl/comment/jmb05e1)"
+                },
+                {
+                    "question": "How much do I need to score to gain a certain grade?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/13pwvg5/comment/jlbw9px/)"
+                },
+                {
+                    "question": "What is a backlog?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/14coe1z/comment/jolnby2)"
+                },
+                {
+                    "question": "How many holidays do we get here?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/11d7oy6/comment/ja75e70/?utm_source=share&amp;utm_medium=web2x&amp;context=3)"
+                },
+                {
+                    "question": "What is the Capstone Project?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/10rcyfw/comment/j6v525u/)"
+                },
+                {
+                    "question": "Where can I find the syllabus for a certain branch?",
+                    "answer": "https://discord.gg/KUSydtjaAh)"
+                },
+                {
+                    "question": "Where can I find updated study materials for a course?",
+                    "answer": "http://better-pes.vercel.app)"
+                },
+                {
+                    "question": "How do I become a Teaching Assistant?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/152dklg/what_is_the_procedure_to_be_a_teaching_assistant/jsen4jv?utm_source=share&amp;utm_medium=android_app&amp;utm_name=androidcss&amp;utm_term=1&amp;utm_content=2)"
+                },
+                {
+                    "question": "Which laptop should I buy for college?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/1abcv2c/comment/kjmspxs)"
+                },
+                {
+                    "question": "How to properly ask a question on this subreddit?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/14c1jiw/how_to_ask_a_question_on_rpesu/)"
+                },
+                {
+                    "question": "Withdraw vs Dropping of courses?",
+                    "answer": "https://www.reddit.com/r/PESU/s/A4EHGa12Jc"
+                }
+            ]
+        },
+        {
+            "category": "CSE",
+            "questions": [
+                {
+                    "question": "How do I prepare for my first year in CS?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/1dmfwo1/comment/l9vd6lt/?utm_source=share&amp;utm_medium=web3x&amp;utm_name=web3xcss&amp;utm_term=1&amp;utm_content=share_button)"
+                },
+                {
+                    "question": "How can I explore different fields in CS?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/1d5grct/comment/l6layg9/?utm_source=share&amp;utm_medium=web3x&amp;utm_name=web3xcss&amp;utm_term=1&amp;utm_content=share_button)"
+                },
+                {
+                    "question": "What do my 4 years in CSE look like?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/110ajmi/comment/j894etu/?utm_source=share&amp;utm_medium=web2x&amp;context=3)"
+                },
+                {
+                    "question": "How do I prepare for CS placements?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/12bdawn/comment/jewdwb9/?utm_source=share&amp;utm_medium=web2x&amp;context=3)"
+                },
+                {
+                    "question": "CGPA vs skills, which is more important for placements?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/1dtgejx/comment/lb97gpf/"
+                }
+            ]
+        },
+        {
+            "category": "ECE",
+            "questions": [
+                {
+                    "question": "How is ECE at RR Campus?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/1cyvucb/the_pros_and_cons_of_pes_university_of_ece_at_rr/)"
+                },
+                {
+                    "question": "How is ECE at EC Campus?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/1kvxk0k/how_ece_is_at_ecity_campus_a_starter_guide/)"
+                },
+                {
+                    "question": "Does doing a Minors in CSE help if I want an IT job?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/wuko48/comment/ilade73/?utm_source=share&amp;utm_medium=web2x&amp;context=3"
+                },
+                {
+                    "question": "Will a Minor in CS make up for my ECE Major?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/ycg6s5/comment/itm59c7/?utm_source=share&amp;utm_medium=web2x&amp;context=3"
+                },
+                {
+                    "question": "How restricted are CSE placements?",
+                    "answer": "https://www.reddit.com/r/PESU/comments/13mm514/comment/jkwn8fv/?utm_source=share&amp;utm_medium=web2x&amp;context=3"
+                }
+            ]
+        }
+    ]
+}

@@ -4,28 +4,29 @@ Thank you for your interest in contributing to the PESU Discord Bot! This docume
 
 ---
 
+<!-- markdownlint-disable MD033 -->
 <details>
 <summary>Table of Contents</summary>
 
 - [Contributing to PESU Discord Bot](#contributing-to-pesu-discord-bot)
 - [Getting Started](#getting-started)
-- [Development Environment Setup](#development-environment-setup)
-    - [Prerequisites](#prerequisites)
-    - [Setting Up Your Environment](#setting-up-your-environment)
-    - [Set Up Environment Variables](#set-up-environment-variables)
-    - [Database Setup](#database-setup)
-- [Running the Bot](#running-the-bot)
-- [Submitting Changes](#submitting-changes)
-    - [Create a Branch](#create-a-branch)
-    - [Make and Commit Changes](#make-and-commit-changes)
-    - [Push and Open a Pull Request](#push-and-open-a-pull-request)
-- [Need Help?](#need-help)
-- [Security](#security)
-- [Code Style Guide](#code-style-guide)
-    - [General Guidelines](#general-guidelines)
-- [GitHub Labels](#github-labels)
-- [Feature Suggestions](#feature-suggestions)
-- [License](#license)
+- [Development Environment Setup](#-development-environment-setup)
+  - [Prerequisites](#prerequisites)
+  - [Setting Up Your Environment](#setting-up-your-environment)
+  - [Set Up Environment Variables](#set-up-environment-variables)
+  - [Database Setup](#database-setup)
+- [Running the Bot](#-running-the-bot)
+- [Submitting Changes](#-submitting-changes)
+  - [Create a Branch](#-create-a-branch)
+  - [Make and Commit Changes](#-make-and-commit-changes)
+  - [Push and Open a Pull Request](#-push-and-open-a-pull-request)
+- [Need Help?](#-need-help)
+- [Security](#-security)
+- [Code Style Guide](#-code-style-guide)
+  - [General Guidelines](#-general-guidelines)
+- [GitHub Labels](#-github-labels)
+- [Feature Suggestions](#-feature-suggestions)
+- [License](#-license)
 
 </details>
 
@@ -50,7 +51,7 @@ The standard workflow for contributing is as follows:
 
 ---
 
-## 🛠️ Development Environment Setup
+## 🛠 Development Environment Setup
 
 This section provides instructions for setting up your development environment to work on the PESU Discord Bot project.
 
@@ -70,41 +71,48 @@ This section provides instructions for setting up your development environment t
 #### Using uv (recommended)
 
 1. **Install uv:**
+
    ```bash
    curl -fsSL https://astral.sh/uv/install.sh | sh
    ```
 
 2. **Clone the repository (or your fork) and navigate to the project:**
+
    ```bash
    # Option 1: Clone the main repository
    git clone https://github.com/pesu-dev/discord_bot.git
    cd discord_bot
-   
+
    # Option 2: Clone your fork
    git clone https://github.com/your-github-username/discord_bot.git
    cd discord_bot
    ```
 
 3. **Install Git hooks (required):**
+
    ```bash
    .githooks/install.sh
    ```
+
    This installs symlinked hooks that run automated checks (Ruff linting, branch name warnings, and commit message validation) on commit/push.
 
 4. **Install project dependencies from `pyproject.toml`:**
+
    ```bash
    uv sync
    ```
 
 ### Set Up Environment Variables
 
-1. **Create a `.env` file in the project's root directory:**
+1. **Create a `.env` file in the `src/` directory:**
+
    ```bash
-   touch .env
+   touch src/.env
    ```
 
 2. **Configure your environment variables:**
-   Open the `.env` file and add the following variables (see `.env.example` for a template):
+   Open the `src/.env` file and add the following variables (see `src/.env.example` for a template):
+
    ```env
    MONGO_URI=""
    DB_NAME=""
@@ -125,12 +133,14 @@ This section provides instructions for setting up your development environment t
 ### Database Setup
 
 The bot uses MongoDB to store various data including:
+
 - User linking records
 - Anonymous message ban records
 - Moderation logs
 - Mute records
 
 Ensure you have:
+
 1. A MongoDB instance running (local or cloud)
 2. Proper connection string in your `.env` file
 3. Appropriate database permissions for read/write operations
@@ -141,8 +151,10 @@ Ensure you have:
 
 To run the bot locally for development:
 
-1. **Run the bot:**
+1. **Run the bot** (from the `src` directory):
+
    ```bash
+   cd src
    uv run application.py
    ```
 
@@ -164,7 +176,7 @@ git checkout -b your-discord-username/feature-description
 
 Replace `your-discord-username` with your actual Discord username and `feature-description` with a brief description of what you're working on.
 
-### ✏️ Make and Commit Changes
+### ✏ Make and Commit Changes
 
 After making your changes, commit them with clear messages:
 
@@ -194,6 +206,7 @@ docs: update setup instructions to use uv
 ### 📤 Push and Open a Pull Request
 
 1. **Push your branch to the repository (or your fork):**
+
    ```bash
    git push origin your-discord-username/feature-description
    ```
@@ -241,12 +254,12 @@ To keep the codebase clean and maintainable, please follow these conventions:
 
 ---
 
-## 🏷️ GitHub Labels
+## 🏷 GitHub Labels
 
 We use GitHub labels to categorize issues and PRs. Here's a quick guide to what they mean:
 
 | Label              | Purpose                                         |
-|--------------------|-------------------------------------------------|
+| ------------------ | ----------------------------------------------- |
 | `good first issue` | Beginner-friendly, simple issues to get started |
 | `bug`              | Something is broken or not working as intended  |
 | `enhancement`      | Proposed improvements or new features           |

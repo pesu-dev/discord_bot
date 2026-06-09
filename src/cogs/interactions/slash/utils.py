@@ -458,8 +458,20 @@ class SlashUtils(commands.Cog):
             self.client.logger.warning(
                 f"Failed to fetch data: {response.status_code}, falling back to local data. {resp}"
             )
-            with open("faq.json") as file:
-                return json.load(file)
+            return self._load_local_faq()
+
+    @staticmethod
+    def _load_local_faq() -> dict:
+        with open("data/faq.json") as file:
+            raw = json.load(file)
+
+        data: dict = {}
+        for category in raw.get("categories", []):
+            name = category["category"]
+            entries = data.setdefault(name, [])
+            for item in category.get("questions", []):
+                entries.append({"question": item["question"], "answer": item["answer"]})
+        return data
 
     def _parse_reddit_data(self, data: dict) -> dict:
         x = data[0]["data"]["children"][0]["data"]["selftext"]
@@ -490,14 +502,14 @@ class SlashUtils(commands.Cog):
         for link_part in chakdeh:
             link_parts = link_part.split("](")
             title, url = self._clean_link_parts(link_parts)
-            finedata.setdefault(category, []).append({title: url})
+            finedata.setdefault(category, []).append({"question": title, "answer": url})
 
     def _process_single_link(self, item: str, category: str, finedata: dict) -> None:
         chakdeh = item.split("](")
         title, url = self._clean_link_parts(chakdeh)
         if url.endswith("\n"):
             url = url[:-1]
-        finedata.setdefault(category, []).append({title: url})
+        finedata.setdefault(category, []).append({"question": title, "answer": url})
 
     @staticmethod
     def _clean_link_parts(parts: list) -> tuple[str, str]:
@@ -554,10 +566,11 @@ class SlashUtils(commands.Cog):
     async def _handle_category_only(self, interaction: discord.Interaction, data: dict, category: str) -> None:
         questions = []
         for entry in data[category]:
-            for q in entry:
-                if entry[q].endswith(")") or q.endswith("\n"):
-                    entry[q] = entry[q][:-1]
-                questions.append(f"[{q}]({entry[q]})")
+            question = entry["question"]
+            answer = entry["answer"]
+            if answer.endswith(")") or question.endswith("\n"):
+                answer = answer[:-1]
+            questions.append(f"[{question}]({answer})")
 
         if questions:
             embed = discord.Embed(
@@ -582,8 +595,8 @@ class SlashUtils(commands.Cog):
         question: str,
     ) -> None:
         for entry in data[category]:
-            if question in entry:
-                url = entry[question]
+            if entry["question"] == question:
+                url = entry["answer"]
                 if url.endswith(")") or url.endswith("\n"):
                     url = url[:-1]
                 await interaction.followup.send(content=f"[{question}]({url})", ephemeral=False)
@@ -610,9 +623,9 @@ class SlashUtils(commands.Cog):
 
         questions: list[str] = []
         for entry in data[category]:
-            for q in entry:
-                if current.lower() in q.lower():
-                    questions.append(q)
+            q = entry["question"]
+            if current.lower() in q.lower():
+                questions.append(q)
 
         return [app_commands.Choice(name=q[:100], value=q[:100]) for q in questions[:25]]
 

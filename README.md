@@ -43,24 +43,22 @@ For detailed development setup and contribution instructions, see our [Contribut
 ├── Dockerfile                  # Container image definition
 ├── LICENSE                     # Project license
 ├── README.md                   # This file
-└── src/                        # Discord bot source code (run from here)
-    ├── application.py          # Main application entry point (loads cogs, sets presence)
-    ├── bot.py                  # Discord bot subclass with MongoDB attributes
+└── src/                        # Discord bot package (run via `python -m src`)
+    ├── __init__.py             # Package bootstrap: env loading, logging, version
+    ├── __main__.py             # Entry point for `python -m src`
+    ├── bot.py                  # DiscordBot subclass (setup_hook, cog loading, events)
     ├── .env.example            # Example environment variables
     ├── data/                   # Static data files
     │   └── faq.json            # FAQ responses data
     ├── cogs/                   # Bot functionality modules (Discord.py cogs)
-    │   ├── events/             # Event handlers
-    │   │   └── general.py      # General event handling (member joins, etc.)
-    │   └── interactions/       # Command interactions
-    │       └── slash/          # Slash commands implementation
-    │           ├── anon.py     # Anonymous messaging system
-    │           ├── help.py     # Help and command documentation
-    │           ├── link.py     # User linking and verification
-    │           ├── mod.py      # Moderation commands
-    │           └── utils.py    # Utility commands (ping, uptime, etc.)
+    │   ├── events.py           # Event handling (member joins, ghost pings, etc.)
+    │   ├── anon.py             # Anonymous messaging system
+    │   ├── help.py             # Help and command documentation
+    │   ├── link.py             # User linking and verification
+    │   ├── mod.py              # Moderation commands
+    │   └── utils.py            # Utility commands (ping, uptime, etc.)
     └── utils/                  # Shared utilities and configuration helpers
-        ├── config.py           # Guild/role/channel IDs and access helpers
+        ├── config.py           # Environment, guild/role/channel IDs and access helpers
         └── general.py          # General helper functions
 ```
 

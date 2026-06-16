@@ -1,12 +1,18 @@
+from __future__ import annotations
+
 import datetime as dt
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
-import utils.general as ug
-from bot import DiscordBot
+from src.utils import general as ug
+from src.utils.config import Config
+
+if TYPE_CHECKING:
+    from src.bot import DiscordBot
 
 
 class SlashMod(commands.Cog):
@@ -201,54 +207,8 @@ class SlashMod(commands.Cog):
         else:
             await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
 
-    @commands.command(name="echo", description="Echoes a message to the target channel", aliases=["e"])
-    async def echo_prefix(
-        self,
-        ctx: commands.Context,
-        channel: discord.TextChannel | discord.Thread,
-        *,
-        message: str,
-    ) -> None:
-        if not isinstance(ctx.author, discord.Member) or not ctx.guild:
-            await ctx.reply(content="This command can only be used in a server.")
-            return
-        if not self.client.config.has_mod_permissions(ctx.author) and not self.client.config.has_bot_dev_permissions(
-            ctx.author
-        ):
-            await ctx.reply(content="You think I am a fool")
-            return
-
-        try:
-            attachment_to_send = await ctx.message.attachments[0].to_file() if ctx.message.attachments else None
-            if attachment_to_send:
-                await channel.send(content=message, file=attachment_to_send)
-            else:
-                await channel.send(content=message)
-        except discord.Forbidden:
-            await ctx.reply(content="Error: I don't have permission to send messages there.")
-            return
-        except Exception as e:
-            await ctx.reply(content=f"An unexpected error occurred: {e}")
-            return
-
-        mods_logs_channel = self.client.config.mod_logs_channel
-        echo_embed = discord.Embed(
-            title="Echo Sent (Prefix)",
-            color=discord.Color.blue(),
-            timestamp=datetime.now(dt.UTC),
-        )
-        echo_embed.add_field(name="Message", value=message, inline=False)
-        echo_embed.add_field(name="Channel", value=channel.mention, inline=False)
-        echo_embed.add_field(
-            name="Attachment",
-            value="Yes" if ctx.message.attachments else "No",
-            inline=False,
-        )
-        echo_embed.add_field(name="Author", value=ctx.author.mention, inline=False)
-        echo_embed.set_footer(text="PESU Bot")
-        await mods_logs_channel.send(embed=echo_embed)
-
-    @app_commands.command(name="echo", description="Echoes a message to the target channel")
+    @commands.hybrid_command(name="echo", aliases=["e"], description="Echoes a message to the target channel")
+    @app_commands.guilds(discord.Object(id=Config.GUILD_ID))
     @app_commands.describe(
         channel="The channel to send the message to",
         message="The message to send",
@@ -256,28 +216,30 @@ class SlashMod(commands.Cog):
     )
     async def echo(
         self,
-        interaction: discord.Interaction,
+        ctx: commands.Context,
         channel: discord.TextChannel | discord.Thread,
-        message: str,
         attachment: discord.Attachment | None = None,
+        *,
+        message: str,
     ) -> None:
-        await interaction.response.defer(ephemeral=True)
+        await ctx.defer(ephemeral=True)
 
-        if not isinstance(interaction.user, discord.Member) or not interaction.guild:
-            await interaction.followup.send(content="This command can only be used in a server.", ephemeral=True)
+        if not isinstance(ctx.author, discord.Member) or not ctx.guild:
+            await ctx.send(content="This command can only be used in a server.", ephemeral=True)
             return
 
-        if not self.client.config.has_mod_permissions(
-            interaction.user
-        ) and not self.client.config.has_bot_dev_permissions(interaction.user):
-            await interaction.followup.send(content="You are not authorised to run this command", ephemeral=True)
+        if not self.client.config.has_mod_permissions(ctx.author) and not self.client.config.has_bot_dev_permissions(
+            ctx.author
+        ):
+            await ctx.send(content="You are not authorised to run this command", ephemeral=True)
             return
 
-        if not attachment:
-            await channel.send(content=message)
+        file = await attachment.to_file() if attachment else None
+        if file:
+            await channel.send(content=message, file=file)
         else:
-            await channel.send(content=message, file=await attachment.to_file())
-        await interaction.followup.send(content=f"Message sent to {channel.mention}", ephemeral=True)
+            await channel.send(content=message)
+        await ctx.send(content=f"Message sent to {channel.mention}", ephemeral=True)
 
         mod_logs_channel = self.client.config.mod_logs_channel
         echo_embed = discord.Embed(
@@ -287,33 +249,20 @@ class SlashMod(commands.Cog):
         )
         echo_embed.add_field(name="Message", value=message, inline=False)
         echo_embed.add_field(name="Channel", value=channel.mention, inline=False)
-        echo_embed.add_field(
-            name="Attachment",
-            value="Yes" if attachment else "No",
-            inline=False,
-        )
-        echo_embed.add_field(name="Author", value=interaction.user.mention, inline=False)
+        echo_embed.add_field(name="Attachment", value="Yes" if attachment else "No", inline=False)
+        echo_embed.add_field(name="Author", value=ctx.author.mention, inline=False)
         echo_embed.set_footer(text="PESU Bot")
         await mod_logs_channel.send(embed=echo_embed)
 
     @echo.error
-    async def echo_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError,
-    ) -> None:
-        if isinstance(error, app_commands.CommandInvokeError):
-            if isinstance(error.original, discord.Forbidden):
-                await interaction.followup.send(
-                    content="I do not have permission to send messages in that channel",
-                    ephemeral=True,
-                )
-            elif isinstance(error.original, discord.NotFound):
-                await interaction.followup.send(content="The specified channel does not exist", ephemeral=True)
-            else:
-                await interaction.followup.send(embed=ug.build_unknown_error_embed(error.original))
+    async def echo_error(self, ctx: commands.Context, error: commands.CommandError) -> None:
+        original = getattr(error, "original", error)
+        if isinstance(original, discord.Forbidden):
+            await ctx.send(content="I do not have permission to send messages in that channel", ephemeral=True)
+        elif isinstance(original, discord.NotFound):
+            await ctx.send(content="The specified channel does not exist", ephemeral=True)
         else:
-            await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
+            await ctx.send(embed=ug.build_unknown_error_embed(original))
 
     @app_commands.command(name="mute", description="Mute a member for a specified duration")
     @app_commands.describe(
@@ -923,5 +872,5 @@ class SlashMod(commands.Cog):
 async def setup(client: DiscordBot) -> None:
     await client.add_cog(
         SlashMod(client),
-        guild=client.config.guild,
+        guild=client.config.guild_object,
     )

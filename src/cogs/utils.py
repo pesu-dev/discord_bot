@@ -1,14 +1,19 @@
+from __future__ import annotations
+
 import json
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import discord
 import httpx
 from discord import Interaction, SelectOption, app_commands
 from discord.ext import commands
 
-import utils.general as ug
-from bot import DiscordBot
+from src.utils import general as ug
+
+if TYPE_CHECKING:
+    from src.bot import DiscordBot
 
 
 class RoleSelect(discord.ui.Select):
@@ -462,7 +467,8 @@ class SlashUtils(commands.Cog):
 
     @staticmethod
     def _load_local_faq() -> dict:
-        with open("data/faq.json") as file:
+        faq_path = Path(__file__).resolve().parent.parent / "data" / "faq.json"
+        with open(faq_path) as file:
             raw = json.load(file)
 
         data: dict = {}
@@ -681,11 +687,11 @@ class SlashUtils(commands.Cog):
         failed = []
 
         # Unload all cogs first
-        for path in Path("cogs").rglob("*.py"):
+        for path in Path(__file__).resolve().parent.glob("*.py"):
             if path.name.startswith("__"):
                 continue
 
-            cog_name = ".".join(path.with_suffix("").parts)
+            cog_name = f"{__package__}.{path.stem}"
             try:
                 await self.client.unload_extension(cog_name)
                 self.client.logger.info(f"Unloaded cog: {cog_name}")
@@ -694,11 +700,11 @@ class SlashUtils(commands.Cog):
                 pass
 
         # Now load all cogs
-        for path in Path("cogs").rglob("*.py"):
+        for path in Path(__file__).resolve().parent.glob("*.py"):
             if path.name.startswith("__"):
                 continue
 
-            cog_name = ".".join(path.with_suffix("").parts)
+            cog_name = f"{__package__}.{path.stem}"
             try:
                 await self.client.load_extension(cog_name)
                 self.client.logger.info(f"Reloaded cog: {cog_name}")
@@ -727,5 +733,5 @@ class SlashUtils(commands.Cog):
 async def setup(client: DiscordBot) -> None:
     await client.add_cog(
         SlashUtils(client),
-        guild=client.config.guild,
+        guild=client.config.guild_object,
     )

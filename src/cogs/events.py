@@ -1,13 +1,17 @@
+from __future__ import annotations
+
 import asyncio
 import os
 import random
 import re
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import discord
 from discord.ext import commands
 
-from bot import DiscordBot
+if TYPE_CHECKING:
+    from src.bot import DiscordBot
 
 
 class Events(commands.Cog):

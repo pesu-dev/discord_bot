@@ -10,11 +10,21 @@ from typing import TYPE_CHECKING
 import discord
 
 if TYPE_CHECKING:
-    from bot import DiscordBot
+    from src.bot import DiscordBot
 
 
 class Config:
     """Configuration class."""
+
+    # The bot only ever runs on a single guild, so this is a constant.
+    GUILD_ID = 742797665301168220
+
+    # Per-environment settings keyed by APP_ENV. All share one cluster for now.
+    ENVIRONMENTS = {
+        "prod": {"prefix": "!", "db_name": "pesu_v2"},
+        "dev": {"prefix": "$", "db_name": "pesu_v2"},
+        "local": {"prefix": "?", "db_name": "pesu_v2"},
+    }
 
     # Role IDs
     ROLES = {
@@ -80,19 +90,35 @@ class Config:
         "LOBBY": 860224115633160203,
     }
 
+    @staticmethod
+    def resolve_env() -> tuple[str, str, str]:
+        """Resolve (env, prefix, db_name) from APP_ENV. Fails fast on invalid values."""
+        env = os.getenv("APP_ENV")
+        if env not in Config.ENVIRONMENTS:
+            valid = ", ".join(Config.ENVIRONMENTS)
+            raise ValueError(f"APP_ENV must be one of [{valid}], got {env!r}")
+        settings = Config.ENVIRONMENTS[env]
+        return env, settings["prefix"], settings["db_name"]
+
     def __init__(self, bot: DiscordBot) -> None:
         """Initialize with bot instance."""
         self.bot = bot
-        self.guild_id = int(os.getenv("GUILD_ID", 742797665301168220))
+        self.guild_id = self.GUILD_ID
+        self.env, self.prefix, self.db_name = self.resolve_env()
 
     @property
     def guild(self) -> discord.Guild:
-        """Get the Discord guild object."""
+        """Get the Discord guild object (requires the guild cache to be populated)."""
         guild = self.bot.get_guild(self.guild_id)
         if guild is None:
             msg = f"Guild with ID {self.guild_id} not found"
             raise ValueError(msg)
         return guild
+
+    @property
+    def guild_object(self) -> discord.Object:
+        """Lightweight guild reference for command registration (no cache needed)."""
+        return discord.Object(id=self.guild_id)
 
     def get_role(self, category: str, name: str) -> discord.Role:
         """Get role by category and name using discord.py utilities."""

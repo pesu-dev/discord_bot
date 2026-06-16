@@ -115,20 +115,16 @@ This section provides instructions for setting up your development environment t
 
    ```env
    MONGO_URI=""
-   DB_NAME=""
    ASKPESU_API=""
    BOT_TOKEN=""
    APP_ENV=""
-   BOT_PREFIX=""
    ```
 
    Replace the placeholder values with your actual credentials:
    - `MONGO_URI`: MongoDB connection string
-   - `DB_NAME`: Database name for the bot
    - `ASKPESU_API`: Base URL for AskPESU API
    - `BOT_TOKEN`: Discord bot token
-   - `APP_ENV`: Environment name (`dev` or `prod`)
-   - `BOT_PREFIX`: Command prefix for legacy/message commands
+   - `APP_ENV`: Environment name (must be one of `prod`, `dev`, or `local`)
 
 ### Database Setup
 
@@ -151,11 +147,10 @@ Ensure you have:
 
 To run the bot locally for development:
 
-1. **Run the bot** (from the `src` directory):
+1. **Run the bot** (from the repository root):
 
    ```bash
-   cd src
-   uv run application.py
+   uv run python -m src
    ```
 
 The bot will start and connect to Discord. You should see connection logs in your terminal indicating successful startup.

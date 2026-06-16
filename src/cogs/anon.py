@@ -1,11 +1,16 @@
+from __future__ import annotations
+
 import datetime
+from typing import TYPE_CHECKING
 
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
-import utils.general as ug
-from bot import DiscordBot
+from src.utils import general as ug
+
+if TYPE_CHECKING:
+    from src.bot import DiscordBot
 
 
 class SlashAnon(commands.Cog):
@@ -16,7 +21,6 @@ class SlashAnon(commands.Cog):
             name="Ban this anon",
             callback=self.anon_ban_from_context_menu,
         )
-        self.client.tree.add_command(self.ctx_menu)
         self.tasks = [self.check_anon_bans_loop, self.clear_anon_cache_loop]
         for task in self.tasks:
             if not task.is_running():
@@ -549,8 +553,8 @@ class SlashAnon(commands.Cog):
 
 async def setup(client: DiscordBot) -> None:
     cog = SlashAnon(client)
-    await client.add_cog(cog, guild=client.config.guild)
+    await client.add_cog(cog, guild=client.config.guild_object)
     client.tree.add_command(
         cog.ctx_menu,
-        guild=client.config.guild,
+        guild=client.config.guild_object,
     )

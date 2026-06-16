@@ -1,11 +1,16 @@
+from __future__ import annotations
+
 import time
+from typing import TYPE_CHECKING
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
-import utils.general as ug
-from bot import DiscordBot
+from src.utils import general as ug
+
+if TYPE_CHECKING:
+    from src.bot import DiscordBot
 
 
 class SlashLink(commands.Cog):
@@ -118,5 +123,5 @@ class SlashLink(commands.Cog):
 async def setup(client: DiscordBot) -> None:
     await client.add_cog(
         SlashLink(client),
-        guild=client.config.guild,
+        guild=client.config.guild_object,
     )

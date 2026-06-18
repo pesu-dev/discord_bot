@@ -137,22 +137,3 @@ class DiscordBot(commands.Bot):
             )
         else:
             self.logger.error(f"Unhandled command error in '{context.command}': {type(error).__name__}: {error}")
-
-    async def clear_all_commands(self) -> None:
-        """Clear all guild commands."""
-        guild = self.config.guild_object
-        try:
-            self.tree.clear_commands(guild=guild)
-            await self.tree.sync(guild=guild)
-            self.logger.info("Cleared all guild commands")
-        except Exception as e:
-            self.logger.error(f"Failed to clear guild commands: {e}")
-
-    async def sync_all_commands(self) -> None:
-        """Sync all commands to the guild."""
-        guild = self.config.guild_object
-        try:
-            await self.tree.sync(guild=guild)
-            self.logger.info("Synced all commands to the guild")
-        except Exception as e:
-            self.logger.error(f"Failed to sync commands: {e}")

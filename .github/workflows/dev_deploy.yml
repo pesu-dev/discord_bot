@@ -30,9 +30,51 @@ jobs:
       image_tag: ${{ github.event.workflow_run.head_sha }}
       push: true
 
+  sync_guild_commands:
+    name: Sync guild commands (dev)
+    needs: [build_and_push_image]
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'dev'
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: GHCR login
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve previously deployed dev SHA
+        id: previous
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ vars.DOCKER_IMAGE_NAME }}
+        run: |
+          set -euo pipefail
+          if docker pull "${IMAGE}:dev" >/dev/null 2>&1; then
+            BASE_SHA="$(docker inspect --format='{{ index .Config.Labels "org.opencontainers.image.revision"}}' "${IMAGE}:dev")"
+            if [ -z "${BASE_SHA}" ] || [ "${BASE_SHA}" = "unknown" ]; then
+              echo "No usable revision label on :dev image; command sync will run unconditionally."
+              echo "base_ref=" >> "$GITHUB_OUTPUT"
+            else
+              echo "base_ref=${BASE_SHA}" >> "$GITHUB_OUTPUT"
+              echo "Previously deployed dev SHA: ${BASE_SHA}"
+            fi
+          else
+            echo "base_ref=" >> "$GITHUB_OUTPUT"
+            echo "No existing dev image tag; command sync will run unconditionally."
+          fi
+
+      - name: Sync guild commands if registry changed
+        uses: ./.github/actions/sync-guild-commands
+        with:
+          head_ref: ${{ github.event.workflow_run.head_sha }}
+          base_ref: ${{ steps.previous.outputs.base_ref }}
+          bot_token: ${{ secrets.BOT_TOKEN }}
+          app_env: ${{ secrets.APP_ENV }}
+
   deploy_dev:
     name: Deploy commit image to dev
-    needs: [build_and_push_image]
+    needs: [build_and_push_image, sync_guild_commands]
     runs-on: ubuntu-latest
     environment: dev
     steps:

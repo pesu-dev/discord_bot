@@ -43,6 +43,8 @@ For detailed development setup and contribution instructions, see our [Contribut
 ├── Dockerfile                  # Container image definition
 ├── LICENSE                     # Project license
 ├── README.md                   # This file
+├── scripts/                    # Operational scripts
+│   └── sync_guild_commands.py  # Deploy-time guild command sync
 └── src/                        # Discord bot package (run via `python -m src`)
     ├── __init__.py             # Package bootstrap: env loading, logging, version
     ├── __main__.py             # Entry point for `python -m src`

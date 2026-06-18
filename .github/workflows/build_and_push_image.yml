@@ -63,6 +63,7 @@ jobs:
       - name: Build Docker image
         run: |
           docker build \
+            --build-arg "GIT_SHA=${{ inputs.image_tag }}" \
             -t "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.image_tag }}" \
             .
 

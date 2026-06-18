@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       target_sha: ${{ steps.resolve_sha.outputs.target_sha }}
+      main_sha: ${{ steps.resolve_sha.outputs.main_sha }}
       image_tag: ${{ steps.resolve_sha.outputs.image_tag }}
       has_changes: ${{ steps.resolve_sha.outputs.has_changes }}
     steps:
@@ -54,12 +55,28 @@ jobs:
           fi
 
           echo "target_sha=${TARGET_SHA}" >> "$GITHUB_OUTPUT"
+          echo "main_sha=${MAIN_SHA}" >> "$GITHUB_OUTPUT"
           echo "image_tag=${TARGET_SHA}" >> "$GITHUB_OUTPUT"
           echo "has_changes=${HAS_CHANGES}" >> "$GITHUB_OUTPUT"
 
+  sync_guild_commands:
+    name: Sync guild commands (prod)
+    needs: [resolve_target]
+    if: needs.resolve_target.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - name: Sync guild commands if registry changed
+        uses: ./.github/actions/sync-guild-commands
+        with:
+          head_ref: ${{ needs.resolve_target.outputs.target_sha }}
+          base_ref: ${{ needs.resolve_target.outputs.main_sha }}
+          bot_token: ${{ secrets.BOT_TOKEN }}
+          app_env: ${{ secrets.APP_ENV }}
+
   promote_and_deploy:
     name: Fast-forward main and deploy promoted SHA
-    needs: [resolve_target]
+    needs: [resolve_target, sync_guild_commands]
     if: needs.resolve_target.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     environment: prod

@@ -8,6 +8,10 @@ ENV UV_LINK_MODE=copy \
 
 WORKDIR /app
 
+# Git commit SHA baked in at build time (used by deploy workflows to detect command changes).
+ARG GIT_SHA=unknown
+LABEL org.opencontainers.image.revision=${GIT_SHA}
+
 # Install the exact locked dependencies (no dev tooling, don't install the project itself)
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project

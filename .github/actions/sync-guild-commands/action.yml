@@ -1,0 +1,86 @@
+name: Sync guild commands
+description: Detect command add/remove between git refs and sync to Discord when needed
+inputs:
+  head_ref:
+    description: Git commit being deployed
+    required: true
+  base_ref:
+    description: Previously deployed commit (empty means always sync)
+    required: false
+    default: ""
+  bot_token:
+    description: Discord bot token
+    required: true
+  app_env:
+    description: Application environment (prod, dev, local)
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Checkout head ref
+      uses: actions/checkout@v6
+      with:
+        ref: ${{ inputs.head_ref }}
+        fetch-depth: 0
+
+    - name: Fetch base ref for comparison
+      if: inputs.base_ref != ''
+      shell: bash
+      run: git fetch --depth=1 origin "${{ inputs.base_ref }}" || true
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v8.2.0
+      with:
+        enable-cache: true
+
+    - name: Install dependencies
+      shell: bash
+      run: uv sync --frozen --no-dev
+
+    - name: Detect command additions or deletions
+      id: detect
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        BASE_REF="${{ inputs.base_ref }}"
+        HEAD_REF="${{ inputs.head_ref }}"
+
+        if [ -n "${BASE_REF}" ] && ! git cat-file -e "${BASE_REF}^{commit}" 2>/dev/null; then
+          echo "Base ref ${BASE_REF} is not available in this checkout; syncing unconditionally."
+          BASE_REF=""
+        fi
+
+        if [ -z "${BASE_REF}" ]; then
+          echo "No base ref available; treating all commands as new."
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        set +e
+        uv run python scripts/sync_guild_commands.py changed \
+          --base "${BASE_REF}" \
+          --head "${HEAD_REF}"
+        exit_code=$?
+        set -e
+
+        if [ "$exit_code" -eq 0 ]; then
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+        elif [ "$exit_code" -eq 1 ]; then
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+        else
+          exit "$exit_code"
+        fi
+
+    - name: Sync guild commands to Discord
+      if: steps.detect.outputs.changed == 'true'
+      shell: bash
+      env:
+        BOT_TOKEN: ${{ inputs.bot_token }}
+        APP_ENV: ${{ inputs.app_env }}
+      run: uv run python scripts/sync_guild_commands.py sync
+
+    - name: Skip sync (no command additions or deletions)
+      if: steps.detect.outputs.changed != 'true'
+      shell: bash
+      run: echo "Guild command sync skipped — no commands were added or removed."

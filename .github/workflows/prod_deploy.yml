@@ -66,6 +66,12 @@ jobs:
     runs-on: ubuntu-latest
     environment: prod
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.resolve_target.outputs.target_sha }}
+          fetch-depth: 0
+
       - name: Sync guild commands if registry changed
         uses: ./.github/actions/sync-guild-commands
         with:

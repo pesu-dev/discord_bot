@@ -60,7 +60,9 @@ class HelpEmbeds:
                 timestamp=discord.utils.utcnow(),
             )
             .add_field(name="Pride", value="`/pride`", inline=False)
-            .add_field(name="FAQ", value="`/faq`", inline=False),
+            .add_field(name="FAQ", value="`/faq`", inline=False)
+            .add_field(name="Ask PESU", value="`/ask`", inline=False)
+            .add_field(name="Reload Cogs", value="`/reload`", inline=False),
         ]
 
         self.mod = [
@@ -71,8 +73,7 @@ class HelpEmbeds:
                 timestamp=discord.utils.utcnow(),
             )
             .add_field(name="Kick a User", value="`/kick`", inline=False)
-            .add_field(name="Echo a Message", value="`/echo`", inline=False)
-            .add_field(name="Change User's nick", value="`/changenick`", inline=False),
+            .add_field(name="Echo a Message", value="`/echo`", inline=False),
             discord.Embed(
                 title="PESU Bot",
                 description="Mod Commands",
@@ -215,7 +216,6 @@ class SlashHelp(commands.Cog):
                 timestamp=discord.utils.utcnow(),
             )
             embed.set_footer(text="PESU Bot")
-            embed.timestamp = discord.utils.utcnow()
             await interaction.followup.send(embed=embed)
             return
 

@@ -101,18 +101,18 @@ class SlashMod(commands.Cog):
             channel = guild.get_channel(mute["channel_id"])
             if not isinstance(channel, discord.TextChannel | discord.Thread):
                 continue
-            if channel:
-                unmute_embed = discord.Embed(title="Unmute", color=discord.Color.green(), timestamp=now)
-                unmute_embed.add_field(
-                    name="Unmuted user",
-                    value=f"{member.mention} welcome back",
-                    inline=False,
-                )
-                unmute_embed.set_footer(text="PESU Bot")
-                try:
-                    await channel.send(content=member.mention, embed=unmute_embed)
-                except discord.HTTPException:
-                    pass
+
+            unmute_embed = discord.Embed(title="Unmute", color=discord.Color.green(), timestamp=now)
+            unmute_embed.add_field(
+                name="Unmuted user",
+                value=f"{member.mention} welcome back",
+                inline=False,
+            )
+            unmute_embed.set_footer(text="PESU Bot")
+            try:
+                await channel.send(content=member.mention, embed=unmute_embed)
+            except discord.HTTPException:
+                pass
 
             mod_logs = self.client.config.mod_logs_channel
             unmute_logs_embed = discord.Embed(title="Unmute", color=discord.Color.green(), timestamp=now)
@@ -841,7 +841,6 @@ class SlashMod(commands.Cog):
         await mod_logs.send(embed=detimeout_logs_embed)
 
     @detimeout_member.error
-    @timeout_member.error
     async def detimeout_member_error(
         self,
         interaction: discord.Interaction,

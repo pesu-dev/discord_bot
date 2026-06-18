@@ -133,8 +133,8 @@ class SlashAnon(commands.Cog):
 
     async def _handle_ban_message_link(
         self, interaction: discord.Interaction, link: str
-    ) -> tuple[discord.Member, discord.Message] | None:
-        """Handle message link validation and user lookup. Returns (user, message) or None if failed."""
+    ) -> discord.Member | None:
+        """Handle message link validation and user lookup."""
         if not isinstance(interaction.channel, discord.TextChannel) or not interaction.guild:
             return None
 
@@ -151,10 +151,10 @@ class SlashAnon(commands.Cog):
             )
             return None
 
-        return user_to_ban, ban_msg
+        return user_to_ban
 
-    async def _create_and_store_ban(self, user_id: str, reason: str, time_str: str | None = None) -> tuple[dict, str]:
-        """Create ban data and store in database. Returns (ban_data, expiry_timestamp)."""
+    async def _create_and_store_ban(self, user_id: str, reason: str, time_str: str | None = None) -> str:
+        """Create ban data and store in database. Returns expiry display string."""
         banned_at = datetime.datetime.now(datetime.UTC)
 
         if time_str is not None:
@@ -172,9 +172,7 @@ class SlashAnon(commands.Cog):
         }
 
         await self.client.anonban_collection.insert_one(ban_data)
-        expiry_timestamp = "Permanent" if expires_at is None else f"<t:{int(expires_at.timestamp())}:R>"
-
-        return ban_data, expiry_timestamp
+        return "Permanent" if expires_at is None else f"<t:{int(expires_at.timestamp())}:R>"
 
     @tasks.loop(seconds=30)
     async def check_anon_bans_loop(self) -> None:
@@ -308,10 +306,9 @@ class SlashAnon(commands.Cog):
             return
 
         # Handle message link and find user
-        result = await self._handle_ban_message_link(interaction, link)
-        if not result:
+        user_to_ban = await self._handle_ban_message_link(interaction, link)
+        if not user_to_ban:
             return
-        user_to_ban, ban_msg = result
 
         # Check if user is already banned
         if await self._check_user_anon_ban(str(user_to_ban.id)):
@@ -324,7 +321,7 @@ class SlashAnon(commands.Cog):
 
         # Create and store ban
         ban_reason = reason if reason is not None else "No reason provided"
-        ban_data, expiry_timestamp = await self._create_and_store_ban(str(user_to_ban.id), ban_reason, time)
+        expiry_timestamp = await self._create_and_store_ban(str(user_to_ban.id), ban_reason, time)
 
         # Send confirmation
         if expiry_timestamp == "Permanent":
@@ -384,7 +381,7 @@ class SlashAnon(commands.Cog):
 
         # Create and store permanent ban
         reason = "No reason provided, executed via context menu"
-        ban_data, _ = await self._create_and_store_ban(str(ban_user.id), reason, None)
+        await self._create_and_store_ban(str(ban_user.id), reason, None)
 
         # Create notification embed
         embed = self._create_notification_embed(
@@ -442,7 +439,7 @@ class SlashAnon(commands.Cog):
 
         # Create and store ban
         ban_reason = reason if reason is not None else "No reason provided"
-        ban_data, expiry_timestamp = await self._create_and_store_ban(str(member.id), ban_reason, time)
+        expiry_timestamp = await self._create_and_store_ban(str(member.id), ban_reason, time)
 
         # Send confirmation
         if expiry_timestamp == "Permanent":

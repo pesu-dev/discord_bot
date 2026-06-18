@@ -131,9 +131,7 @@ class SlashAnon(commands.Cog):
         except (discord.Forbidden, discord.HTTPException):
             return False
 
-    async def _handle_ban_message_link(
-        self, interaction: discord.Interaction, link: str
-    ) -> discord.Member | None:
+    async def _handle_ban_message_link(self, interaction: discord.Interaction, link: str) -> discord.Member | None:
         """Handle message link validation and user lookup."""
         if not isinstance(interaction.channel, discord.TextChannel) or not interaction.guild:
             return None

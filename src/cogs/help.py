@@ -127,7 +127,7 @@ class HelpView(discord.ui.View):
 
     def update_buttons(self) -> None:
         self.clear_items()
-        self.add_item(HelpSelect(self.category))
+        self.add_item(HelpSelect(self))
         self.add_item(PrevButton(self))
         self.add_item(NextButton(self))
 
@@ -150,7 +150,7 @@ class HelpView(discord.ui.View):
 
 
 class HelpSelect(discord.ui.Select):
-    def __init__(self, current_category: str) -> None:
+    def __init__(self, view: HelpView) -> None:
         options = [
             discord.SelectOption(label="Anonymous Commands", value="anon", emoji="🖖"),
             discord.SelectOption(label="Utility Commands", value="utils", emoji="⚙️"),
@@ -158,17 +158,14 @@ class HelpSelect(discord.ui.Select):
             discord.SelectOption(label="Link Commands", value="link", emoji="🔗"),
         ]
         super().__init__(placeholder="Select category", options=options)
-        self.current_category = current_category
+        self.view_ref = view
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        if not isinstance(self.view, HelpView):
-            return
-
-        self.view.category = self.values[0]
-        self.view.page = 0
-        self.view.embeds = HelpEmbeds().get_embeds(self.view.category)
-        self.view.update_buttons()
-        await interaction.response.edit_message(embed=self.view.get_embed(), view=self.view)
+        self.view_ref.category = self.values[0]
+        self.view_ref.page = 0
+        self.view_ref.embeds = HelpEmbeds().get_embeds(self.view_ref.category)
+        self.view_ref.update_buttons()
+        await interaction.response.edit_message(embed=self.view_ref.get_embed(), view=self.view_ref)
 
 
 class PrevButton(discord.ui.Button):

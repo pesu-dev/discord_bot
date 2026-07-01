@@ -3,7 +3,6 @@ import os
 import platform
 import random
 import time
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import discord
@@ -13,6 +12,7 @@ from discord.ext import commands, tasks
 from discord.ext.commands import Context
 from pymongo import AsyncMongoClient
 
+from src.utils.cogs import COGS_PACKAGE, discover_cog_extensions, get_cogs_dir
 from src.utils.config import Config
 
 if TYPE_CHECKING:
@@ -63,14 +63,10 @@ class DiscordBot(commands.Bot):
         self.logger.info(self.db_status)
 
     async def load_cogs(self) -> None:
-        """Load every cog in the flat cogs/ directory."""
-        cogs_dir = Path(__file__).resolve().parent / "cogs"
-        for file in sorted(os.listdir(cogs_dir)):
-            if not file.endswith(".py") or file.startswith("__"):
-                continue
-            extension = file[:-3]
+        """Load every cog module or package in the cogs directory."""
+        for extension in discover_cog_extensions(get_cogs_dir(), COGS_PACKAGE):
             try:
-                await self.load_extension(f"{__package__}.cogs.{extension}")
+                await self.load_extension(extension)
                 self.logger.info(f"Loaded extension '{extension}'")
             except Exception as e:
                 self.logger.error(f"Failed to load extension '{extension}': {type(e).__name__}: {e}")

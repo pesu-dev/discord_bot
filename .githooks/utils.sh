@@ -76,6 +76,18 @@ run_quality_checks() {
     return 0
 }
 
+run_cog_import_checks() {
+    print_action "Verifying cog package imports..."
+
+    if ! uv run python scripts/check_cog_imports.py; then
+        print_error "Cog package import check failed"
+        return 1
+    fi
+
+    print_success "Cog package imports verified"
+    return 0
+}
+
 # Install dependencies from pyproject.toml
 maybe_install_packages() {
     if uv sync; then

@@ -67,6 +67,9 @@ jobs:
       - name: Run source compile checks
         run: python -m compileall -q .
 
+      - name: Verify cog package imports
+        run: uv run python scripts/check_cog_imports.py
+
   pr_image_build:
     name: Build image on PR
     needs: [pr_source_checker]

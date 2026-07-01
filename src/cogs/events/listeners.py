@@ -14,7 +14,8 @@ if TYPE_CHECKING:
     from src.bot import DiscordBot
 
 
-class Events(commands.Cog):
+class EventListeners:
+
     def __init__(self, client: DiscordBot) -> None:
         self.client = client
 
@@ -239,7 +240,3 @@ class Events(commands.Cog):
     @commands.Cog.listener()
     async def on_thread_create(self, thread: discord.Thread) -> None:
         await thread.join()
-
-
-async def setup(client: DiscordBot) -> None:
-    await client.add_cog(Events(client))

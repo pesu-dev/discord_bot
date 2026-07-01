@@ -83,7 +83,7 @@ done
 
 echo
 print_info "🎯 Hook capabilities:"
-echo "  • pre-commit: Runs quality checks, detects sensitive files, warns about TODOs"
+echo "  • pre-commit: Runs quality checks, verifies cog imports, detects sensitive files, warns about TODOs"
 echo "  • pre-push: Comprehensive checks before pushing to remote"
 echo "  • post-merge: Auto-installs dependencies if pyproject.toml changed"
 echo "  • post-checkout: Auto-installs dependencies when switching branches"

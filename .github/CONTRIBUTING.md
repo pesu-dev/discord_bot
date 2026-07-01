@@ -24,6 +24,7 @@ Thank you for your interest in contributing to the PESU Discord Bot! This docume
 - [Security](#-security)
 - [Code Style Guide](#-code-style-guide)
   - [General Guidelines](#-general-guidelines)
+  - [Cog Package Structure](#-cog-package-structure)
 - [GitHub Labels](#-github-labels)
 - [Feature Suggestions](#-feature-suggestions)
 - [License](#-license)
@@ -246,6 +247,34 @@ To keep the codebase clean and maintainable, please follow these conventions:
 - Keep functions focused and modular
 - Follow PEP 8 style guidelines
 - Use async/await for all Discord.py operations
+
+### 📦 Cog Package Structure
+
+Each cog lives under `src/cogs/<name>/` as a Python package:
+
+```text
+src/cogs/mod/
+  __init__.py      # *Groups classes + setup()
+  cog.py           # Cog shell (tasks, helpers, Slash* class)
+  moderation.py    # Command mixins
+  link.py          # More command mixins
+```
+
+Conventions:
+
+- **Command groups** (`ModGroups`, `AnonGroups`, etc.) belong in `__init__.py`.
+- **Command mixins** import groups from `src.cogs.<name>`, never from `cog.py`.
+- **`cog.py`** wires mixins into the final `Slash*` cog class and holds shared helpers/tasks.
+- **`setup()`** lazy-imports the cog class to avoid circular imports.
+- Use **absolute imports only** (`from src.cogs.mod import ModGroups`), not relative imports.
+- Cog discovery and reload helpers live in `src/utils/cogs.py`.
+
+Special cases:
+
+- **`anon`**: registers a context menu in `setup()` alongside the cog.
+- **`events`**: global listeners, not guild-scoped.
+
+When adding a new cog package, CI runs `scripts/check_cog_imports.py` to catch import cycles early.
 
 ---
 

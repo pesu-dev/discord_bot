@@ -2,138 +2,18 @@ from __future__ import annotations
 
 import datetime as dt
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING
 
 import discord
 from discord import app_commands
-from discord.ext import commands, tasks
+from discord.ext import commands
 
+from src.cogs.mod import ModGroups
 from src.utils import general as ug
 from src.utils.config import Config
 
-if TYPE_CHECKING:
-    from src.bot import DiscordBot
 
-
-class SlashMod(commands.Cog):
-    def __init__(self, client: DiscordBot) -> None:
-        self.client = client
-
-        # Background tasks
-        self.tasks = [self.check_mutes_loop]
-        for task in self.tasks:
-            if not task.is_running():
-                task.start()
-
-    @staticmethod
-    def parse_time(time_str: str) -> int:
-        time_str = time_str.lower().strip()
-        try:
-            if time_str.endswith("d"):
-                return int(time_str[:-1]) * 24 * 60 * 60
-            if time_str.endswith("h"):
-                return int(time_str[:-1]) * 60 * 60
-            if time_str.endswith("m"):
-                return int(time_str[:-1]) * 60
-            if time_str.endswith("s"):
-                return int(time_str[:-1])
-            if time_str.endswith("y"):
-                return int(time_str[:-1]) * 24 * 60 * 60 * 365
-            return int(time_str)
-        except ValueError:
-            raise ValueError("Invalid time format") from None
-
-    async def cog_unload(self) -> None:
-        for task in self.tasks:
-            task.cancel()
-
-    @commands.Cog.listener()
-    async def on_ready(self) -> None:
-        await self.client.wait_until_ready()
-        for task in self.tasks:
-            if not task.is_running():
-                task.start()
-
-    @tasks.loop(seconds=30)
-    async def check_mutes_loop(self) -> None:
-        now = datetime.now(dt.UTC)
-        expired_mutes = await self.client.mute_collection.find({"unmute_time": {"$lte": now}, "active": True}).to_list(
-            length=100
-        )
-
-        guild = self.client.config.guild
-        for mute in expired_mutes:
-            try:
-                member = await guild.fetch_member(mute["user_id"])
-            except discord.NotFound:
-                await self.client.mute_collection.update_one(
-                    {"_id": mute["_id"]},
-                    {
-                        "$set": {
-                            "active": False,
-                            "unmute_time": now,
-                            "unmute_type": "auto_member_left",
-                        }
-                    },
-                )
-                continue
-
-            muted_role = self.client.config.muted_role
-            if muted_role and muted_role in member.roles:
-                try:
-                    await member.remove_roles(muted_role, reason="Automatic unmute by loop")
-                except Exception as e:
-                    embed = ug.build_unknown_error_embed(e)
-                    bot_logs = self.client.config.bot_logs_channel
-                    await bot_logs.send(embed=embed)
-
-            await self.client.mute_collection.update_one(
-                {"_id": mute["_id"]},
-                {
-                    "$set": {
-                        "active": False,
-                        "unmute_time": now,
-                        "unmute_type": "loop_auto",
-                    }
-                },
-            )
-
-            channel = guild.get_channel(mute["channel_id"])
-            if not isinstance(channel, discord.TextChannel | discord.Thread):
-                continue
-
-            unmute_embed = discord.Embed(title="Unmute", color=discord.Color.green(), timestamp=now)
-            unmute_embed.add_field(
-                name="Unmuted user",
-                value=f"{member.mention} welcome back",
-                inline=False,
-            )
-            unmute_embed.set_footer(text="PESU Bot")
-            try:
-                await channel.send(content=member.mention, embed=unmute_embed)
-            except discord.HTTPException:
-                pass
-
-            mod_logs = self.client.config.mod_logs_channel
-            unmute_logs_embed = discord.Embed(title="Unmute", color=discord.Color.green(), timestamp=now)
-
-            unmute_logs_embed.add_field(
-                name="Unmuted user",
-                value=f"{member.mention}\nModerator: Auto",
-                inline=False,
-            )
-            unmute_logs_embed.set_footer(text="PESU Bot")
-
-            try:
-                await mod_logs.send(embed=unmute_logs_embed)
-            except discord.HTTPException:
-                pass
-
-    @check_mutes_loop.before_loop
-    async def before_check_mutes_loop(self) -> None:
-        await self.client.wait_until_ready()
-
-    @app_commands.command(name="kick", description="Kick a member from the server")
+class ModerationCommands:
+    @ModGroups.mod.command(name="kick", description="Kick a member from the server")
     @app_commands.describe(member="The member to kick", reason="Reason for the kick")
     async def kick(
         self,
@@ -264,7 +144,7 @@ class SlashMod(commands.Cog):
         else:
             await ctx.send(embed=ug.build_unknown_error_embed(original))
 
-    @app_commands.command(name="mute", description="Mute a member for a specified duration")
+    @ModGroups.mod.command(name="mute", description="Mute a member for a specified duration")
     @app_commands.describe(
         member="The member to mute (or yourself for self-mute)",
         time="Duration for mute (e.g., 1h, 30m, 2d, and ofc y(💀))",
@@ -293,7 +173,7 @@ class SlashMod(commands.Cog):
             is_self_mute = False
 
         try:
-            seconds = self.parse_time(time)
+            seconds = ug.parse_time(time)
         except ValueError:
             await interaction.followup.send(
                 content="Mention the proper amount of time\nAccepted Time Format: Should end with `d/h/m/s/y`",
@@ -389,7 +269,7 @@ class SlashMod(commands.Cog):
         else:
             await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
 
-    @app_commands.command(name="unmute", description="Unmute a member")
+    @ModGroups.mod.command(name="unmute", description="Unmute a member")
     @app_commands.describe(member="The member to unmute")
     async def unmute(self, interaction: discord.Interaction, member: discord.Member) -> None:
         await interaction.response.defer(ephemeral=False)
@@ -475,7 +355,7 @@ class SlashMod(commands.Cog):
         else:
             await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
 
-    @app_commands.command(name="purge", description="Delete a number of recent messages")
+    @ModGroups.mod.command(name="purge", description="Delete a number of recent messages")
     @app_commands.describe(amount="Number of messages to delete")
     async def purge(self, interaction: discord.Interaction, amount: int) -> None:
         await interaction.response.defer(ephemeral=True)
@@ -531,7 +411,7 @@ class SlashMod(commands.Cog):
         else:
             await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
 
-    @app_commands.command(name="lock", description="lock a channel")
+    @ModGroups.mod.command(name="lock", description="lock a channel")
     @app_commands.describe(
         channel="The channel to lock (defaults to current channel)",
         reason="Reason for locking the channel (optional)",
@@ -619,7 +499,7 @@ class SlashMod(commands.Cog):
         else:
             await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
 
-    @app_commands.command(name="unlock", description="Unlock a channel")
+    @ModGroups.mod.command(name="unlock", description="Unlock a channel")
     @app_commands.describe(channel="The channel to unlock (defaults to current channel)")
     async def unlock_channel(
         self,
@@ -701,7 +581,7 @@ class SlashMod(commands.Cog):
         else:
             await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
 
-    @app_commands.command(name="timeout", description="Timeout a member for a specified duration")
+    @ModGroups.mod.command(name="timeout", description="Timeout a member for a specified duration")
     @app_commands.describe(
         member="The member to timeout",
         time="Duration for timeout (e.g., 1h, 30m, 2d)",
@@ -724,7 +604,7 @@ class SlashMod(commands.Cog):
             return
 
         try:
-            seconds = self.parse_time(time)
+            seconds = ug.parse_time(time)
         except ValueError:
             await interaction.followup.send(
                 content=(
@@ -803,7 +683,7 @@ class SlashMod(commands.Cog):
         else:
             await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
 
-    @app_commands.command(name="detimeout", description="Remove timeout from a member")
+    @ModGroups.mod.command(name="detimeout", description="Remove timeout from a member")
     @app_commands.describe(member="The member to remove timeout from")
     async def detimeout_member(self, interaction: discord.Interaction, member: discord.Member) -> None:
         await interaction.response.defer(ephemeral=False)
@@ -866,10 +746,3 @@ class SlashMod(commands.Cog):
 
         else:
             await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
-
-async def setup(client: DiscordBot) -> None:
-    await client.add_cog(
-        SlashMod(client),
-        guild=client.config.guild_object,
-    )

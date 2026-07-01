@@ -2,179 +2,67 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import discord
 import httpx
-from discord import Interaction, SelectOption, app_commands
-from discord.ext import commands
+from discord import app_commands
 
+from src.cogs.utils.components import RoleSelectView
 from src.utils import general as ug
 
-if TYPE_CHECKING:
-    from src.bot import DiscordBot
+
+class UtilsCommands:
 
 
-class RoleSelect(discord.ui.Select):
-    def __init__(self, client: DiscordBot) -> None:
-        self.client = client
-        options = [
-            SelectOption(
-                label="None",
-                value="0",
-                description="Use this to de-select your choice in this menu",
-            ),
-            SelectOption(
-                label="Gamer",
-                value="778825985361051660",
-                description="Don't ever question Minecraft logic",
-                emoji="🎮",
-            ),
-            SelectOption(
-                label="Coder",
-                value="778875127257104424",
-                description="sudo apt install system32",
-                emoji="⌨️",
-            ),
-            SelectOption(
-                label="Musician",
-                value="778875199701385216",
-                description="From Pink Floyd to Prateek Kuhad",
-                emoji="🎸",
-            ),
-            SelectOption(
-                label="Editor",
-                value="782642024071168011",
-                description="A peek behind-the-scenes",
-                emoji="🎥",
-            ),
-            SelectOption(
-                label="Tech",
-                value="790106229997174786",
-                description="Pure Linus Sex Tips",
-                emoji="💡",
-            ),
-            SelectOption(
-                label="Moto",
-                value="836652197214421012",
-                description="Stutututu",
-                emoji="⚙️",
-            ),
-            SelectOption(
-                label="Investors",
-                value="936886064361144360",
-                description="Stocks and Crypto are your friends",
-                emoji="💸",
-            ),
-            SelectOption(
-                label="PESU Dev",
-                value="810507351063920671",
-                description="Join the PESU Dev team",
-                emoji="🤖",
-            ),
-            SelectOption(
-                label="NSFW",
-                value="778820724424704011",
-                description="Definitely not safe for anything",
-                emoji="👀",
-            ),
-        ]
-        super().__init__(
-            placeholder="Additional Roles",
-            custom_id="add_roles_select",
-            min_values=1,
-            max_values=1,
-            options=options,
-        )
 
-    async def callback(self, interaction: Interaction) -> None:
-        await interaction.response.defer(ephemeral=True)
+    @app_commands.command(name="link", description="Link your PESU account to Discord")
+    async def link(self, interaction: discord.Interaction) -> None:
+        await interaction.response.send_message("Coming soon", ephemeral=True)
 
-        member = interaction.user
-        role_id = self.values[0]
-
-        if not isinstance(member, discord.Member) or not interaction.guild:
+    @app_commands.command(name="info", description="Get info about a user")
+    @app_commands.describe(user="User to fetch info about")
+    async def info(self, interaction: discord.Interaction, user: discord.Member) -> None:
+        await interaction.response.defer()
+        if not isinstance(interaction.user, discord.Member) or not interaction.guild:
             await interaction.followup.send(content="This command can only be used in a server", ephemeral=True)
             return
-        if not any(role.id == self.client.config.linked_role.id for role in member.roles):
-            await interaction.followup.send(content="You need to link your account first.", ephemeral=True)
-            return
 
-        if role_id == "0":
-            await interaction.followup.send(content="OK", ephemeral=True)
-            return
+        created_at_timestamp = int(time.mktime(user.created_at.timetuple()))
+        joined_at_timestamp = int(time.mktime(user.joined_at.timetuple())) if user.joined_at else None
 
-        role = interaction.guild.get_role(int(role_id))
-        if not role:
-            await interaction.followup.send(content="Role not found", ephemeral=True)
-            return
+        embed = discord.Embed(title="User Info", color=discord.Color.greyple())
+        embed.set_thumbnail(url=user.display_avatar.url)
+        embed.add_field(name="Name", value=user.name, inline=True)
+        embed.add_field(name="ID", value=str(user.id), inline=True)
+        embed.add_field(name="Creation", value=f"<t:{created_at_timestamp}:R>", inline=True)
+        if joined_at_timestamp:
+            embed.add_field(name="Join", value=f"<t:{joined_at_timestamp}:R>", inline=True)
 
-        if role in member.roles:
-            await member.remove_roles(role)
-            await interaction.followup.send(
-                content=f"Role {role.mention} was already present. Removing now...",
-                ephemeral=True,
-            )
+        roles = [role.mention for role in user.roles if role != interaction.guild.default_role]
+        roles_value = " ".join(roles) if roles else "None"
+        if len(roles_value) > 1024:
+            roles_value = f"{roles_value[:1021]}..."
+        embed.add_field(name="Roles", value=roles_value, inline=False)
+
+        embed.set_footer(text="PESU Bot")
+        embed.timestamp = discord.utils.utcnow()
+
+        await interaction.followup.send(embed=embed)
+
+    @info.error
+    async def info_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
+        if isinstance(error, app_commands.CommandInvokeError):
+            if isinstance(error.original, discord.NotFound):
+                await interaction.followup.send(
+                    content="The specified user does not exist or is not in the server",
+                    ephemeral=True,
+                )
+            else:
+                await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
         else:
-            await member.add_roles(role)
-            await interaction.followup.send(content=f"You now have the {role.mention} role", ephemeral=True)
-        return
-
-
-class RoleSelectView(discord.ui.View):
-    def __init__(self, client: DiscordBot) -> None:
-        super().__init__(timeout=None)
-        self.add_item(RoleSelect(client))
-
-
-class SlashUtils(commands.Cog):
-    def __init__(self, client: DiscordBot) -> None:
-        self.client = client
-        self.cached_data = None
-        self.client.add_view(RoleSelectView(client))
-
-    @app_commands.command(name="ping", description="Get the bot's latency")
-    async def ping(self, interaction: discord.Interaction) -> None:
-        await interaction.response.defer()
-        await interaction.followup.send(content=f"Pong!!!\nPing = `{round(self.client.latency * 1000)}ms`")
-
-    @ping.error
-    async def ping_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError,
-    ) -> None:
-        await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
-    @app_commands.command(name="uptime", description="Get the bot's uptime")
-    async def uptime(self, interaction: discord.Interaction) -> None:
-        await interaction.response.defer()
-        unixtmstmp = int(self.client.startTime)
-        await interaction.followup.send(content=f"Bot was started <t:{unixtmstmp}:R> \ni.e., on <t:{unixtmstmp}:f>")
-
-    @uptime.error
-    async def uptime_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError,
-    ) -> None:
-        await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
-    @app_commands.command(name="support", description="Contribute to bot development")
-    async def support(self, interaction: discord.Interaction) -> None:
-        await interaction.response.defer()
-        await interaction.followup.send(
-            content="You can contribute to the bot here\nhttps://github.com/pesu-dev/discord_bot"
-        )
-
-    @support.error
-    async def support_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError,
-    ) -> None:
-        await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
+            await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
 
     @app_commands.command(
         name="count",
@@ -626,96 +514,3 @@ class SlashUtils(commands.Cog):
         error: app_commands.AppCommandError,
     ) -> None:
         await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
-    @app_commands.command(name="reload", description="Reload all cogs or a specific cog")
-    @app_commands.describe(cog="The specific cog to reload (leave empty to reload all)")
-    async def reload(self, interaction: discord.Interaction, cog: str | None = None) -> None:
-        await interaction.response.defer(ephemeral=True)
-
-        if not isinstance(interaction.user, discord.Member):
-            await interaction.followup.send(
-                content="This command can only be used by members",
-                ephemeral=True,
-            )
-            return
-
-        # Check if user has admin permission
-        if not self.client.config.has_bot_dev_permissions(interaction.user):
-            await interaction.followup.send(
-                content="You don't have permission to use this command.",
-                ephemeral=True,
-            )
-            return
-
-        if cog:
-            await self._reload_single_cog(interaction, cog)
-        else:
-            await self._reload_all_cogs(interaction)
-
-    async def _reload_single_cog(self, interaction: discord.Interaction, cog: str) -> None:
-        try:
-            await self.client.reload_extension(cog)
-            self.client.logger.info(f"Reloaded cog: {cog}")
-            await interaction.followup.send(
-                content=f"Successfully reloaded cog: `{cog}`",
-                ephemeral=True,
-            )
-        except Exception as e:
-            await interaction.followup.send(
-                content=f"Failed to reload cog `{cog}`: {str(e)}",
-                ephemeral=True,
-            )
-
-    async def _reload_all_cogs(self, interaction: discord.Interaction) -> None:
-        success = []
-        failed = []
-
-        # Unload all cogs first
-        for path in Path(__file__).resolve().parent.glob("*.py"):
-            if path.name.startswith("__"):
-                continue
-
-            cog_name = f"{__package__}.{path.stem}"
-            try:
-                await self.client.unload_extension(cog_name)
-                self.client.logger.info(f"Unloaded cog: {cog_name}")
-            except Exception:
-                # Ignore errors on unload
-                pass
-
-        # Now load all cogs
-        for path in Path(__file__).resolve().parent.glob("*.py"):
-            if path.name.startswith("__"):
-                continue
-
-            cog_name = f"{__package__}.{path.stem}"
-            try:
-                await self.client.load_extension(cog_name)
-                self.client.logger.info(f"Reloaded cog: {cog_name}")
-                success.append(cog_name)
-            except Exception as e:
-                failed.append((cog_name, str(e)))
-
-        # Create response message
-        response = f"Reloaded {len(success)} cogs successfully."
-        if failed:
-            response += f"\nFailed to reload {len(failed)} cogs:"
-            for cog_name, error in failed:
-                response += f"\n- `{cog_name}`: {error[:100]}{'...' if len(error) > 100 else ''}"
-
-        await interaction.followup.send(content=response, ephemeral=True)
-
-    @reload.error
-    async def reload_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError,
-    ) -> None:
-        await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
-
-async def setup(client: DiscordBot) -> None:
-    await client.add_cog(
-        SlashUtils(client),
-        guild=client.config.guild_object,
-    )

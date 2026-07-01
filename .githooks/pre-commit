@@ -16,5 +16,12 @@ if ! run_quality_checks; then
 fi
 echo
 
+# Verify cog packages import cleanly (blocking)
+if ! run_cog_import_checks; then
+    print_error "Cog import checks failed. Commit aborted."
+    exit 1
+fi
+echo
+
 print_success "🎉 All pre-commit checks passed!"
 exit 0

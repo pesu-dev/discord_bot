@@ -15,7 +15,6 @@ if TYPE_CHECKING:
 
 
 class EventListeners:
-
     def __init__(self, client: DiscordBot) -> None:
         self.client = client
 

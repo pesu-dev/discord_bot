@@ -211,9 +211,3 @@ class NextButton(discord.ui.Button):
             self.view_ref.update_buttons()
             await interaction.response.edit_message(embed=self.view_ref.get_embed(), view=self.view_ref)
 
-
-def _has_linked_role(member: discord.Member, client: DiscordBot) -> bool:
-    return any(role.id == client.config.linked_role.id for role in member.roles)
-
-
-

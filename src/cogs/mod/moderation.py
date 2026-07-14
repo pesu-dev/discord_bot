@@ -8,6 +8,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from src.cogs.mod import ModGroups
+from src.utils import decorators as bot_decorators
 from src.utils import general as ug
 from src.utils.config import Config
 
@@ -15,40 +16,26 @@ from src.utils.config import Config
 class ModerationCommands:
     @ModGroups.mod.command(name="kick", description="Kick a member from the server")
     @app_commands.describe(member="The member to kick", reason="Reason for the kick")
+    @bot_decorators.defer(ephemeral=False)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.handle_command_errors(
+        not_found="This user doesn't even exist here, who are you trying to kick?",
+        forbidden="I am unable to kick this user at this time",
+    )
     async def kick(
         self,
         interaction: discord.Interaction,
         member: discord.Member,
         reason: str = "No reason provided",
     ) -> None:
-        await interaction.response.defer(ephemeral=False)
-
-        if not isinstance(interaction.user, discord.Member) or not interaction.guild:
-            await interaction.followup.send(
-                content="This command can only be used in a server.",
-                ephemeral=True,
-            )
-            return
-
-        if not self.client.config.has_mod_permissions(interaction.user):
-            await interaction.followup.send(content="Noob you can't do that", ephemeral=True)
-            return
-
-        if member.bot:
-            await interaction.followup.send(
-                content="You dare kick one of my brothers you little twat",
-                ephemeral=True,
-            )
-            return
-
-        if self.client.config.has_mod_permissions(member):
-            await interaction.followup.send(content="Gomma you can't kick admin/mod")
+        if (target_error := ug.mod_target_error(member, self.client.config)) is not None:
+            await interaction.followup.send(content=target_error, ephemeral=True)
             return
 
         try:
             await member.send(content=f"You have been kicked from **{interaction.guild.name}**\nReason: {reason}")
         except (discord.Forbidden, discord.HTTPException):
-            # Failed to send DM, it's alright
             pass
 
         await member.kick(reason=f"Kicked by {interaction.user} | {reason}")
@@ -63,36 +50,23 @@ class ModerationCommands:
         mod_logs_channel = self.client.config.mod_logs_channel
         await mod_logs_channel.send(embed=embed)
 
-    @kick.error
-    async def kick_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError,
-    ) -> None:
-        if isinstance(error, app_commands.CommandInvokeError):
-            original = error.original
-
-            if isinstance(original, discord.NotFound):
-                await interaction.followup.send(
-                    content="This user doesn't even exist here, who are you trying to kick?",
-                    ephemeral=True,
-                )
-
-            elif isinstance(original, discord.Forbidden):
-                await interaction.followup.send(content="I am unable to kick this user at this time", ephemeral=True)
-
-            else:
-                await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
-        else:
-            await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
     @commands.hybrid_command(name="echo", aliases=["e"], description="Echoes a message to the target channel")
     @app_commands.guilds(discord.Object(id=Config.GUILD_ID))
     @app_commands.describe(
         channel="The channel to send the message to",
         message="The message to send",
         attachment="An optional attachment to send with the message",
+    )
+    @bot_decorators.defer(ephemeral=True)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.requires_roles(
+        bot_decorators.FunctionalRole.ADMIN,
+        bot_decorators.FunctionalRole.MOD,
+        bot_decorators.FunctionalRole.BOT_DEV,
+    )
+    @bot_decorators.handle_command_errors(
+        not_found="The specified channel does not exist",
+        forbidden="I do not have permission to send messages in that channel",
     )
     async def echo(
         self,
@@ -102,18 +76,6 @@ class ModerationCommands:
         *,
         message: str,
     ) -> None:
-        await ctx.defer(ephemeral=True)
-
-        if not isinstance(ctx.author, discord.Member) or not ctx.guild:
-            await ctx.send(content="This command can only be used in a server.", ephemeral=True)
-            return
-
-        if not self.client.config.has_mod_permissions(ctx.author) and not self.client.config.has_bot_dev_permissions(
-            ctx.author
-        ):
-            await ctx.send(content="You are not authorised to run this command", ephemeral=True)
-            return
-
         file = await attachment.to_file() if attachment else None
         if file:
             await channel.send(content=message, file=file)
@@ -134,21 +96,17 @@ class ModerationCommands:
         echo_embed.set_footer(text="PESU Bot")
         await mod_logs_channel.send(embed=echo_embed)
 
-    @echo.error
-    async def echo_error(self, ctx: commands.Context, error: commands.CommandError) -> None:
-        original = getattr(error, "original", error)
-        if isinstance(original, discord.Forbidden):
-            await ctx.send(content="I do not have permission to send messages in that channel", ephemeral=True)
-        elif isinstance(original, discord.NotFound):
-            await ctx.send(content="The specified channel does not exist", ephemeral=True)
-        else:
-            await ctx.send(embed=ug.build_unknown_error_embed(original))
-
     @ModGroups.mod.command(name="mute", description="Mute a member for a specified duration")
     @app_commands.describe(
         member="The member to mute (or yourself for self-mute)",
         time="Duration for mute (e.g., 1h, 30m, 2d, and ofc y(💀))",
         reason="Reason for the mute (optional)",
+    )
+    @bot_decorators.defer(ephemeral=False)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.handle_command_errors(
+        not_found="This user doesn't even exist here, who are you trying to mute?",
+        forbidden="I am unable to mute this user at this time",
     )
     async def mute(
         self,
@@ -157,17 +115,14 @@ class ModerationCommands:
         time: str,
         reason: str = "No reason provided",
     ) -> None:
-        await interaction.response.defer(ephemeral=False)
-
-        if not isinstance(interaction.user, discord.Member) or not interaction.guild or not interaction.channel:
-            await interaction.followup.send(content="This command can only be used in a server", ephemeral=True)
-            return
         muted_role = self.client.config.muted_role
 
         if interaction.user.id == member.id:
             is_self_mute = True
         else:
-            if not self.client.config.has_mod_permissions(interaction.user):
+            if not any(
+                role in interaction.user.roles for role in (self.client.config.admin_role, self.client.config.mod_role)
+            ):
                 await interaction.followup.send(content="You are not authorised to do that", ephemeral=True)
                 return
             is_self_mute = False
@@ -192,12 +147,8 @@ class ModerationCommands:
             )
             return
 
-        if not is_self_mute and self.client.config.has_mod_permissions(member):
-            await interaction.followup.send(content="Leyy, he's admin/mod. Can't mute them", ephemeral=True)
-            return
-
-        if member.bot:
-            await interaction.followup.send(content="You dare mute one of my kind nin amn", ephemeral=True)
+        if not is_self_mute and (target_error := ug.mod_target_error(member, self.client.config)) is not None:
+            await interaction.followup.send(content=target_error, ephemeral=True)
             return
 
         await member.add_roles(muted_role)
@@ -245,41 +196,16 @@ class ModerationCommands:
         mute_logs_embed.set_footer(text="PESU Bot")
         await mod_logs.send(embed=mute_logs_embed)
 
-    @mute.error
-    async def mute_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError,
-    ) -> None:
-        if isinstance(error, app_commands.CommandInvokeError):
-            original = error.original
-
-            if isinstance(original, discord.NotFound):
-                await interaction.followup.send(
-                    content="This user doesn't even exist here, who are you trying to mute?",
-                    ephemeral=True,
-                )
-
-            elif isinstance(original, discord.Forbidden):
-                await interaction.followup.send(content="I am unable to mute this user at this time", ephemeral=True)
-
-            else:
-                await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
-        else:
-            await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
     @ModGroups.mod.command(name="unmute", description="Unmute a member")
     @app_commands.describe(member="The member to unmute")
+    @bot_decorators.defer(ephemeral=False)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.handle_command_errors(
+        not_found="This user doesn't even exist here, who are you trying to unmute?",
+        forbidden="I am unable to unmute this user at this time",
+    )
     async def unmute(self, interaction: discord.Interaction, member: discord.Member) -> None:
-        await interaction.response.defer(ephemeral=False)
-        if not isinstance(interaction.user, discord.Member) or not interaction.guild or not interaction.channel:
-            await interaction.followup.send(content="This command can only be used in a server", ephemeral=True)
-            return
-
-        if not self.client.config.has_mod_permissions(interaction.user):
-            await interaction.followup.send(content="You are not authorised to do this", ephemeral=True)
-            return
         muted_role = self.client.config.muted_role
 
         if muted_role not in member.roles:
@@ -328,47 +254,16 @@ class ModerationCommands:
         )
         await mod_logs.send(embed=unmute_logs_embed)
 
-    @unmute.error
-    async def unmute_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError,
-    ) -> None:
-        if isinstance(error, app_commands.CommandInvokeError):
-            original = error.original
-
-            if isinstance(original, discord.NotFound):
-                await interaction.followup.send(
-                    content="This user doesn't even exist here, who are you trying to unmute?",
-                    ephemeral=True,
-                )
-
-            elif isinstance(original, discord.Forbidden):
-                await interaction.followup.send(
-                    content="I am unable to unmute this user at this time",
-                    ephemeral=True,
-                )
-
-            else:
-                await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
-        else:
-            await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
     @ModGroups.mod.command(name="purge", description="Delete a number of recent messages")
     @app_commands.describe(amount="Number of messages to delete")
+    @bot_decorators.defer(ephemeral=True)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.handle_command_errors(
+        forbidden="I am unable to delete messages in this channel at this time",
+        not_found="This channel doesn't exist or has been deleted",
+    )
     async def purge(self, interaction: discord.Interaction, amount: int) -> None:
-        await interaction.response.defer(ephemeral=True)
-        if not isinstance(interaction.user, discord.Member) or not interaction.guild:
-            await interaction.followup.send(content="This command can only be used in a server", ephemeral=True)
-            return
-
-        if not isinstance(interaction.channel, discord.TextChannel | discord.Thread):
-            await interaction.followup.send(
-                content="This command can only be used in a text channel or thread", ephemeral=True
-            )
-            return
-
         if amount < 1 or amount > 100:
             await interaction.followup.send(content="Please specify a number between 1 and 100", ephemeral=True)
             return
@@ -386,35 +281,17 @@ class ModerationCommands:
         mod_logs_channel = self.client.config.mod_logs_channel
         await mod_logs_channel.send(embed=embed)
 
-    @purge.error
-    async def purge_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError,
-    ) -> None:
-        if isinstance(error, app_commands.CommandInvokeError):
-            original = error.original
-
-            if isinstance(original, discord.Forbidden):
-                await interaction.followup.send(
-                    content="I am unable to delete messages in this channel at this time",
-                    ephemeral=True,
-                )
-            elif isinstance(original, discord.NotFound):
-                await interaction.followup.send(
-                    content="This channel doesn't exist or has been deleted",
-                    ephemeral=True,
-                )
-            else:
-                await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
-        else:
-            await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
     @ModGroups.mod.command(name="lock", description="lock a channel")
     @app_commands.describe(
         channel="The channel to lock (defaults to current channel)",
         reason="Reason for locking the channel (optional)",
+    )
+    @bot_decorators.defer(ephemeral=False)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.handle_command_errors(
+        not_found="This channel doesn't exist or has been deleted",
+        forbidden="I am unable to lock this channel at this time",
     )
     async def lock_channel(
         self,
@@ -422,16 +299,6 @@ class ModerationCommands:
         channel: discord.TextChannel | None = None,
         reason: str = "No reason provided",
     ) -> None:
-        await interaction.response.defer(ephemeral=False)
-
-        if not isinstance(interaction.user, discord.Member) or not interaction.guild:
-            await interaction.followup.send(content="This command can only be used in a server", ephemeral=True)
-            return
-
-        if not self.client.config.has_mod_permissions(interaction.user):
-            await interaction.followup.send(content="I am not dyno to let you do this", ephemeral=True)
-            return
-
         if channel is None:
             if not isinstance(interaction.channel, discord.TextChannel):
                 await interaction.followup.send(
@@ -472,49 +339,20 @@ class ModerationCommands:
         mod_logs_channel = self.client.config.mod_logs_channel
         await mod_logs_channel.send(embed=lock_logs_embed)
 
-    @lock_channel.error
-    async def lock_channel_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError,
-    ) -> None:
-        if isinstance(error, app_commands.CommandInvokeError):
-            original = error.original
-
-            if isinstance(original, discord.NotFound):
-                await interaction.followup.send(
-                    content="This channel doesn't exist or has been deleted",
-                    ephemeral=True,
-                )
-
-            elif isinstance(original, discord.Forbidden):
-                await interaction.followup.send(
-                    content="I am unable to lock this channel at this time",
-                    ephemeral=True,
-                )
-
-            else:
-                await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
-        else:
-            await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
     @ModGroups.mod.command(name="unlock", description="Unlock a channel")
     @app_commands.describe(channel="The channel to unlock (defaults to current channel)")
+    @bot_decorators.defer(ephemeral=False)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.handle_command_errors(
+        not_found="This channel doesn't exist or has been deleted",
+        forbidden="I am unable to unlock this channel at this time",
+    )
     async def unlock_channel(
         self,
         interaction: discord.Interaction,
         channel: discord.TextChannel | None = None,
     ) -> None:
-        await interaction.response.defer(ephemeral=False)
-        if not isinstance(interaction.user, discord.Member) or not interaction.guild:
-            await interaction.followup.send(content="This command can only be used in a server", ephemeral=True)
-            return
-
-        if not self.client.config.has_mod_permissions(interaction.user):
-            await interaction.followup.send(content="I am not dyno to let you do this", ephemeral=True)
-            return
-
         if channel is None:
             if not isinstance(interaction.channel, discord.TextChannel):
                 await interaction.followup.send(
@@ -554,38 +392,18 @@ class ModerationCommands:
         mod_logs_channel = self.client.config.mod_logs_channel
         await mod_logs_channel.send(embed=unlock_logs_embed)
 
-    @unlock_channel.error
-    async def unlock_channel_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError,
-    ) -> None:
-        if isinstance(error, app_commands.CommandInvokeError):
-            original = error.original
-
-            if isinstance(original, discord.NotFound):
-                await interaction.followup.send(
-                    content="This channel doesn't exist or has been deleted",
-                    ephemeral=True,
-                )
-
-            elif isinstance(original, discord.Forbidden):
-                await interaction.followup.send(
-                    content="I am unable to unlock this channel at this time",
-                    ephemeral=True,
-                )
-
-            else:
-                await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
-        else:
-            await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
     @ModGroups.mod.command(name="timeout", description="Timeout a member for a specified duration")
     @app_commands.describe(
         member="The member to timeout",
         time="Duration for timeout (e.g., 1h, 30m, 2d)",
         reason="Reason for the timeout (optional)",
+    )
+    @bot_decorators.defer(ephemeral=False)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.handle_command_errors(
+        not_found="This user doesn't even exist here, who are you trying to timeout?",
+        forbidden="I am unable to timeout this user at this time",
     )
     async def timeout_member(
         self,
@@ -594,15 +412,6 @@ class ModerationCommands:
         time: str,
         reason: str = "No reason provided",
     ) -> None:
-        await interaction.response.defer(ephemeral=False)
-        if not isinstance(interaction.user, discord.Member) or not interaction.guild:
-            await interaction.followup.send(content="This command can only be used in a server", ephemeral=True)
-            return
-
-        if not self.client.config.has_mod_permissions(interaction.user):
-            await interaction.followup.send(content="You are not authorised to do this", ephemeral=True)
-            return
-
         try:
             seconds = ug.parse_time(time)
         except ValueError:
@@ -624,12 +433,8 @@ class ModerationCommands:
             )
             return
 
-        if self.client.config.has_mod_permissions(member):
-            await interaction.followup.send(content="Leyy, he's admin/mod. Can't time them out", ephemeral=True)
-            return
-
-        if member.bot:
-            await interaction.followup.send(content="You dare time-out one of my kind nin amn", ephemeral=True)
+        if (target_error := ug.mod_target_error(member, self.client.config)) is not None:
+            await interaction.followup.send(content=target_error, ephemeral=True)
             return
 
         timeout_until = discord.utils.utcnow() + timedelta(seconds=seconds)
@@ -656,44 +461,16 @@ class ModerationCommands:
         timeout_logs_embed.set_footer(text="PESU Bot")
         await mod_logs.send(embed=timeout_logs_embed)
 
-    @timeout_member.error
-    async def timeout_member_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError,
-    ) -> None:
-        if isinstance(error, app_commands.CommandInvokeError):
-            original = error.original
-
-            if isinstance(original, discord.NotFound):
-                await interaction.followup.send(
-                    content="This user doesn't even exist here, who are you trying to timeout?",
-                    ephemeral=True,
-                )
-
-            elif isinstance(original, discord.Forbidden):
-                await interaction.followup.send(
-                    content="I am unable to timeout this user at this time",
-                    ephemeral=True,
-                )
-
-            else:
-                await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
-        else:
-            await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
     @ModGroups.mod.command(name="detimeout", description="Remove timeout from a member")
     @app_commands.describe(member="The member to remove timeout from")
+    @bot_decorators.defer(ephemeral=False)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.handle_command_errors(
+        not_found="This user doesn't even exist here, who are you trying to de-timeout?",
+        forbidden="I am unable to de-timeout this user at this time",
+    )
     async def detimeout_member(self, interaction: discord.Interaction, member: discord.Member) -> None:
-        await interaction.response.defer(ephemeral=False)
-        if not isinstance(interaction.user, discord.Member) or not interaction.guild:
-            await interaction.followup.send(content="This command can only be used in a server", ephemeral=True)
-            return
-        if not self.client.config.has_mod_permissions(interaction.user):
-            await interaction.followup.send(content="You are not authorised to do this", ephemeral=True)
-            return
-
         if not member.is_timed_out():
             await interaction.followup.send(content="This person ain't on time-out only", ephemeral=True)
             return
@@ -719,30 +496,3 @@ class ModerationCommands:
             inline=False,
         )
         await mod_logs.send(embed=detimeout_logs_embed)
-
-    @detimeout_member.error
-    async def detimeout_member_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError,
-    ) -> None:
-        if isinstance(error, app_commands.CommandInvokeError):
-            original = error.original
-
-            if isinstance(original, discord.NotFound):
-                await interaction.followup.send(
-                    content="This user doesn't even exist here, who are you trying to de-timeout?",
-                    ephemeral=True,
-                )
-
-            elif isinstance(original, discord.Forbidden):
-                await interaction.followup.send(
-                    content="I am unable to de-timeout this user at this time",
-                    ephemeral=True,
-                )
-
-            else:
-                await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
-        else:
-            await interaction.followup.send(embed=ug.build_unknown_error_embed(error))

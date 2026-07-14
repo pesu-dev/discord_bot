@@ -172,14 +172,6 @@ class Config:
         """Get muted role."""
         return self.get_role("FUNCTIONAL", "MUTED")
 
-    def has_mod_permissions(self, member: discord.Member) -> bool:
-        """Check if a member is admin/mod."""
-        return any(role in member.roles for role in [self.admin_role, self.mod_role])
-
-    def has_bot_dev_permissions(self, member: discord.Member) -> bool:
-        """Check if a member has bot developer permissions."""
-        return self.bot_dev_role in member.roles
-
     # Convenience methods for common channels
 
     @property

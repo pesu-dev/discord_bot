@@ -4,7 +4,7 @@ import discord
 from discord import app_commands
 
 from src.cogs.anon import AnonGroups
-from src.utils import general as ug
+from src.utils import decorators as bot_decorators
 
 
 class BanCommands:
@@ -15,6 +15,10 @@ class BanCommands:
         time="Duration of the ban",
         reason="Reason for ban (optional)",
     )
+    @bot_decorators.defer(ephemeral=True)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.handle_command_errors()
     async def ban_anon(
         self,
         interaction: discord.Interaction,
@@ -23,8 +27,6 @@ class BanCommands:
         time: str | None = None,
         reason: str | None = "No reason provided",
     ) -> None:
-        await interaction.response.defer(ephemeral=True)
-
         if (member is None) == (link is None):
             await interaction.followup.send(
                 content="Specify exactly one of `member` or `link`",
@@ -32,15 +34,8 @@ class BanCommands:
             )
             return
 
-        if not await self._check_server_permissions(interaction):
-            return
-        if not await self._check_mod_permissions(interaction):
-            return
-
         message_link: str | None = None
         if link is not None:
-            if not await self._check_text_channel_permissions(interaction):
-                return
             user_to_ban = await self._handle_ban_message_link(interaction, link)
             if not user_to_ban:
                 return
@@ -110,22 +105,11 @@ class BanCommands:
         if not await self._send_dm_safely(user_to_ban, ban_embed):
             await interaction.followup.send(content="DMs were closed", ephemeral=True)
 
-    @ban_anon.error
-    async def ban_anon_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
-        await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
+    @bot_decorators.defer(ephemeral=True)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.handle_command_errors()
     async def anon_ban_from_context_menu(self, interaction: discord.Interaction, message: discord.Message) -> None:
-        await interaction.response.defer(ephemeral=True)
-
-        # Check permissions
-        if not await self._check_server_permissions(interaction):
-            return
-        if not await self._check_mod_permissions(interaction):
-            return
-        if not isinstance(interaction.channel, discord.TextChannel) or not interaction.guild:
-            return
-
-        # Find user from message
         ban_user = self._find_user_from_message(str(message.id), interaction.guild)
         if not ban_user:
             await interaction.followup.send(
@@ -133,16 +117,13 @@ class BanCommands:
             )
             return
 
-        # Check if user is already banned
         if await self._check_user_anon_ban(str(ban_user.id)):
             await interaction.followup.send(content="Dude's already banned from anon messaging", ephemeral=True)
             return
 
-        # Create and store permanent ban
         reason = "No reason provided, executed via context menu"
         await self._create_and_store_ban(str(ban_user.id), reason, None)
 
-        # Create notification embed
         embed = self._create_notification_embed(
             title="Notification",
             description="You have been banned from using anon messaging",
@@ -157,7 +138,6 @@ class BanCommands:
             ],
         )
 
-        # Send DM and confirmation
         dm_sent = await self._send_dm_safely(ban_user, embed)
         base_message = f"Member has been banned from anon messaging, their ban will never expire\nReason: {reason}"
 
@@ -171,16 +151,11 @@ class BanCommands:
 
     @AnonGroups.anon.command(name="unban-user", description="Unban a user from anon messaging")
     @app_commands.describe(member="The member to unban")
+    @bot_decorators.defer(ephemeral=True)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.handle_command_errors()
     async def user_unban_anon(self, interaction: discord.Interaction, member: discord.Member) -> None:
-        await interaction.response.defer(ephemeral=True)
-
-        # Check permissions
-        if not await self._check_server_permissions(interaction):
-            return
-        if not await self._check_mod_permissions(interaction):
-            return
-
-        # Attempt to unban user
         result = await self.client.anonban_collection.find_one_and_update(
             {"userId": str(member.id), "active": True}, {"$set": {"active": False}}
         )
@@ -193,7 +168,6 @@ class BanCommands:
 
         await interaction.followup.send(content="Member unbanned successfully")
 
-        # Send DM notification
         unban_embed = self._create_notification_embed(
             title="Notification",
             description="Your anon messaging ban has been revoked",
@@ -203,24 +177,13 @@ class BanCommands:
         if not await self._send_dm_safely(member, unban_embed):
             await interaction.followup.send(content="DMs were closed", ephemeral=True)
 
-    @user_unban_anon.error
-    async def user_unban_anon_error(
-        self, interaction: discord.Interaction, error: app_commands.AppCommandError
-    ) -> None:
-        await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
     @AnonGroups.anon.command(name="ban-info", description="Get info about a user's anon ban")
     @app_commands.describe(member="The member to get info about")
+    @bot_decorators.defer(ephemeral=True)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.handle_command_errors()
     async def anon_ban_info(self, interaction: discord.Interaction, member: discord.Member) -> None:
-        await interaction.response.defer(ephemeral=True)
-
-        # Check permissions
-        if not await self._check_server_permissions(interaction):
-            return
-        if not await self._check_mod_permissions(interaction):
-            return
-
-        # Get ban info
         user_anon_ban_check = await self._check_user_anon_ban(str(member.id))
         if not user_anon_ban_check:
             await interaction.followup.send(content="This fellow is not banned from anon messaging", ephemeral=True)
@@ -230,7 +193,6 @@ class BanCommands:
         expires_at = user_anon_ban_check["expiresAt"]
         expiry_timestamp = f"<t:{int(expires_at.timestamp())}:R>" if expires_at else "Permanent"
 
-        # Create info embed
         embed = self._create_notification_embed(
             title="Anon Ban Info",
             description="",
@@ -244,7 +206,3 @@ class BanCommands:
         )
 
         await interaction.followup.send(embed=embed, ephemeral=True)
-
-    @anon_ban_info.error
-    async def anon_ban_info_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
-        await interaction.followup.send(embed=ug.build_unknown_error_embed(error))

@@ -40,33 +40,6 @@ class SlashAnon(AnonGroups, MessagingCommands, BanCommands, commands.Cog):
             if not task.is_running():
                 task.start()
 
-    async def _check_server_permissions(self, interaction: discord.Interaction) -> bool:
-        """Check if interaction is in a server with proper member permissions."""
-        if not isinstance(interaction.user, discord.Member) or not interaction.guild:
-            await interaction.followup.send(content="This command can only be used in a server", ephemeral=True)
-            return False
-        return True
-
-    async def _check_mod_permissions(self, interaction: discord.Interaction) -> bool:
-        """Check if user has moderator permissions."""
-        if not isinstance(interaction.user, discord.Member):
-            return False
-        if not self.client.config.has_mod_permissions(interaction.user):
-            await interaction.followup.send(content="You ain't authorised to run this command", ephemeral=True)
-            return False
-        return True
-
-    async def _check_text_channel_permissions(self, interaction: discord.Interaction) -> bool:
-        """Check if interaction is in a text channel with proper permissions."""
-        if (
-            not isinstance(interaction.user, discord.Member)
-            or not isinstance(interaction.channel, discord.TextChannel)
-            or not interaction.guild
-        ):
-            await interaction.followup.send(content="This command can only be used in a text channel", ephemeral=True)
-            return False
-        return True
-
     async def _check_user_anon_ban(self, user_id: str) -> dict | None:
         """Check if user is banned from anon messaging."""
         return await self.client.anonban_collection.find_one({"userId": user_id, "active": True})
@@ -120,7 +93,7 @@ class SlashAnon(AnonGroups, MessagingCommands, BanCommands, commands.Cog):
 
     async def _handle_ban_message_link(self, interaction: discord.Interaction, link: str) -> discord.Member | None:
         """Handle message link validation and user lookup."""
-        if not isinstance(interaction.channel, discord.TextChannel) or not interaction.guild:
+        if interaction.guild is None or interaction.channel is None:
             return None
 
         try:

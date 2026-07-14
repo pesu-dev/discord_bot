@@ -10,25 +10,25 @@ import httpx
 from discord import app_commands
 
 from src.cogs.utils.components import RoleSelectView
+from src.utils import decorators as bot_decorators
 from src.utils import general as ug
 
 
 class UtilsCommands:
-
-
-
     @app_commands.command(name="link", description="Link your PESU account to Discord")
+    @bot_decorators.defer(ephemeral=True)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
     async def link(self, interaction: discord.Interaction) -> None:
-        await interaction.response.send_message("Coming soon", ephemeral=True)
+        await interaction.followup.send("Coming soon", ephemeral=True)
 
     @app_commands.command(name="info", description="Get info about a user")
     @app_commands.describe(user="User to fetch info about")
+    @bot_decorators.defer(ephemeral=False)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.handle_command_errors(
+        not_found="The specified user does not exist or is not in the server",
+    )
     async def info(self, interaction: discord.Interaction, user: discord.Member) -> None:
-        await interaction.response.defer()
-        if not isinstance(interaction.user, discord.Member) or not interaction.guild:
-            await interaction.followup.send(content="This command can only be used in a server", ephemeral=True)
-            return
-
         created_at_timestamp = int(time.mktime(user.created_at.timetuple()))
         joined_at_timestamp = int(time.mktime(user.joined_at.timetuple())) if user.joined_at else None
 
@@ -51,36 +51,15 @@ class UtilsCommands:
 
         await interaction.followup.send(embed=embed)
 
-    @info.error
-    async def info_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
-        if isinstance(error, app_commands.CommandInvokeError):
-            if isinstance(error.original, discord.NotFound):
-                await interaction.followup.send(
-                    content="The specified user does not exist or is not in the server",
-                    ephemeral=True,
-                )
-            else:
-                await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-        else:
-            await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
     @app_commands.command(
         name="count",
         description="Get the server stats or count members in specific roles",
     )
     @app_commands.describe(rolelist="List of roles to count members for, separated by &")
+    @bot_decorators.defer(ephemeral=False)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.handle_command_errors()
     async def count(self, interaction: discord.Interaction, rolelist: str | None = None) -> None:
-        await interaction.response.defer()
-        if not interaction.guild:
-            await interaction.followup.send(content="This command can only be used in a server", ephemeral=True)
-            return
-        if not isinstance(interaction.channel, discord.TextChannel):
-            await interaction.followup.send(
-                content="This command can only be used in a text channel",
-                ephemeral=True,
-            )
-            return
-
         # Server stats
         total_count = interaction.guild.member_count
         rolec = len(self.client.config.linked_role.members)
@@ -118,21 +97,12 @@ class UtilsCommands:
                 plural_or_single = "people" if member_counts > 1 or member_counts == 0 else "person"
                 await interaction.followup.send(content=f"{member_counts} {plural_or_single} {wrd} [{role_names}]")
 
-    @count.error
-    async def count_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError,
-    ) -> None:
-        await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
     @app_commands.command(name="spotify", description="Get your current Spotify details")
     @app_commands.describe(user="The user to get Spotify details for (default: you)")
+    @bot_decorators.defer(ephemeral=False)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.handle_command_errors()
     async def spotify(self, interaction: discord.Interaction, user: discord.User | None = None) -> None:
-        await interaction.response.defer()
-        if not interaction.guild:
-            await interaction.followup.send(content="This command can only be used in a server", ephemeral=True)
-            return
         # discord.Interaction's user object doesn't receive presence data
         # we will have to fetch it from bot's cache instead
         realuser = interaction.guild.get_member(user.id if user else interaction.user.id)
@@ -150,34 +120,20 @@ class UtilsCommands:
                 return
         await interaction.followup.send(content="No spotify activity detected", ephemeral=True)
 
-    @spotify.error
-    async def spotify_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError,
-    ) -> None:
-        await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
     @app_commands.command(
         name="addroles",
         description="Pick up additional roles to get access to more channels",
     )
     @app_commands.describe(channel="The channel to send the role selection in (default: current channel)")
+    @bot_decorators.defer(ephemeral=True)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.handle_command_errors()
     async def addroles_command(
         self,
         interaction: discord.Interaction,
         channel: discord.TextChannel | None = None,
     ) -> None:
-        await interaction.response.defer(ephemeral=True)
-        if not isinstance(interaction.user, discord.Member):
-            await interaction.followup.send(
-                content="This command can only be used in a server",
-                ephemeral=True,
-            )
-            return
-        if not self.client.config.has_mod_permissions(interaction.user):
-            await interaction.followup.send(content="Not to you lol", ephemeral=True)
-            return
         embe = discord.Embed(
             title="Additional Roles",
             description="Pick up additional roles for access to more channels",
@@ -198,24 +154,15 @@ class UtilsCommands:
         await channel.send(embed=embe, view=view)
         await interaction.followup.send(content=f"Role selection sent in {channel.mention}", ephemeral=True)
 
-    @addroles_command.error
-    async def addroles_command_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError,
-    ) -> None:
-        await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
     @app_commands.command(name="pride", description="Flourishes you with the pride of PESU")
     @app_commands.describe(link="The message link to reply with the pride to")
+    @bot_decorators.defer(ephemeral=False)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.handle_command_errors(
+        not_found="The specified message does not exist or is not in the channel",
+        forbidden="I do not have permission to reply to that message",
+    )
     async def pride(self, interaction: discord.Interaction, link: str | None = None) -> None:
-        await interaction.response.defer()
-        if not isinstance(interaction.channel, discord.TextChannel | discord.Thread):
-            await interaction.followup.send(
-                content="This command can only be used in a text channel",
-                ephemeral=True,
-            )
-            return
         await interaction.followup.send(content="Pride of PESU coming your way...", ephemeral=False)
         if link is not None:
             try:
@@ -234,30 +181,12 @@ class UtilsCommands:
                 content="https://tenor.com/view/pes-pesuniversity-pesu-may-the-pride-of-pes-may-the-pride-of-pes-be-with-you-gif-21274060"
             )
 
-    @pride.error
-    async def pride_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError,
-    ) -> None:
-        if isinstance(error, app_commands.CommandInvokeError):
-            if isinstance(error.original, discord.NotFound):
-                await interaction.followup.send(
-                    content="The specified message does not exist or is not in the channel", ephemeral=True
-                )
-            elif isinstance(error.original, discord.Forbidden):
-                await interaction.followup.send(
-                    content="I do not have permission to reply to that message", ephemeral=True
-                )
-            else:
-                await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-        else:
-            await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
-
     @app_commands.command(name="ask", description="Ask a question regarding PESU")
     @app_commands.describe(query="The question that needs to be answered")
+    @bot_decorators.defer(ephemeral=False)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.handle_command_errors()
     async def ask(self, interaction: discord.Interaction, query: str) -> None:
-        await interaction.response.defer()
         url = os.getenv("ASKPESU_API")
         payload = {"query": query}
         try:
@@ -306,14 +235,6 @@ class UtilsCommands:
                     await interaction.followup.send(content=f"Request failed with status {resp.status_code}.")
         except Exception as e:
             await interaction.followup.send(embed=ug.build_unknown_error_embed(e))
-
-    @ask.error
-    async def ask_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError,
-    ) -> None:
-        await interaction.followup.send(embed=ug.build_unknown_error_embed(error))
 
     async def fetch_data(self) -> dict:
         headers = {
@@ -408,13 +329,15 @@ class UtilsCommands:
         category="Optional category of the FAQ",
         question="Optional specific question inside the category",
     )
+    @bot_decorators.defer(ephemeral=False)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.handle_command_errors()
     async def faq(
         self,
         interaction: discord.Interaction,
         category: str | None = None,
         question: str | None = None,
     ) -> None:
-        await interaction.response.defer()
         data = await self.get_data()
 
         if category and category not in data:
@@ -506,11 +429,3 @@ class UtilsCommands:
                 questions.append(q)
 
         return [app_commands.Choice(name=q[:100], value=q[:100]) for q in questions[:25]]
-
-    @faq.error
-    async def faq_error(
-        self,
-        interaction: discord.Interaction,
-        error: app_commands.AppCommandError,
-    ) -> None:
-        await interaction.followup.send(embed=ug.build_unknown_error_embed(error))

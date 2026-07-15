@@ -39,36 +39,36 @@ jobs:
             exit 1
           fi
 
-  lint_checks:
-    name: Ruff lint and format checks
+  package_checks:
+    name: Package checks
     needs: [pr_source_checker]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
-          cache: "pip"
+          enable-cache: true
 
-      - name: Install Ruff
-        run: pip install ruff
+      - name: Install dependencies
+        run: uv sync --extra dev
 
       - name: Run Ruff Lint
         run: |
-          ruff check . --output-format=github
+          uv run ruff check . --output-format=github
 
       - name: Run Ruff Format Check
         run: |
-          ruff format . --check
+          uv run ruff format . --check
 
       - name: Run source compile checks
-        run: python -m compileall -q .
+        run: uv run python -m compileall -q .
 
       - name: Verify cog package imports
-        run: python scripts/check_cog_imports.py
+        run: uv run python scripts/check_cog_imports.py
 
   pr_image_build:
     name: Build image on PR

@@ -210,4 +210,3 @@ class NextButton(discord.ui.Button):
             self.view_ref.page += 1
             self.view_ref.update_buttons()
             await interaction.response.edit_message(embed=self.view_ref.get_embed(), view=self.view_ref)
-

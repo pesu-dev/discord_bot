@@ -36,16 +36,13 @@ class EventListeners:
         embed = discord.Embed(
             title="DO NOT SEND MESSAGES IN THIS CHANNEL",
             description=(
-                "This channel is used to catch spam bots. "
-                f"Any messages sent here will result in **{action_desc}**."
+                f"This channel is used to catch spam bots. Any messages sent here will result in **{action_desc}**."
             ),
             color=discord.Color.from_rgb(47, 49, 54),  # Discord theme dark blend color
         )
         # Use Twitter's official Twemoji Honey Pot SVG/PNG as the thumbnail
         embed.set_thumbnail(url="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f36f.png")
         return embed
-
-
 
     async def _load_fafo_message_id(self) -> int | None:
         record = await self.client.db["bot_state"].find_one({"_id": "honeypot_fafo"})
@@ -89,7 +86,6 @@ class EventListeners:
             await self._save_fafo_message_id(banner.id)
             return banner
 
-
     async def _update_fafo_banner(self) -> None:
         banner = await self._ensure_fafo_banner()
 
@@ -116,7 +112,6 @@ class EventListeners:
 
         new_embed = self._build_fafo_banner(new_count)
         await banner.edit(embed=new_embed, view=new_view)
-
 
     @staticmethod
     def _filter_reply_mentions(message: discord.Message) -> list[discord.User | discord.Member]:

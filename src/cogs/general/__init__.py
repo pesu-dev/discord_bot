@@ -7,9 +7,9 @@ if TYPE_CHECKING:
 
 
 async def setup(client: DiscordBot) -> None:
-    from src.cogs.utils.cog import SlashUtils
+    from src.cogs.general.cog import SlashGeneral
 
     await client.add_cog(
-        SlashUtils(client),
+        SlashGeneral(client),
         guild=client.config.guild_object,
     )

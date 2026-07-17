@@ -4,14 +4,14 @@ from typing import TYPE_CHECKING
 
 from discord.ext import commands
 
-from src.cogs.utils.commands import UtilsCommands
-from src.cogs.utils.components import RoleSelectView
+from src.cogs.general.commands import GeneralCommands
+from src.cogs.general.components import RoleSelectView
 
 if TYPE_CHECKING:
     from src.bot import DiscordBot
 
 
-class SlashUtils(UtilsCommands, commands.Cog):
+class SlashGeneral(GeneralCommands, commands.Cog):
     def __init__(self, client: DiscordBot) -> None:
         self.client = client
         self.cached_data = None

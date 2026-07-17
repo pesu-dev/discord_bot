@@ -56,10 +56,10 @@ class HelpEmbeds:
             .add_field(name="Reload Cogs", value="`/eng reload`", inline=False),
         ]
 
-        self.utils = [
+        self.general = [
             discord.Embed(
                 title="PESU Bot",
-                description="Utility Commands",
+                description="General Commands",
                 color=discord.Color.dark_purple(),
                 timestamp=discord.utils.utcnow(),
             )
@@ -67,7 +67,7 @@ class HelpEmbeds:
             .add_field(name="User Info", value="`/info`", inline=False),
             discord.Embed(
                 title="PESU Bot",
-                description="Utility Commands",
+                description="General Commands",
                 color=discord.Color.dark_purple(),
                 timestamp=discord.utils.utcnow(),
             )
@@ -76,7 +76,7 @@ class HelpEmbeds:
             .add_field(name="Add Roles", value="`/addroles`", inline=False),
             discord.Embed(
                 title="PESU Bot",
-                description="Utility Commands",
+                description="General Commands",
                 color=discord.Color.dark_purple(),
                 timestamp=discord.utils.utcnow(),
             )
@@ -171,7 +171,7 @@ class HelpSelect(discord.ui.Select):
     def __init__(self, view: HelpView) -> None:
         options = [
             discord.SelectOption(label="Anonymous Commands", value="anon", emoji="🖖"),
-            discord.SelectOption(label="Utility Commands", value="utils", emoji="⚙️"),
+            discord.SelectOption(label="General Commands", value="general", emoji="⚙️"),
             discord.SelectOption(label="Engineering Commands", value="eng", emoji="🔧"),
             discord.SelectOption(label="Moderation Commands", value="mod", emoji="👮"),
         ]

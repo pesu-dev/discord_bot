@@ -9,12 +9,12 @@ import discord
 import httpx
 from discord import app_commands
 
-from src.cogs.utils.components import RoleSelectView
+from src.cogs.general.components import RoleSelectView
 from src.utils import decorators as bot_decorators
 from src.utils import general as ug
 
 
-class UtilsCommands:
+class GeneralCommands:
     @app_commands.command(name="link", description="Link your PESU account to Discord")
     @bot_decorators.defer(ephemeral=True)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)

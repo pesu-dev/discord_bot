@@ -17,7 +17,7 @@ class Config:
     """Configuration class."""
 
     # The bot only ever runs on a single guild, so this is a constant.
-    GUILD_ID = 742797665301168220
+    GUILD_ID = 1368604371323064421
 
     # Per-environment settings keyed by APP_ENV. All share one cluster for now.
     ENVIRONMENTS = {
@@ -29,11 +29,11 @@ class Config:
     # Role IDs
     ROLES = {
         "FUNCTIONAL": {
-            "ADMIN": 742800061280550923,
-            "MOD": 742798158966292640,
-            "BOT_DEV": 750556082371559485,
+            "ADMIN": 1387103854381760553,
+            "MOD": 1387103950099972268,
+            "BOT_DEV": 1386724072074772610,
             "LINKED": 749683320941445250,
-            "JUST_JOINED": 798765678739062804,
+            "JUST_JOINED": 1389256789513470042,
             "MUTED": 775981947079491614,
         },
         "BRANCH": {
@@ -83,11 +83,12 @@ class Config:
 
     # Channel IDs
     CHANNELS = {
-        "BOT_LOGS": 786084620944146504,
-        "MOD_LOGS": 778678059879890944,
+        "BOT_LOGS": 1393255742802231479,
+        "MOD_LOGS": 1386770381733630012,
         "NQN_LOGS": 927077979383824484,
         "WELCOME": 742946580285620225,
         "LOBBY": 860224115633160203,
+        "HONEYPOT": 1527378274328776864,
     }
 
     @staticmethod
@@ -188,3 +189,8 @@ class Config:
     def lobby_channel(self) -> discord.TextChannel | discord.Thread:
         """Get lobby channel."""
         return self.get_channel("LOBBY")
+
+    @property
+    def honeypot_channel(self) -> discord.TextChannel | discord.Thread:
+        """Get honeypot channel."""
+        return self.get_channel("HONEYPOT")

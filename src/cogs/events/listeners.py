@@ -29,7 +29,7 @@ class EventListeners:
         # Determine warning text based on configuration dynamically
         action_desc = "a kick"
         if self.HONEYPOT_ACTION == "ban":
-            action_desc = "a softban"
+            action_desc = "a ban"
         elif self.HONEYPOT_ACTION == "timeout":
             action_desc = f"a timeout ({self.HONEYPOT_TIMEOUT_MINUTES}m)"
 
@@ -223,34 +223,6 @@ class EventListeners:
         if link_record and link_record.get("linkedAt") is None:
             await self.client.link_collection.delete_one({"_id": link_record["_id"]})
             await bot_logs.send(f"Linked record of {member.mention} has been deleted.!")
-
-    @staticmethod
-    def _extract_fafo_count(embed: discord.Embed) -> int:
-        for field in embed.fields:
-            if field.name == "Trapped":
-                match = re.search(r"\d+", field.value)
-                if match:
-                    return int(match.group(0))
-        return 0
-
-    def _build_fafo_embed(
-        self,
-        *,
-        count: int,
-        action_text: str,
-        trapped_member: discord.Member,
-    ) -> discord.Embed:
-        embed = discord.Embed(
-            title="FAFO",
-            description="Play stupid games, win stupid prizes.",
-            color=discord.Color.red(),
-            timestamp=discord.utils.utcnow(),
-        )
-        embed.add_field(name="Trapped", value=str(count), inline=True)
-        embed.add_field(name="Latest Victim", value=trapped_member.mention, inline=True)
-        embed.add_field(name="Action", value=action_text, inline=True)
-        embed.set_footer(text="PESU Bot")
-        return embed
 
     async def _apply_honeypot_action(self, member: discord.Member, source_message: discord.Message) -> str:
         reason = f"Honeypot trap in #{source_message.channel} ({source_message.channel.id})"

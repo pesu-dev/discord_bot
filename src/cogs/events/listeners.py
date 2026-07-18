@@ -284,7 +284,9 @@ class EventListeners:
 
             except discord.Forbidden:
                 await self.client.config.mod_logs_channel.send(
-                    f"Failed honeypot action for {message.author.mention}: missing permissions/role hierarchy."
+                    f"Failed honeypot action for {message.author.mention}: "
+                    "missing permissions/role hierarchy "
+                    "(kick/ban/timeout and/or FAFO banner update)."
                 )
             except discord.HTTPException as exc:
                 await self.client.config.mod_logs_channel.send(

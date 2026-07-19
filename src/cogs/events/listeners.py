@@ -38,9 +38,8 @@ class EventListeners:
             description=(
                 f"This channel is used to catch spam bots. Any messages sent here will result in **{action_desc}**."
             ),
-            color=discord.Color.from_rgb(47, 49, 54),  # Discord theme dark blend color
+            color=discord.Color.red(),
         )
-        # Use Twitter's official Twemoji Honey Pot SVG/PNG as the thumbnail
         embed.set_thumbnail(url="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f36f.png")
         return embed
 

@@ -10,3 +10,8 @@ class ModGroups:
         description="Linking moderation",
         parent=mod,
     )
+    mod_anon = app_commands.Group(
+        name="anon",
+        description="Anonymous messaging moderation",
+        parent=mod,
+    )

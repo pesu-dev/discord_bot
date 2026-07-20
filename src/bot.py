@@ -45,6 +45,7 @@ class DiscordBot(commands.Bot):
         self.student_collection: AsyncCollection
         self.anonban_collection: AsyncCollection
         self.mute_collection: AsyncCollection
+        self.anon_cache: dict[str, list[dict]] = {}
         self.startTime: float = time.time()
         self.db_status: str = ""
 

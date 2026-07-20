@@ -112,6 +112,7 @@ def _named_groups_command_key(decorator: ast.Call, func_name: str) -> str | None
     group_paths: dict[tuple[str, str], tuple[str, ...]] = {
         ("ModGroups", "mod"): ("mod",),
         ("ModGroups", "mod_link"): ("mod", "link"),
+        ("ModGroups", "mod_anon"): ("mod", "anon"),
         ("AnonGroups", "anon"): ("anon",),
         ("EngGroups", "eng"): ("eng",),
     }

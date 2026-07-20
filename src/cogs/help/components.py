@@ -26,21 +26,7 @@ class HelpEmbeds:
                 description="Anon Commands",
                 color=discord.Color.dark_purple(),
                 timestamp=discord.utils.utcnow(),
-            )
-            .add_field(name="Send an Anon Message", value="`/anon send`", inline=False)
-            .add_field(
-                name="Ban a User",
-                value="`/anon ban` — specify either `member` or `link`",
-                inline=False,
-            ),
-            discord.Embed(
-                title="PESU Bot",
-                description="Anon Commands",
-                color=discord.Color.dark_purple(),
-                timestamp=discord.utils.utcnow(),
-            )
-            .add_field(name="Unban a User", value="`/anon unban-user`", inline=False)
-            .add_field(name="Get Ban Info of a User", value="`/anon ban-info`", inline=False),
+            ).add_field(name="Send an Anon Message", value="`/anon send`", inline=False),
         ]
 
         self.eng = [
@@ -120,6 +106,19 @@ class HelpEmbeds:
                 color=discord.Color.dark_purple(),
                 timestamp=discord.utils.utcnow(),
             ).add_field(name="De-timeout a User", value="`/mod detimeout`", inline=False),
+            discord.Embed(
+                title="PESU Bot",
+                description="Mod Commands",
+                color=discord.Color.dark_purple(),
+                timestamp=discord.utils.utcnow(),
+            )
+            .add_field(
+                name="Ban a User from Anon",
+                value="`/mod anon ban` — specify either `member` or `link`",
+                inline=False,
+            )
+            .add_field(name="Unban a User from Anon", value="`/mod anon unban`", inline=False)
+            .add_field(name="Anon Ban Info", value="`/mod anon info`", inline=False),
         ]
 
     def get_embeds(self, category: str) -> list[discord.Embed]:

@@ -54,12 +54,12 @@ For detailed development setup and contribution instructions, see our [Contribut
     ├── data/                   # Static data files
     │   └── faq.json            # FAQ responses data
     ├── cogs/                   # Bot functionality, one package per cog (Discord.py cogs)
-    │   ├── anon/               # Anonymous messaging (send + ban system)
+    │   ├── anon/               # Anonymous messaging (send)
     │   ├── eng/                # Bot engineering commands (ping, uptime, reload)
     │   ├── events/             # Event listeners (member joins, ghost pings, etc.)
     │   ├── general/            # General user commands (info, count, faq, roles, ...)
     │   ├── help/               # Help menu
-    │   └── mod/                # Moderation + account-link moderation
+    │   └── mod/                # Moderation + account-link & anon moderation
     └── utils/                  # Shared utilities and configuration helpers
         ├── config.py           # Environment, guild/role/channel IDs and access helpers
         ├── decorators.py       # Command decorators (defer, permission/location checks, errors)

@@ -5,9 +5,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import discord
+from discord import app_commands
 from discord.ext import tasks
 from discord.ext.commands import Cog
 
+from src.cogs.mod.anon import AnonModCommands
 from src.cogs.mod.commands import ModCommands
 from src.cogs.mod.groups import ModGroups
 from src.cogs.mod.helpers import ModHelpers
@@ -18,9 +20,13 @@ if TYPE_CHECKING:
     from src.bot import DiscordBot
 
 
-class SlashMod(ModGroups, ModHelpers, ModCommands, LinkCommands, Cog):
+class SlashMod(ModGroups, ModHelpers, ModCommands, LinkCommands, AnonModCommands, Cog):
     def __init__(self, client: DiscordBot) -> None:
         self.client = client
+        self.ctx_menu = app_commands.ContextMenu(
+            name="Ban this anon",
+            callback=self.anon_ban_from_context_menu,
+        )
 
         self.tasks = [self.check_mutes_loop]
         for task in self.tasks:
@@ -102,7 +108,9 @@ class SlashMod(ModGroups, ModHelpers, ModCommands, LinkCommands, Cog):
 
 
 async def setup(client: DiscordBot) -> None:
-    await client.add_cog(
-        SlashMod(client),
+    cog = SlashMod(client)
+    await client.add_cog(cog, guild=client.config.guild_object)
+    client.tree.add_command(
+        cog.ctx_menu,
         guild=client.config.guild_object,
     )

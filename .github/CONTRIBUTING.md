@@ -275,7 +275,7 @@ Conventions:
 
 Special cases:
 
-- **`anon`**: registers a context menu in `setup()` alongside the cog.
+- **`mod`**: registers the "Ban this anon" context menu in `setup()` alongside the cog; the anon moderation commands live under the `mod anon` subgroup.
 - **`events`**: global listeners (in `listeners.py`), not guild-scoped; has no slash commands.
 
 When adding a new cog package, CI runs `scripts/check_cog_imports.py` to catch import cycles early.

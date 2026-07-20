@@ -11,7 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from src.utils.cogs import COGS_PACKAGE, discover_cog_extensions, get_cogs_dir  # noqa: E402
+from src.utils.general import COGS_PACKAGE, discover_cog_extensions, get_cogs_dir  # noqa: E402
 
 
 def main() -> int:

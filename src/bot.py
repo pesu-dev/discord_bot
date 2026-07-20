@@ -12,8 +12,8 @@ from discord.ext import commands, tasks
 from discord.ext.commands import Context
 from pymongo import AsyncMongoClient
 
-from src.utils.cogs import COGS_PACKAGE, discover_cog_extensions, get_cogs_dir
 from src.utils.config import Config
+from src.utils.general import COGS_PACKAGE, discover_cog_extensions, get_cogs_dir
 
 if TYPE_CHECKING:
     from pymongo.asynchronous.collection import AsyncCollection

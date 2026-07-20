@@ -250,29 +250,33 @@ To keep the codebase clean and maintainable, please follow these conventions:
 
 ### 📦 Cog Package Structure
 
-Each cog lives under `src/cogs/<name>/` as a Python package:
+Each cog lives under `src/cogs/<name>/` as a Python package. Files follow a uniform, role-based scheme:
 
 ```text
 src/cogs/mod/
-  __init__.py      # *Groups classes + setup()
-  cog.py           # Cog shell (tasks, helpers, Slash* class)
-  moderation.py    # Command mixins
-  link.py          # More command mixins
+  __init__.py      # Slash* cog class (tasks, on_ready) + setup()
+  groups.py        # app_commands.Group definitions (*Groups)
+  commands.py      # Root-group command mixin (*Commands)
+  link.py          # Child subgroup command mixin (one file per child group)
+  helpers.py       # Internal helper mixin (optional)
 ```
 
 Conventions:
 
-- **Command groups** (`ModGroups`, `AnonGroups`, etc.) belong in `__init__.py`.
-- **Command mixins** import groups from `src.cogs.<name>`, never from `cog.py`.
-- **`cog.py`** wires mixins into the final `Slash*` cog class and holds shared helpers/tasks.
-- **`setup()`** lazy-imports the cog class to avoid circular imports.
-- Use **absolute imports only** (`from src.cogs.mod import ModGroups`), not relative imports.
-- Cog discovery and reload helpers live in `src/utils/cogs.py`.
+- **`__init__.py`** holds the final `Slash*` cog class (composed via multiple inheritance from the mixins) plus lifecycle bits (task loops, `on_ready`) and the `setup()` entrypoint. It is the loadable extension.
+- **`groups.py`** holds the `app_commands.Group` definitions (`ModGroups`, `AnonGroups`, etc.), only when the cog uses groups. It lives in its own module so command files can import the group without a circular import back into `__init__.py`.
+- **`commands.py`** holds the command mixin for the cog's **root** group (or top-level commands). Each **child** subgroup (one with a `parent=`) gets its own file named after it (e.g. `mod_link` -> `link.py`).
+- **`helpers.py`** holds an optional mixin of internal helper methods; **`components.py`** holds Discord UI (views/selects/buttons); **`listeners.py`** holds event listeners (see `events`).
+- **Command/helper mixins** import groups from `src.cogs.<name>.groups`, never from `__init__.py`.
+- Mixins declare `client: DiscordBot` (under `TYPE_CHECKING`) so `self.client` type-checks instead of resolving to `Any`.
+- Import the base class as `from discord.ext.commands import Cog` (not `commands.Cog`) so a `commands.py` submodule cannot shadow the `commands` name in the package namespace.
+- Use **absolute imports only** (`from src.cogs.mod.groups import ModGroups`), not relative imports.
+- Cog discovery and reload helpers live in `src/utils/general.py`.
 
 Special cases:
 
 - **`anon`**: registers a context menu in `setup()` alongside the cog.
-- **`events`**: global listeners, not guild-scoped.
+- **`events`**: global listeners (in `listeners.py`), not guild-scoped; has no slash commands.
 
 When adding a new cog package, CI runs `scripts/check_cog_imports.py` to catch import cycles early.
 

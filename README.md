@@ -44,6 +44,7 @@ For detailed development setup and contribution instructions, see our [Contribut
 ├── LICENSE                     # Project license
 ├── README.md                   # This file
 ├── scripts/                    # Operational scripts
+│   ├── check_cog_imports.py    # CI check: import every cog package (catches import cycles)
 │   └── sync_guild_commands.py  # Deploy-time guild command sync
 └── src/                        # Discord bot package (run via `python -m src`)
     ├── __init__.py             # Package bootstrap: env loading, logging, version
@@ -52,25 +53,32 @@ For detailed development setup and contribution instructions, see our [Contribut
     ├── .env.example            # Example environment variables
     ├── data/                   # Static data files
     │   └── faq.json            # FAQ responses data
-    ├── cogs/                   # Bot functionality modules (Discord.py cogs)
-    │   ├── events.py           # Event handling (member joins, ghost pings, etc.)
-    │   ├── anon.py             # Anonymous messaging system
-    │   ├── help.py             # Help and command documentation
-    │   ├── link.py             # User linking and verification
-    │   ├── mod.py              # Moderation commands
-    │   └── utils.py            # Utility commands (ping, uptime, etc.)
+    ├── cogs/                   # Bot functionality, one package per cog (Discord.py cogs)
+    │   ├── anon/               # Anonymous messaging (send + ban system)
+    │   ├── eng/                # Bot engineering commands (ping, uptime, reload)
+    │   ├── events/             # Event listeners (member joins, ghost pings, etc.)
+    │   ├── general/            # General user commands (info, count, faq, roles, ...)
+    │   ├── help/               # Help menu
+    │   └── mod/                # Moderation + account-link moderation
     └── utils/                  # Shared utilities and configuration helpers
         ├── config.py           # Environment, guild/role/channel IDs and access helpers
-        └── general.py          # General helper functions
+        ├── decorators.py       # Command decorators (defer, permission/location checks, errors)
+        └── general.py          # Shared helpers + cog discovery/reload helpers
 ```
 
 ### Cogs System
 
-The bot uses Discord.py's cogs system to organize functionality into modular components:
+The bot uses Discord.py's cogs system to organize functionality into modular components. **Each cog is a package** under `src/cogs/<name>/`, and every package with an `__init__.py` is auto-discovered and loaded as an extension. Files within a cog package follow a uniform scheme:
 
-- **Events Cogs**: Handle Discord events such as member joins, message events, and server updates
-- **Slash Command Cogs**: Implement modern Discord slash commands for user interactions
-- **Utility Functions**: Shared helper functions used across different cogs
+- **`__init__.py`**: The `commands.Cog` subclass (composed from the mixins below), lifecycle bits (task loops, `on_ready`), and the `setup()` entrypoint.
+- **`commands.py`**: Command definitions for the cog's root group (or top-level commands), as a `*Commands` mixin.
+- **`groups.py`**: The `app_commands.Group` definitions (only when the cog uses groups).
+- **child-group file** (e.g. `mod/link.py`): each child subgroup gets its own file; root commands stay in `commands.py`.
+- **`helpers.py`**: Internal helper methods / shared logic (optional).
+- **`components.py`**: Discord UI such as views, selects, and buttons (optional).
+- **`listeners.py`**: Event listeners (used by the `events` cog, which has no slash commands).
+
+Shared, cross-cog utilities live in `src/utils/` rather than inside any single cog.
 
 ### Database Collections
 

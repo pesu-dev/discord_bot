@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import discord
@@ -9,6 +10,8 @@ from discord.ext import commands
 
 if TYPE_CHECKING:
     from src.utils.config import Config
+
+COGS_PACKAGE = "src.cogs"
 
 
 def parse_time(time_str: str) -> int:
@@ -28,6 +31,31 @@ def parse_time(time_str: str) -> int:
         return int(time_str)
     except ValueError:
         raise ValueError("Invalid time format") from None
+
+
+def build_notification_embed(
+    title: str,
+    description: str,
+    color: discord.Color,
+    fields: list[dict] | None = None,
+) -> discord.Embed:
+    """Build a standardized notification embed with the PESU Bot footer."""
+    embed = discord.Embed(title=title, description=description, color=color)
+    if fields:
+        for field in fields:
+            embed.add_field(name=field["name"], value=field["value"], inline=field.get("inline", False))
+    embed.timestamp = datetime.now(UTC)
+    embed.set_footer(text="PESU Bot")
+    return embed
+
+
+async def send_dm_safely(user: discord.User | discord.Member, embed: discord.Embed) -> bool:
+    """Send a DM to a user, returning True on success and False if it could not be delivered."""
+    try:
+        await user.send(embed=embed)
+        return True
+    except (discord.Forbidden, discord.HTTPException):
+        return False
 
 
 def build_unknown_error_embed(error: Exception) -> discord.Embed:
@@ -108,3 +136,37 @@ def mod_target_error(
     if not allow_mod_target and any(role in member.roles for role in (config.admin_role, config.mod_role)):
         return "Leyy, he's admin/mod. Can't target them"
     return None
+
+
+def get_cogs_dir() -> Path:
+    """Return the path to the cogs package directory."""
+    return Path(__file__).resolve().parent.parent / "cogs"
+
+
+def discover_cog_extensions(cogs_dir: Path | None = None, package: str = COGS_PACKAGE) -> list[str]:
+    """Return import paths for each cog package under cogs_dir."""
+    root = cogs_dir or get_cogs_dir()
+    extensions: list[str] = []
+    for path in sorted(root.iterdir()):
+        if not path.is_dir() or path.name.startswith("_"):
+            continue
+        if not (path / "__init__.py").is_file():
+            continue
+        extensions.append(f"{package}.{path.name}")
+    return extensions
+
+
+def resolve_cog_extension(name: str, *, package: str = COGS_PACKAGE, cogs_dir: Path | None = None) -> str:
+    """Resolve a short or full cog name to a loadable extension path."""
+    extensions = discover_cog_extensions(cogs_dir, package)
+    if name in extensions:
+        return name
+
+    short_name = name.removeprefix(f"{package}.").removeprefix("cogs.")
+    extension = f"{package}.{short_name}"
+    if extension in extensions:
+        return extension
+
+    available = ", ".join(ext.removeprefix(f"{package}.") for ext in extensions)
+    msg = f"Unknown cog `{name}`. Available: {available}"
+    raise ValueError(msg)

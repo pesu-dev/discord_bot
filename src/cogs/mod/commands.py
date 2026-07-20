@@ -2,18 +2,24 @@ from __future__ import annotations
 
 import datetime as dt
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
-from src.cogs.mod import ModGroups
+from src.cogs.mod.groups import ModGroups
 from src.utils import decorators as bot_decorators
 from src.utils import general as ug
 from src.utils.config import Config
 
+if TYPE_CHECKING:
+    from src.bot import DiscordBot
 
-class ModerationCommands:
+
+class ModCommands:
+    client: DiscordBot
+
     @ModGroups.mod.command(name="kick", description="Kick a member from the server")
     @app_commands.describe(member="The member to kick", reason="Reason for the kick")
     @bot_decorators.defer(ephemeral=False)
@@ -47,8 +53,7 @@ class ModerationCommands:
         )
         embed.set_footer(text="PESU Bot")
         await interaction.followup.send(embed=embed)
-        mod_logs_channel = self.client.config.mod_logs_channel
-        await mod_logs_channel.send(embed=embed)
+        await self._send_mod_log(embed)
 
     @commands.hybrid_command(name="echo", aliases=["e"], description="Echoes a message to the target channel")
     @app_commands.guilds(discord.Object(id=Config.GUILD_ID))
@@ -83,7 +88,6 @@ class ModerationCommands:
             await channel.send(content=message)
         await ctx.send(content=f"Message sent to {channel.mention}", ephemeral=True)
 
-        mod_logs_channel = self.client.config.mod_logs_channel
         echo_embed = discord.Embed(
             title="Echo Sent",
             color=discord.Color.blue(),
@@ -94,7 +98,7 @@ class ModerationCommands:
         echo_embed.add_field(name="Attachment", value="Yes" if attachment else "No", inline=False)
         echo_embed.add_field(name="Author", value=ctx.author.mention, inline=False)
         echo_embed.set_footer(text="PESU Bot")
-        await mod_logs_channel.send(embed=echo_embed)
+        await self._send_mod_log(echo_embed)
 
     @ModGroups.mod.command(name="mute", description="Mute a member for a specified duration")
     @app_commands.describe(
@@ -181,7 +185,6 @@ class ModerationCommands:
         mute_embed.set_footer(text="PESU Bot")
         await interaction.followup.send(content=member.mention, embed=mute_embed)
 
-        mod_logs = self.client.config.mod_logs_channel
         mute_logs_embed = discord.Embed(
             title="Mute",
             color=discord.Color.red(),
@@ -194,7 +197,7 @@ class ModerationCommands:
             inline=False,
         )
         mute_logs_embed.set_footer(text="PESU Bot")
-        await mod_logs.send(embed=mute_logs_embed)
+        await self._send_mod_log(mute_logs_embed)
 
     @ModGroups.mod.command(name="unmute", description="Unmute a member")
     @app_commands.describe(member="The member to unmute")
@@ -226,33 +229,8 @@ class ModerationCommands:
             },
         )
 
-        unmute_embed = discord.Embed(
-            title="Unmute",
-            color=discord.Color.green(),
-            timestamp=datetime.now(dt.UTC),
-        )
-        unmute_embed.set_footer(text="PESU Bot")
-        unmute_embed.add_field(
-            name="Unmuted user",
-            value=f"{member.mention} welcome back",
-            inline=False,
-        )
-
-        await interaction.followup.send(content=member.mention, embed=unmute_embed)
-
-        mod_logs = self.client.config.mod_logs_channel
-        unmute_logs_embed = discord.Embed(
-            title="Unmute",
-            color=discord.Color.green(),
-            timestamp=datetime.now(dt.UTC),
-        )
-        unmute_logs_embed.set_footer(text="PESU Bot")
-        unmute_logs_embed.add_field(
-            name="Unmuted user",
-            value=f"{member.mention}\nModerator: {interaction.user.mention}",
-            inline=False,
-        )
-        await mod_logs.send(embed=unmute_logs_embed)
+        await interaction.followup.send(content=member.mention, embed=self._build_unmute_embed(member))
+        await self._send_mod_log(self._build_unmute_logs_embed(member, interaction.user.mention))
 
     @ModGroups.mod.command(name="purge", description="Delete a number of recent messages")
     @app_commands.describe(amount="Number of messages to delete")
@@ -277,9 +255,7 @@ class ModerationCommands:
             timestamp=discord.utils.utcnow(),
         )
         embed.set_footer(text="PESU Bot")
-
-        mod_logs_channel = self.client.config.mod_logs_channel
-        await mod_logs_channel.send(embed=embed)
+        await self._send_mod_log(embed)
 
     @ModGroups.mod.command(name="lock", description="lock a channel")
     @app_commands.describe(
@@ -336,8 +312,7 @@ class ModerationCommands:
         lock_logs_embed.add_field(name="Channel", value=channel.mention, inline=True)
         lock_logs_embed.add_field(name="Moderator", value=interaction.user.mention, inline=True)
         lock_logs_embed.add_field(name="Reason", value=reason, inline=False)
-        mod_logs_channel = self.client.config.mod_logs_channel
-        await mod_logs_channel.send(embed=lock_logs_embed)
+        await self._send_mod_log(lock_logs_embed)
 
     @ModGroups.mod.command(name="unlock", description="Unlock a channel")
     @app_commands.describe(channel="The channel to unlock (defaults to current channel)")
@@ -389,8 +364,7 @@ class ModerationCommands:
         unlock_logs_embed.set_footer(text="PESU Bot")
         unlock_logs_embed.add_field(name="Channel", value=channel.mention, inline=True)
         unlock_logs_embed.add_field(name="Moderator", value=interaction.user.mention, inline=True)
-        mod_logs_channel = self.client.config.mod_logs_channel
-        await mod_logs_channel.send(embed=unlock_logs_embed)
+        await self._send_mod_log(unlock_logs_embed)
 
     @ModGroups.mod.command(name="timeout", description="Timeout a member for a specified duration")
     @app_commands.describe(
@@ -451,7 +425,6 @@ class ModerationCommands:
 
         await interaction.followup.send(content=member.mention, embed=timeout_embed)
 
-        mod_logs = self.client.config.mod_logs_channel
         timeout_logs_embed = discord.Embed(title="Time-out", color=0x8B0000, timestamp=discord.utils.utcnow())
         timeout_logs_embed.add_field(
             name="Timed-out User",
@@ -459,7 +432,7 @@ class ModerationCommands:
             inline=False,
         )
         timeout_logs_embed.set_footer(text="PESU Bot")
-        await mod_logs.send(embed=timeout_logs_embed)
+        await self._send_mod_log(timeout_logs_embed)
 
     @ModGroups.mod.command(name="detimeout", description="Remove timeout from a member")
     @app_commands.describe(member="The member to remove timeout from")
@@ -487,7 +460,6 @@ class ModerationCommands:
 
         await interaction.followup.send(content=member.mention, embed=detimeout_embed)
 
-        mod_logs = self.client.config.mod_logs_channel
         detimeout_logs_embed = discord.Embed(title="De-time-out", color=0x00FF00, timestamp=discord.utils.utcnow())
         detimeout_logs_embed.set_footer(text="PESU Bot")
         detimeout_logs_embed.add_field(
@@ -495,4 +467,4 @@ class ModerationCommands:
             value=f"{member.mention}\nModerator: {interaction.user.mention}",
             inline=False,
         )
-        await mod_logs.send(embed=detimeout_logs_embed)
+        await self._send_mod_log(detimeout_logs_embed)

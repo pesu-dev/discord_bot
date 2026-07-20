@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import discord
 from discord import app_commands
 
-from src.cogs.mod import ModGroups
+from src.cogs.mod.groups import ModGroups
 from src.utils import decorators as bot_decorators
+
+if TYPE_CHECKING:
+    from src.bot import DiscordBot
 
 
 class LinkCommands:
+    client: DiscordBot
+
     @ModGroups.mod_link.command(name="info", description="Get PESU account linking info about a user")
     @app_commands.describe(user="User to fetch PESU account linking info about")
     @bot_decorators.defer(ephemeral=True)

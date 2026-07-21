@@ -9,6 +9,91 @@ from src.utils.general import build_embed
 if TYPE_CHECKING:
     from src.bot import DiscordBot
 
+# category -> pages; each page is (description, fields)
+HELP_PAGES: dict[str, list[tuple[str, list[dict]]]] = {
+    "anon": [
+        ("Anon Commands", [{"name": "Send an Anon Message", "value": "`/anon send`"}]),
+    ],
+    "eng": [
+        (
+            "Engineering Commands",
+            [
+                {"name": "Ping", "value": "`/eng ping`"},
+                {"name": "Uptime", "value": "`/eng uptime`"},
+                {"name": "Support", "value": "`/eng support`"},
+                {"name": "Reload Cogs", "value": "`/eng reload`"},
+            ],
+        ),
+    ],
+    "general": [
+        (
+            "General Commands",
+            [
+                {"name": "Link your Account", "value": "`/link`"},
+                {"name": "User Info", "value": "`/info`"},
+            ],
+        ),
+        (
+            "General Commands",
+            [
+                {"name": "Count", "value": "`/count`"},
+                {"name": "Spotify", "value": "`/spotify`"},
+                {"name": "Add Roles", "value": "`/addroles`"},
+            ],
+        ),
+        (
+            "General Commands",
+            [
+                {"name": "Pride", "value": "`/pride`"},
+                {"name": "FAQ", "value": "`/faq`"},
+                {"name": "Ask PESU", "value": "`/ask`"},
+            ],
+        ),
+    ],
+    "mod": [
+        (
+            "Mod Commands",
+            [
+                {"name": "Kick a User", "value": "`/mod kick`"},
+                {"name": "Echo a Message", "value": "`/echo`"},
+                {"name": "Link Info", "value": "`/mod link info`"},
+                {"name": "Disconnect a User's Link", "value": "`/mod link disconnect`"},
+            ],
+        ),
+        (
+            "Mod Commands",
+            [
+                {"name": "Mute a User", "value": "`/mod mute`"},
+                {"name": "Unmute a User", "value": "`/mod unmute`"},
+                {"name": "Purge Messages", "value": "`/mod purge`"},
+            ],
+        ),
+        (
+            "Mod Commands",
+            [
+                {"name": "Lock a Channel", "value": "`/mod lock`"},
+                {"name": "Unlock a Channel", "value": "`/mod unlock`"},
+                {"name": "Timeout a User", "value": "`/mod timeout`"},
+            ],
+        ),
+        (
+            "Mod Commands",
+            [{"name": "De-timeout a User", "value": "`/mod detimeout`"}],
+        ),
+        (
+            "Mod Commands",
+            [
+                {
+                    "name": "Ban a User from Anon",
+                    "value": "`/mod anon ban` — specify either `member` or `link`",
+                },
+                {"name": "Unban a User from Anon", "value": "`/mod anon unban`"},
+                {"name": "Anon Ban Info", "value": "`/mod anon info`"},
+            ],
+        ),
+    ],
+}
+
 
 class HelpEmbeds:
     def __init__(self, client: DiscordBot) -> None:
@@ -25,110 +110,11 @@ class HelpEmbeds:
         ]
 
         self.pages: dict[str, list[discord.Embed]] = {
-            "anon": [
-                build_embed(
-                    title="PESU Bot",
-                    color=purple,
-                    description="Anon Commands",
-                    fields=[{"name": "Send an Anon Message", "value": "`/anon send`"}],
-                ),
-            ],
-            "eng": [
-                build_embed(
-                    title="PESU Bot",
-                    color=purple,
-                    description="Engineering Commands",
-                    fields=[
-                        {"name": "Ping", "value": "`/eng ping`"},
-                        {"name": "Uptime", "value": "`/eng uptime`"},
-                        {"name": "Support", "value": "`/eng support`"},
-                        {"name": "Reload Cogs", "value": "`/eng reload`"},
-                    ],
-                ),
-            ],
-            "general": [
-                build_embed(
-                    title="PESU Bot",
-                    color=purple,
-                    description="General Commands",
-                    fields=[
-                        {"name": "Link your Account", "value": "`/link`"},
-                        {"name": "User Info", "value": "`/info`"},
-                    ],
-                ),
-                build_embed(
-                    title="PESU Bot",
-                    color=purple,
-                    description="General Commands",
-                    fields=[
-                        {"name": "Count", "value": "`/count`"},
-                        {"name": "Spotify", "value": "`/spotify`"},
-                        {"name": "Add Roles", "value": "`/addroles`"},
-                    ],
-                ),
-                build_embed(
-                    title="PESU Bot",
-                    color=purple,
-                    description="General Commands",
-                    fields=[
-                        {"name": "Pride", "value": "`/pride`"},
-                        {"name": "FAQ", "value": "`/faq`"},
-                        {"name": "Ask PESU", "value": "`/ask`"},
-                    ],
-                ),
-            ],
-            "mod": [
-                build_embed(
-                    title="PESU Bot",
-                    color=purple,
-                    description="Mod Commands",
-                    fields=[
-                        {"name": "Kick a User", "value": "`/mod kick`"},
-                        {"name": "Echo a Message", "value": "`/echo`"},
-                        {"name": "Link Info", "value": "`/mod link info`"},
-                        {"name": "Disconnect a User's Link", "value": "`/mod link disconnect`"},
-                    ],
-                ),
-                build_embed(
-                    title="PESU Bot",
-                    color=purple,
-                    description="Mod Commands",
-                    fields=[
-                        {"name": "Mute a User", "value": "`/mod mute`"},
-                        {"name": "Unmute a User", "value": "`/mod unmute`"},
-                        {"name": "Purge Messages", "value": "`/mod purge`"},
-                    ],
-                ),
-                build_embed(
-                    title="PESU Bot",
-                    color=purple,
-                    description="Mod Commands",
-                    fields=[
-                        {"name": "Lock a Channel", "value": "`/mod lock`"},
-                        {"name": "Unlock a Channel", "value": "`/mod unlock`"},
-                        {"name": "Timeout a User", "value": "`/mod timeout`"},
-                    ],
-                ),
-                build_embed(
-                    title="PESU Bot",
-                    color=purple,
-                    description="Mod Commands",
-                    fields=[{"name": "De-timeout a User", "value": "`/mod detimeout`"}],
-                ),
-                build_embed(
-                    title="PESU Bot",
-                    color=purple,
-                    description="Mod Commands",
-                    fields=[
-                        {
-                            "name": "Ban a User from Anon",
-                            "value": "`/mod anon ban` — specify either `member` or `link`",
-                        },
-                        {"name": "Unban a User from Anon", "value": "`/mod anon unban`"},
-                        {"name": "Anon Ban Info", "value": "`/mod anon info`"},
-                    ],
-                ),
-            ],
+            category: [
+                build_embed(title="PESU Bot", color=purple, description=description, fields=fields)
+                for description, fields in pages
+            ]
+            for category, pages in HELP_PAGES.items()
         }
 
 
@@ -146,7 +132,8 @@ class HelpView(discord.ui.View):
         self.category = category.lower()
         self.page = page
         self.message: discord.Message | None = None
-        self.embeds = (pages := HelpEmbeds(client).pages).get(self.category, pages["anon"])
+        self.help_embeds = HelpEmbeds(client)
+        self.embeds = self.help_embeds.pages.get(self.category, self.help_embeds.pages["anon"])
         self.update_buttons()
 
     def update_buttons(self) -> None:
@@ -187,9 +174,8 @@ class HelpSelect(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction) -> None:
         self.view_ref.category = self.values[0]
         self.view_ref.page = 0
-        self.view_ref.embeds = (pages := HelpEmbeds(self.view_ref.client).pages).get(
-            self.view_ref.category, pages["anon"]
-        )
+        pages = self.view_ref.help_embeds.pages
+        self.view_ref.embeds = pages.get(self.view_ref.category, pages["anon"])
         self.view_ref.update_buttons()
         await interaction.response.edit_message(embed=self.view_ref.get_embed(), view=self.view_ref)
 

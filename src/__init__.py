@@ -71,4 +71,4 @@ logger = _configure_logging()
 
 from src.bot import DiscordBot  # noqa: E402  (re-exported after bootstrap)
 
-__all__ = ["DiscordBot", "LoggingFormatter", "__version__", "logger"]
+__all__ = ["DiscordBot", "logger"]

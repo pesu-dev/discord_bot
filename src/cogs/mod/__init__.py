@@ -37,13 +37,6 @@ class SlashMod(ModGroups, ModHelpers, ModCommands, LinkCommands, AnonModCommands
         for task in self.tasks:
             task.cancel()
 
-    @Cog.listener()
-    async def on_ready(self) -> None:
-        await self.client.wait_until_ready()
-        for task in self.tasks:
-            if not task.is_running():
-                task.start()
-
     @tasks.loop(seconds=30)
     async def check_mutes_loop(self) -> None:
         now = datetime.now(dt.UTC)
@@ -93,12 +86,25 @@ class SlashMod(ModGroups, ModHelpers, ModCommands, LinkCommands, AnonModCommands
                 continue
 
             try:
-                await channel.send(content=member.mention, embed=self._build_unmute_embed(member))
+                await channel.send(
+                    content=member.mention,
+                    embed=ug.build_embed(
+                        title="Unmute",
+                        color=discord.Color.green(),
+                        fields=[{"name": "Unmuted user", "value": f"{member.mention} welcome back"}],
+                    ),
+                )
             except discord.HTTPException:
                 pass
 
             try:
-                await self._send_mod_log(self._build_unmute_logs_embed(member, "Auto"))
+                await self._send_mod_log(
+                    ug.build_embed(
+                        title="Unmute",
+                        color=discord.Color.green(),
+                        fields=[{"name": "Unmuted user", "value": f"{member.mention}\nModerator: Auto"}],
+                    )
+                )
             except discord.HTTPException:
                 pass
 

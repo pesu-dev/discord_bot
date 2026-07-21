@@ -43,7 +43,7 @@ class SlashAnon(AnonGroups, AnonCommands, Cog):
             await self.client.anonban_collection.update_one({"_id": ban["_id"]}, {"$set": {"active": False}})
             user = await self.client.fetch_user(ban["userId"])
             if user:
-                embed = ug.build_notification_embed(
+                embed = ug.build_embed(
                     title="Notification",
                     description="Your anon messaging ban has expired",
                     color=discord.Color.green(),

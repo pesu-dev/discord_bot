@@ -7,6 +7,7 @@ from discord import app_commands
 
 from src.cogs.mod.groups import ModGroups
 from src.utils import decorators as bot_decorators
+from src.utils import general as ug
 
 if TYPE_CHECKING:
     from src.bot import DiscordBot
@@ -24,11 +25,12 @@ class LinkCommands:
         not_found="The specified user does not exist or is not in the server",
     )
     async def mod_link_info(self, interaction: discord.Interaction, user: discord.Member) -> None:
-        embed = discord.Embed(title="Link Info (Protected)", color=discord.Color.greyple())
-        embed.set_thumbnail(url=user.display_avatar.url)
-        embed.add_field(name="User", value=user.mention, inline=False)
-        embed.timestamp = discord.utils.utcnow()
-        embed.set_footer(text="PESU Bot")
+        embed = ug.build_embed(
+            title="Link Info (Protected)",
+            color=discord.Color.greyple(),
+            fields=[{"name": "User", "value": user.mention}],
+            thumbnail=user.display_avatar.url,
+        )
 
         link_record = await self.client.link_collection.find_one({"userId": str(user.id)})
         if not link_record:

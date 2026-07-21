@@ -37,23 +37,26 @@ class GeneralCommands:
         created_at_timestamp = int(time.mktime(user.created_at.timetuple()))
         joined_at_timestamp = int(time.mktime(user.joined_at.timetuple())) if user.joined_at else None
 
-        embed = discord.Embed(title="User Info", color=discord.Color.greyple())
-        embed.set_thumbnail(url=user.display_avatar.url)
-        embed.add_field(name="Name", value=user.name, inline=True)
-        embed.add_field(name="ID", value=str(user.id), inline=True)
-        embed.add_field(name="Creation", value=f"<t:{created_at_timestamp}:R>", inline=True)
+        fields: list[dict] = [
+            {"name": "Name", "value": user.name, "inline": True},
+            {"name": "ID", "value": str(user.id), "inline": True},
+            {"name": "Creation", "value": f"<t:{created_at_timestamp}:R>", "inline": True},
+        ]
         if joined_at_timestamp:
-            embed.add_field(name="Join", value=f"<t:{joined_at_timestamp}:R>", inline=True)
+            fields.append({"name": "Join", "value": f"<t:{joined_at_timestamp}:R>", "inline": True})
 
         roles = [role.mention for role in user.roles if role != interaction.guild.default_role]
         roles_value = " ".join(roles) if roles else "None"
         if len(roles_value) > 1024:
             roles_value = f"{roles_value[:1021]}..."
-        embed.add_field(name="Roles", value=roles_value, inline=False)
+        fields.append({"name": "Roles", "value": roles_value})
 
-        embed.set_footer(text="PESU Bot")
-        embed.timestamp = discord.utils.utcnow()
-
+        embed = ug.build_embed(
+            title="User Info",
+            color=discord.Color.greyple(),
+            fields=fields,
+            thumbnail=user.display_avatar.url,
+        )
         await interaction.followup.send(embed=embed)
 
     @app_commands.command(
@@ -139,13 +142,11 @@ class GeneralCommands:
         interaction: discord.Interaction,
         channel: discord.TextChannel | None = None,
     ) -> None:
-        embe = discord.Embed(
+        embe = ug.build_embed(
             title="Additional Roles",
-            description="Pick up additional roles for access to more channels",
             color=discord.Color.blurple(),
-            timestamp=discord.utils.utcnow(),
+            description="Pick up additional roles for access to more channels",
         )
-        embe.set_footer(text="PESU Bot")
 
         if channel is None:
             if not isinstance(interaction.channel, discord.TextChannel):
@@ -213,26 +214,16 @@ class GeneralCommands:
                     if chunk.strip():
                         chunks.append(chunk)
 
-                    embeds_to_send = []
-                    first_embed = discord.Embed(
-                        title=f"{query}".capitalize(),
-                        description=chunks[0].strip(),
-                        color=discord.Color.orange(),
-                        timestamp=discord.utils.utcnow(),
-                    )
-                    first_embed.set_footer(
-                        text=f"1/{len(chunks)} • Powered by AskPESU • I am an AI bot, and can make mistakes."
-                    )
-                    embeds_to_send.append(first_embed)
-
-                    for i, c in enumerate(chunks[1:]):
-                        embed = discord.Embed(
-                            description=c.strip(), color=discord.Color.orange(), timestamp=discord.utils.utcnow()
+                    ask_footer = "• Powered by AskPESU • I am an AI bot, and can make mistakes."
+                    embeds_to_send = [
+                        ug.build_embed(
+                            title=f"{query}".capitalize() if i == 0 else "",
+                            color=discord.Color.orange(),
+                            description=c.strip(),
+                            footer=f"{i + 1}/{len(chunks)} {ask_footer}",
                         )
-                        embed.set_footer(
-                            text=f"{i + 2}/{len(chunks)} • Powered by AskPESU • I am an AI bot, and can make mistakes."
-                        )
-                        embeds_to_send.append(embed)
+                        for i, c in enumerate(chunks)
+                    ]
 
                     await interaction.followup.send(embeds=embeds_to_send)
 

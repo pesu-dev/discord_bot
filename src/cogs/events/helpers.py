@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
-
 import discord
 
 
@@ -26,17 +24,6 @@ class EventHelpers:
                 pass
 
         return mentions
-
-    @staticmethod
-    def _create_ghost_ping_embed(title: str) -> discord.Embed:
-        """Create a ghost ping embed with common properties."""
-        embed = discord.Embed(
-            title=title,
-            timestamp=datetime.now(),
-            color=discord.Color.blue(),
-        )
-        embed.set_footer(text="PESU Bot")
-        return embed
 
     @staticmethod
     def _add_everyone_ping_field(embed: discord.Embed, message: discord.Message) -> None:

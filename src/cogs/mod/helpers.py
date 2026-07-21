@@ -131,7 +131,7 @@ class ModHelpers:
                 {"name": "Message Link", "value": f"[Click here to view the message]({message_link})"},
             )
 
-        ban_embed = ug.build_notification_embed(
+        ban_embed = ug.build_embed(
             title="Notification",
             description="You have been banned from using anon messaging",
             color=discord.Color.red(),
@@ -140,23 +140,3 @@ class ModHelpers:
 
         if not await ug.send_dm_safely(user_to_ban, ban_embed):
             await interaction.followup.send(content="DMs were closed", ephemeral=True)
-
-    @staticmethod
-    def _build_unmute_embed(member: discord.Member) -> discord.Embed:
-        """Public-facing unmute embed shown in the channel."""
-        embed = discord.Embed(title="Unmute", color=discord.Color.green(), timestamp=datetime.now(UTC))
-        embed.set_footer(text="PESU Bot")
-        embed.add_field(name="Unmuted user", value=f"{member.mention} welcome back", inline=False)
-        return embed
-
-    @staticmethod
-    def _build_unmute_logs_embed(member: discord.Member, moderator_mention: str) -> discord.Embed:
-        """Mod-log unmute embed recording who performed the unmute."""
-        embed = discord.Embed(title="Unmute", color=discord.Color.green(), timestamp=datetime.now(UTC))
-        embed.set_footer(text="PESU Bot")
-        embed.add_field(
-            name="Unmuted user",
-            value=f"{member.mention}\nModerator: {moderator_mention}",
-            inline=False,
-        )
-        return embed

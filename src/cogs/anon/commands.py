@@ -8,6 +8,7 @@ from discord import app_commands
 
 from src.cogs.anon.groups import AnonGroups
 from src.utils import decorators as bot_decorators
+from src.utils import general as ug
 
 if TYPE_CHECKING:
     from src.bot import DiscordBot
@@ -58,9 +59,11 @@ class AnonCommands:
         else:
             reply_msg = None
 
-        embed = discord.Embed(title="Anon Message", description=message, color=discord.Color.random())
-        embed.timestamp = datetime.datetime.now(datetime.UTC)
-        embed.set_footer(text="PESU Bot")
+        embed = ug.build_embed(
+            title="Anon Message",
+            color=discord.Color.random(),
+            description=message,
+        )
 
         if reply_msg:
             anon_message = await reply_msg.reply(embed=embed, mention_author=True)

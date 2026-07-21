@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 
 import discord
 
+from src.utils.general import build_embed
+
 if TYPE_CHECKING:
     from src.bot import DiscordBot
 
@@ -11,118 +13,123 @@ if TYPE_CHECKING:
 class HelpEmbeds:
     def __init__(self, client: DiscordBot) -> None:
         welcome = client.config.get_channel("WELCOME")
+        purple = discord.Color.dark_purple()
+
         self.unlink = [
-            discord.Embed(
+            build_embed(
                 title="PESU Bot",
+                color=purple,
                 description=f"Visit {welcome.mention} to get started, then link your account below.",
-                color=discord.Color.dark_purple(),
-                timestamp=discord.utils.utcnow(),
-            ).add_field(name="Link your Account", value="`/link`", inline=False),
+                fields=[{"name": "Link your Account", "value": "`/link`"}],
+            ),
         ]
 
-        self.anon = [
-            discord.Embed(
-                title="PESU Bot",
-                description="Anon Commands",
-                color=discord.Color.dark_purple(),
-                timestamp=discord.utils.utcnow(),
-            ).add_field(name="Send an Anon Message", value="`/anon send`", inline=False),
-        ]
-
-        self.eng = [
-            discord.Embed(
-                title="PESU Bot",
-                description="Engineering Commands",
-                color=discord.Color.dark_purple(),
-                timestamp=discord.utils.utcnow(),
-            )
-            .add_field(name="Ping", value="`/eng ping`", inline=False)
-            .add_field(name="Uptime", value="`/eng uptime`", inline=False)
-            .add_field(name="Support", value="`/eng support`", inline=False)
-            .add_field(name="Reload Cogs", value="`/eng reload`", inline=False),
-        ]
-
-        self.general = [
-            discord.Embed(
-                title="PESU Bot",
-                description="General Commands",
-                color=discord.Color.dark_purple(),
-                timestamp=discord.utils.utcnow(),
-            )
-            .add_field(name="Link your Account", value="`/link`", inline=False)
-            .add_field(name="User Info", value="`/info`", inline=False),
-            discord.Embed(
-                title="PESU Bot",
-                description="General Commands",
-                color=discord.Color.dark_purple(),
-                timestamp=discord.utils.utcnow(),
-            )
-            .add_field(name="Count", value="`/count`", inline=False)
-            .add_field(name="Spotify", value="`/spotify`", inline=False)
-            .add_field(name="Add Roles", value="`/addroles`", inline=False),
-            discord.Embed(
-                title="PESU Bot",
-                description="General Commands",
-                color=discord.Color.dark_purple(),
-                timestamp=discord.utils.utcnow(),
-            )
-            .add_field(name="Pride", value="`/pride`", inline=False)
-            .add_field(name="FAQ", value="`/faq`", inline=False)
-            .add_field(name="Ask PESU", value="`/ask`", inline=False),
-        ]
-
-        self.mod = [
-            discord.Embed(
-                title="PESU Bot",
-                description="Mod Commands",
-                color=discord.Color.dark_purple(),
-                timestamp=discord.utils.utcnow(),
-            )
-            .add_field(name="Kick a User", value="`/mod kick`", inline=False)
-            .add_field(name="Echo a Message", value="`/echo`", inline=False)
-            .add_field(name="Link Info", value="`/mod link info`", inline=False)
-            .add_field(name="Disconnect a User's Link", value="`/mod link disconnect`", inline=False),
-            discord.Embed(
-                title="PESU Bot",
-                description="Mod Commands",
-                color=discord.Color.dark_purple(),
-                timestamp=discord.utils.utcnow(),
-            )
-            .add_field(name="Mute a User", value="`/mod mute`", inline=False)
-            .add_field(name="Unmute a User", value="`/mod unmute`", inline=False)
-            .add_field(name="Purge Messages", value="`/mod purge`", inline=False),
-            discord.Embed(
-                title="PESU Bot",
-                description="Mod Commands",
-                color=discord.Color.dark_purple(),
-                timestamp=discord.utils.utcnow(),
-            )
-            .add_field(name="Lock a Channel", value="`/mod lock`", inline=False)
-            .add_field(name="Unlock a Channel", value="`/mod unlock`", inline=False)
-            .add_field(name="Timeout a User", value="`/mod timeout`", inline=False),
-            discord.Embed(
-                title="PESU Bot",
-                description="Mod Commands",
-                color=discord.Color.dark_purple(),
-                timestamp=discord.utils.utcnow(),
-            ).add_field(name="De-timeout a User", value="`/mod detimeout`", inline=False),
-            discord.Embed(
-                title="PESU Bot",
-                description="Mod Commands",
-                color=discord.Color.dark_purple(),
-                timestamp=discord.utils.utcnow(),
-            )
-            .add_field(
-                name="Ban a User from Anon",
-                value="`/mod anon ban` — specify either `member` or `link`",
-                inline=False,
-            )
-            .add_field(name="Unban a User from Anon", value="`/mod anon unban`", inline=False)
-            .add_field(name="Anon Ban Info", value="`/mod anon info`", inline=False),
-        ]
-
-    def get_embeds(self, category: str) -> list[discord.Embed]:
-        return getattr(self, category.lower(), self.anon)
+        self.pages: dict[str, list[discord.Embed]] = {
+            "anon": [
+                build_embed(
+                    title="PESU Bot",
+                    color=purple,
+                    description="Anon Commands",
+                    fields=[{"name": "Send an Anon Message", "value": "`/anon send`"}],
+                ),
+            ],
+            "eng": [
+                build_embed(
+                    title="PESU Bot",
+                    color=purple,
+                    description="Engineering Commands",
+                    fields=[
+                        {"name": "Ping", "value": "`/eng ping`"},
+                        {"name": "Uptime", "value": "`/eng uptime`"},
+                        {"name": "Support", "value": "`/eng support`"},
+                        {"name": "Reload Cogs", "value": "`/eng reload`"},
+                    ],
+                ),
+            ],
+            "general": [
+                build_embed(
+                    title="PESU Bot",
+                    color=purple,
+                    description="General Commands",
+                    fields=[
+                        {"name": "Link your Account", "value": "`/link`"},
+                        {"name": "User Info", "value": "`/info`"},
+                    ],
+                ),
+                build_embed(
+                    title="PESU Bot",
+                    color=purple,
+                    description="General Commands",
+                    fields=[
+                        {"name": "Count", "value": "`/count`"},
+                        {"name": "Spotify", "value": "`/spotify`"},
+                        {"name": "Add Roles", "value": "`/addroles`"},
+                    ],
+                ),
+                build_embed(
+                    title="PESU Bot",
+                    color=purple,
+                    description="General Commands",
+                    fields=[
+                        {"name": "Pride", "value": "`/pride`"},
+                        {"name": "FAQ", "value": "`/faq`"},
+                        {"name": "Ask PESU", "value": "`/ask`"},
+                    ],
+                ),
+            ],
+            "mod": [
+                build_embed(
+                    title="PESU Bot",
+                    color=purple,
+                    description="Mod Commands",
+                    fields=[
+                        {"name": "Kick a User", "value": "`/mod kick`"},
+                        {"name": "Echo a Message", "value": "`/echo`"},
+                        {"name": "Link Info", "value": "`/mod link info`"},
+                        {"name": "Disconnect a User's Link", "value": "`/mod link disconnect`"},
+                    ],
+                ),
+                build_embed(
+                    title="PESU Bot",
+                    color=purple,
+                    description="Mod Commands",
+                    fields=[
+                        {"name": "Mute a User", "value": "`/mod mute`"},
+                        {"name": "Unmute a User", "value": "`/mod unmute`"},
+                        {"name": "Purge Messages", "value": "`/mod purge`"},
+                    ],
+                ),
+                build_embed(
+                    title="PESU Bot",
+                    color=purple,
+                    description="Mod Commands",
+                    fields=[
+                        {"name": "Lock a Channel", "value": "`/mod lock`"},
+                        {"name": "Unlock a Channel", "value": "`/mod unlock`"},
+                        {"name": "Timeout a User", "value": "`/mod timeout`"},
+                    ],
+                ),
+                build_embed(
+                    title="PESU Bot",
+                    color=purple,
+                    description="Mod Commands",
+                    fields=[{"name": "De-timeout a User", "value": "`/mod detimeout`"}],
+                ),
+                build_embed(
+                    title="PESU Bot",
+                    color=purple,
+                    description="Mod Commands",
+                    fields=[
+                        {
+                            "name": "Ban a User from Anon",
+                            "value": "`/mod anon ban` — specify either `member` or `link`",
+                        },
+                        {"name": "Unban a User from Anon", "value": "`/mod anon unban`"},
+                        {"name": "Anon Ban Info", "value": "`/mod anon info`"},
+                    ],
+                ),
+            ],
+        }
 
 
 class HelpView(discord.ui.View):
@@ -139,7 +146,7 @@ class HelpView(discord.ui.View):
         self.category = category.lower()
         self.page = page
         self.message: discord.Message | None = None
-        self.embeds = HelpEmbeds(client).get_embeds(self.category)
+        self.embeds = (pages := HelpEmbeds(client).pages).get(self.category, pages["anon"])
         self.update_buttons()
 
     def update_buttons(self) -> None:
@@ -180,7 +187,9 @@ class HelpSelect(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction) -> None:
         self.view_ref.category = self.values[0]
         self.view_ref.page = 0
-        self.view_ref.embeds = HelpEmbeds(self.view_ref.client).get_embeds(self.view_ref.category)
+        self.view_ref.embeds = (pages := HelpEmbeds(self.view_ref.client).pages).get(
+            self.view_ref.category, pages["anon"]
+        )
         self.view_ref.update_buttons()
         await interaction.response.edit_message(embed=self.view_ref.get_embed(), view=self.view_ref)
 

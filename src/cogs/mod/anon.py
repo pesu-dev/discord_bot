@@ -81,7 +81,7 @@ class AnonModCommands:
         reason = "No reason provided, executed via context menu"
         await self._create_and_store_ban(str(ban_user.id), reason, None)
 
-        embed = ug.build_notification_embed(
+        embed = ug.build_embed(
             title="Notification",
             description="You have been banned from using anon messaging",
             color=discord.Color.red(),
@@ -125,7 +125,7 @@ class AnonModCommands:
 
         await interaction.followup.send(content="Member unbanned successfully")
 
-        unban_embed = ug.build_notification_embed(
+        unban_embed = ug.build_embed(
             title="Notification",
             description="Your anon messaging ban has been revoked",
             color=discord.Color.green(),
@@ -150,7 +150,7 @@ class AnonModCommands:
         expires_at = user_anon_ban_check["expiresAt"]
         expiry_timestamp = f"<t:{int(expires_at.timestamp())}:R>" if expires_at else "Permanent"
 
-        embed = ug.build_notification_embed(
+        embed = ug.build_embed(
             title="Anon Ban Info",
             description="",
             color=discord.Color.red(),

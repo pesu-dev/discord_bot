@@ -9,6 +9,8 @@ from discord import app_commands
 from discord.ext import commands
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from src.utils.config import Config
 
 COGS_PACKAGE = "src.cogs"
@@ -33,19 +35,28 @@ def parse_time(time_str: str) -> int:
         raise ValueError("Invalid time format") from None
 
 
-def build_notification_embed(
-    title: str,
-    description: str,
-    color: discord.Color,
-    fields: list[dict] | None = None,
+def build_embed(
+    title: str = "",
+    color: discord.Color | None = None,
+    *,
+    description: str = "",
+    fields: Sequence[dict] = (),
+    timestamp: datetime | None = None,
+    footer: str = "PESU Bot",
+    thumbnail: str | None = None,
 ) -> discord.Embed:
-    """Build a standardized notification embed with the PESU Bot footer."""
-    embed = discord.Embed(title=title, description=description, color=color)
-    if fields:
-        for field in fields:
-            embed.add_field(name=field["name"], value=field["value"], inline=field.get("inline", False))
-    embed.timestamp = datetime.now(UTC)
-    embed.set_footer(text="PESU Bot")
+    """Build an embed. The only place in the repo that constructs ``discord.Embed``."""
+    embed = discord.Embed(
+        title=title,
+        description=description,
+        color=color if color is not None else discord.Color.default(),
+        timestamp=timestamp or datetime.now(UTC),
+    )
+    for field in fields:
+        embed.add_field(name=field["name"], value=field["value"], inline=field.get("inline", False))
+    if thumbnail is not None:
+        embed.set_thumbnail(url=thumbnail)
+    embed.set_footer(text=footer)
     return embed
 
 
@@ -59,27 +70,18 @@ async def send_dm_safely(user: discord.User | discord.Member, embed: discord.Emb
 
 
 def build_unknown_error_embed(error: Exception) -> discord.Embed:
-    return (
-        discord.Embed(
-            title="❗ Unexpected Error",
-            description="Something went wrong while processing the command.",
-            color=discord.Color.red(),
-            timestamp=datetime.now(),
-        )
-        .add_field(name="Error Type", value=type(error).__name__, inline=True)
-        .add_field(
-            name="Details",
-            value=str(error)[:1000] or "No details available.",
-            inline=False,
-        )
-        .add_field(
-            name="Support",
-            value="Please report this to the developers if it keeps happening.",
-            inline=False,
-        )
-        .set_footer(
-            text="PESU Bot",
-        )
+    return build_embed(
+        title="❗ Unexpected Error",
+        color=discord.Color.red(),
+        description="Something went wrong while processing the command.",
+        fields=[
+            {"name": "Error Type", "value": type(error).__name__, "inline": True},
+            {"name": "Details", "value": str(error)[:1000] or "No details available."},
+            {
+                "name": "Support",
+                "value": "Please report this to the developers if it keeps happening.",
+            },
+        ],
     )
 
 

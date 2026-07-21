@@ -45,13 +45,11 @@ class ModCommands:
             pass
 
         await member.kick(reason=f"Kicked by {interaction.user} | {reason}")
-        embed = discord.Embed(
+        embed = ug.build_embed(
             title="Member Kicked",
             color=discord.Color.red(),
-            description=(f"{member.mention} was kicked by {interaction.user.mention}\n**Reason:** {reason}"),
-            timestamp=discord.utils.utcnow(),
+            description=f"{member.mention} was kicked by {interaction.user.mention}\n**Reason:** {reason}",
         )
-        embed.set_footer(text="PESU Bot")
         await interaction.followup.send(embed=embed)
         await self._send_mod_log(embed)
 
@@ -88,16 +86,16 @@ class ModCommands:
             await channel.send(content=message)
         await ctx.send(content=f"Message sent to {channel.mention}", ephemeral=True)
 
-        echo_embed = discord.Embed(
+        echo_embed = ug.build_embed(
             title="Echo Sent",
             color=discord.Color.blue(),
-            timestamp=datetime.now(dt.UTC),
+            fields=[
+                {"name": "Message", "value": message},
+                {"name": "Channel", "value": channel.mention},
+                {"name": "Attachment", "value": "Yes" if attachment else "No"},
+                {"name": "Author", "value": ctx.author.mention},
+            ],
         )
-        echo_embed.add_field(name="Message", value=message, inline=False)
-        echo_embed.add_field(name="Channel", value=channel.mention, inline=False)
-        echo_embed.add_field(name="Attachment", value="Yes" if attachment else "No", inline=False)
-        echo_embed.add_field(name="Author", value=ctx.author.mention, inline=False)
-        echo_embed.set_footer(text="PESU Bot")
         await self._send_mod_log(echo_embed)
 
     @ModGroups.mod.command(name="mute", description="Mute a member for a specified duration")
@@ -171,32 +169,30 @@ class ModCommands:
         }
         await self.client.mute_collection.insert_one(mute_record)
 
-        mute_embed = discord.Embed(
+        unmute_timestamp = int(unmute_time.timestamp())
+        mute_embed = ug.build_embed(
             title="Mute",
             color=discord.Color.red(),
-            timestamp=datetime.now(dt.UTC),
+            fields=[
+                {
+                    "name": "Muted User",
+                    "value": f"{member.mention} was muted\nUnmute: <t:{unmute_timestamp}:R>\nReason: {reason}",
+                }
+            ],
         )
-        unmute_timestamp = int(unmute_time.timestamp())
-        mute_embed.add_field(
-            name="Muted User",
-            value=f"{member.mention} was muted\nUnmute: <t:{unmute_timestamp}:R>\nReason: {reason}",
-            inline=False,
-        )
-        mute_embed.set_footer(text="PESU Bot")
         await interaction.followup.send(content=member.mention, embed=mute_embed)
 
-        mute_logs_embed = discord.Embed(
+        moderator_mention = interaction.user.mention if not is_self_mute else "Self"
+        mute_logs_embed = ug.build_embed(
             title="Mute",
             color=discord.Color.red(),
-            timestamp=datetime.now(dt.UTC),
+            fields=[
+                {
+                    "name": "Muted User",
+                    "value": f"{member.mention}\nTime: {time}\nReason: {reason}\nModerator: {moderator_mention}",
+                }
+            ],
         )
-        moderator_mention = interaction.user.mention if not is_self_mute else "Self"
-        mute_logs_embed.add_field(
-            name="Muted User",
-            value=f"{member.mention}\nTime: {time}\nReason: {reason}\nModerator: {moderator_mention}",
-            inline=False,
-        )
-        mute_logs_embed.set_footer(text="PESU Bot")
         await self._send_mod_log(mute_logs_embed)
 
     @ModGroups.mod.command(name="unmute", description="Unmute a member")
@@ -229,8 +225,21 @@ class ModCommands:
             },
         )
 
-        await interaction.followup.send(content=member.mention, embed=self._build_unmute_embed(member))
-        await self._send_mod_log(self._build_unmute_logs_embed(member, interaction.user.mention))
+        await interaction.followup.send(
+            content=member.mention,
+            embed=ug.build_embed(
+                title="Unmute",
+                color=discord.Color.green(),
+                fields=[{"name": "Unmuted user", "value": f"{member.mention} welcome back"}],
+            ),
+        )
+        await self._send_mod_log(
+            ug.build_embed(
+                title="Unmute",
+                color=discord.Color.green(),
+                fields=[{"name": "Unmuted user", "value": f"{member.mention}\nModerator: {interaction.user.mention}"}],
+            )
+        )
 
     @ModGroups.mod.command(name="purge", description="Delete a number of recent messages")
     @app_commands.describe(amount="Number of messages to delete")
@@ -248,13 +257,11 @@ class ModCommands:
 
         deleted = await interaction.channel.purge(limit=amount)
         await interaction.followup.send(content=f"Deleted last {len(deleted)} messages", ephemeral=True)
-        embed = discord.Embed(
+        embed = ug.build_embed(
             title="Messages Purged",
             color=discord.Color.green(),
             description=f"{interaction.user.mention} deleted {len(deleted)} messages in {interaction.channel.mention}",
-            timestamp=discord.utils.utcnow(),
         )
-        embed.set_footer(text="PESU Bot")
         await self._send_mod_log(embed)
 
     @ModGroups.mod.command(name="lock", description="lock a channel")
@@ -294,24 +301,22 @@ class ModCommands:
         await channel.set_permissions(everyone_role, overwrite=overwrites)
         await interaction.followup.send(content=f"Locked {channel.mention}", ephemeral=False)
 
-        lock_embed = discord.Embed(
+        lock_embed = ug.build_embed(
             title="Channel Locked :lock:",
             color=discord.Color.red(),
             description=reason,
-            timestamp=datetime.now(dt.UTC),
         )
-        lock_embed.set_footer(text="PESU Bot")
         await channel.send(embed=lock_embed)
 
-        lock_logs_embed = discord.Embed(
+        lock_logs_embed = ug.build_embed(
             title="Lock",
             color=discord.Color.red(),
-            timestamp=datetime.now(dt.UTC),
+            fields=[
+                {"name": "Channel", "value": channel.mention, "inline": True},
+                {"name": "Moderator", "value": interaction.user.mention, "inline": True},
+                {"name": "Reason", "value": reason},
+            ],
         )
-        lock_logs_embed.set_footer(text="PESU Bot")
-        lock_logs_embed.add_field(name="Channel", value=channel.mention, inline=True)
-        lock_logs_embed.add_field(name="Moderator", value=interaction.user.mention, inline=True)
-        lock_logs_embed.add_field(name="Reason", value=reason, inline=False)
         await self._send_mod_log(lock_logs_embed)
 
     @ModGroups.mod.command(name="unlock", description="Unlock a channel")
@@ -348,22 +353,20 @@ class ModCommands:
         await channel.set_permissions(everyone_role, overwrite=overwrites)
         await interaction.followup.send(content=f"Unlocked {channel.mention}", ephemeral=False)
 
-        unlock_embed = discord.Embed(
+        unlock_embed = ug.build_embed(
             title="Channel Unlocked :unlock:",
             color=discord.Color.green(),
-            timestamp=datetime.now(dt.UTC),
         )
-        unlock_embed.set_footer(text="PESU Bot")
         await channel.send(embed=unlock_embed)
 
-        unlock_logs_embed = discord.Embed(
+        unlock_logs_embed = ug.build_embed(
             title="Unlock",
             color=discord.Color.green(),
-            timestamp=datetime.now(dt.UTC),
+            fields=[
+                {"name": "Channel", "value": channel.mention, "inline": True},
+                {"name": "Moderator", "value": interaction.user.mention, "inline": True},
+            ],
         )
-        unlock_logs_embed.set_footer(text="PESU Bot")
-        unlock_logs_embed.add_field(name="Channel", value=channel.mention, inline=True)
-        unlock_logs_embed.add_field(name="Moderator", value=interaction.user.mention, inline=True)
         await self._send_mod_log(unlock_logs_embed)
 
     @ModGroups.mod.command(name="timeout", description="Timeout a member for a specified duration")
@@ -414,24 +417,25 @@ class ModCommands:
         timeout_until = discord.utils.utcnow() + timedelta(seconds=seconds)
         await member.timeout(timeout_until, reason=reason)
 
-        timeout_embed = discord.Embed(title="Time-out", color=0x8B0000, timestamp=discord.utils.utcnow())
-        timeout_embed.set_footer(text="PESU Bot")
         timeout_timestamp = int(timeout_until.timestamp())
-        timeout_embed.add_field(
-            name="Timed-out Member",
-            value=f"{member.mention} was timed-out\nDe-time-out: <t:{timeout_timestamp}:R>\nReason: {reason}",
-            inline=False,
+        timeout_value = f"{member.mention} was timed-out\nDe-time-out: <t:{timeout_timestamp}:R>\nReason: {reason}"
+        timeout_embed = ug.build_embed(
+            title="Time-out",
+            color=discord.Color(0x8B0000),
+            fields=[{"name": "Timed-out Member", "value": timeout_value}],
         )
-
         await interaction.followup.send(content=member.mention, embed=timeout_embed)
 
-        timeout_logs_embed = discord.Embed(title="Time-out", color=0x8B0000, timestamp=discord.utils.utcnow())
-        timeout_logs_embed.add_field(
-            name="Timed-out User",
-            value=f"{member.mention}\nTime: {time}\nReason: {reason}\nModerator: {interaction.user.mention}",
-            inline=False,
+        timeout_logs_embed = ug.build_embed(
+            title="Time-out",
+            color=discord.Color(0x8B0000),
+            fields=[
+                {
+                    "name": "Timed-out User",
+                    "value": f"{member.mention}\nTime: {time}\nReason: {reason}\nModerator: {interaction.user.mention}",
+                }
+            ],
         )
-        timeout_logs_embed.set_footer(text="PESU Bot")
         await self._send_mod_log(timeout_logs_embed)
 
     @ModGroups.mod.command(name="detimeout", description="Remove timeout from a member")
@@ -450,21 +454,16 @@ class ModCommands:
 
         await member.timeout(None, reason=f"Timeout removed by {interaction.user}")
 
-        detimeout_embed = discord.Embed(title="De-Time-out", color=0x00FF00, timestamp=discord.utils.utcnow())
-        detimeout_embed.set_footer(text="PESU Bot")
-        detimeout_embed.add_field(
-            name="De-timed-out Member",
-            value=f"{member.mention}, welcome back",
-            inline=False,
+        detimeout_embed = ug.build_embed(
+            title="De-Time-out",
+            color=discord.Color(0x00FF00),
+            fields=[{"name": "De-timed-out Member", "value": f"{member.mention}, welcome back"}],
         )
-
         await interaction.followup.send(content=member.mention, embed=detimeout_embed)
 
-        detimeout_logs_embed = discord.Embed(title="De-time-out", color=0x00FF00, timestamp=discord.utils.utcnow())
-        detimeout_logs_embed.set_footer(text="PESU Bot")
-        detimeout_logs_embed.add_field(
-            name="De-timed-out User",
-            value=f"{member.mention}\nModerator: {interaction.user.mention}",
-            inline=False,
+        detimeout_logs_embed = ug.build_embed(
+            title="De-time-out",
+            color=discord.Color(0x00FF00),
+            fields=[{"name": "De-timed-out User", "value": f"{member.mention}\nModerator: {interaction.user.mention}"}],
         )
         await self._send_mod_log(detimeout_logs_embed)

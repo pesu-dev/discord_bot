@@ -22,7 +22,6 @@ class HelpCommands:
     async def help_command(self, interaction: discord.Interaction) -> None:
         if self.client.config.linked_role not in interaction.user.roles:
             embed = HelpEmbeds(self.client).unlink[0]
-            embed.set_footer(text="PESU Bot")
             await interaction.followup.send(embed=embed)
             return
 

@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 import discord
 import httpx
 
+from src.utils import general as ug
+
 if TYPE_CHECKING:
     import logging
 
@@ -117,17 +119,17 @@ class GeneralHelpers:
             questions.append(f"[{question}]({answer})")
 
         if questions:
-            embed = discord.Embed(
+            embed = ug.build_embed(
                 title=f"FAQ - {category}",
-                description="\n\n".join(questions),
                 color=discord.Color.blurple(),
+                description="\n\n".join(questions),
             )
             await interaction.followup.send(embed=embed)
         else:
-            embed = discord.Embed(
+            embed = ug.build_embed(
                 title="FAQ",
-                description="No questions found in this category",
                 color=discord.Color.red(),
+                description="No questions found in this category",
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
 

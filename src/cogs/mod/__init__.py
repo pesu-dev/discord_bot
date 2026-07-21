@@ -11,7 +11,6 @@ from discord.ext.commands import Cog
 from src.cogs.mod.anon import AnonModCommands
 from src.cogs.mod.commands import ModCommands
 from src.cogs.mod.groups import ModGroups
-from src.cogs.mod.helpers import ModHelpers
 from src.cogs.mod.link import LinkCommands
 from src.utils import general as ug
 
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
     from src.bot import DiscordBot
 
 
-class SlashMod(ModGroups, ModHelpers, ModCommands, LinkCommands, AnonModCommands, Cog):
+class SlashMod(ModGroups, ModCommands, LinkCommands, AnonModCommands, Cog):
     def __init__(self, client: DiscordBot) -> None:
         self.client = client
         self.ctx_menu = app_commands.ContextMenu(

@@ -9,13 +9,14 @@ from typing import TYPE_CHECKING
 import discord
 from discord.ext import commands
 
+from src.cogs.events.helpers import EventHelpers
 from src.utils.general import build_embed
 
 if TYPE_CHECKING:
     from src.bot import DiscordBot
 
 
-class EventListeners:
+class EventListeners(EventHelpers):
     client: DiscordBot
 
     @commands.Cog.listener()

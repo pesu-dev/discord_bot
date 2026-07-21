@@ -8,6 +8,7 @@ import httpx
 from discord import app_commands
 
 from src.cogs.general.components import RoleSelectView
+from src.cogs.general.helpers import GeneralHelpers
 from src.utils import decorators as bot_decorators
 from src.utils import general as ug
 
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
     from src.bot import DiscordBot
 
 
-class GeneralCommands:
+class GeneralCommands(GeneralHelpers):
     client: DiscordBot
     cached_data: dict | None
 

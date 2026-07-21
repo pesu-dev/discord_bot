@@ -8,6 +8,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from src.cogs.mod.groups import ModGroups
+from src.cogs.mod.helpers import ModHelpers
 from src.utils import decorators as bot_decorators
 from src.utils import general as ug
 from src.utils.config import Config
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
     from src.bot import DiscordBot
 
 
-class ModCommands:
+class ModCommands(ModHelpers):
     client: DiscordBot
 
     @ModGroups.mod.command(name="kick", description="Kick a member from the server")

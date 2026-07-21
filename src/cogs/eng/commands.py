@@ -7,13 +7,14 @@ import discord
 from discord import app_commands
 
 from src.cogs.eng.groups import EngGroups
+from src.cogs.eng.helpers import EngHelpers
 from src.utils import decorators as bot_decorators
 
 if TYPE_CHECKING:
     from src.bot import DiscordBot
 
 
-class EngCommands:
+class EngCommands(EngHelpers):
     client: DiscordBot
 
     @EngGroups.eng.command(name="ping", description="Get the bot's latency")

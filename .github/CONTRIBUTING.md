@@ -263,10 +263,11 @@ src/cogs/mod/
 
 Conventions:
 
-- **`__init__.py`** holds the final `Slash*` cog class (composed via multiple inheritance from the mixins) plus lifecycle bits (task loops, `on_ready`) and the `setup()` entrypoint. It is the loadable extension.
+- **`__init__.py`** holds the final `Slash*` cog class (composed via multiple inheritance from groups + commands/listeners mixins) plus lifecycle bits (task loops, `on_ready`) and the `setup()` entrypoint. It is the loadable extension.
 - **`groups.py`** holds the `app_commands.Group` definitions (`ModGroups`, `AnonGroups`, etc.), only when the cog uses groups. It lives in its own module so command files can import the group without a circular import back into `__init__.py`.
 - **`commands.py`** holds the command mixin for the cog's **root** group (or top-level commands). Each **child** subgroup (one with a `parent=`) gets its own file named after it (e.g. `mod_link` -> `link.py`).
-- **`helpers.py`** holds an optional mixin of internal helper methods; **`components.py`** holds Discord UI (views/selects/buttons); **`listeners.py`** holds event listeners (see `events`).
+- **`helpers.py`** holds an optional mixin of internal helper methods. When present, `*Commands` / `*Listeners` (and child-group command mixins that need those helpers) **subclass** `*Helpers` so `self._helper_method(...)` type-checks. Do **not** also list `*Helpers` as a separate base in `__init__.py`.
+- **`components.py`** holds Discord UI (views/selects/buttons); **`listeners.py`** holds event listeners (see `events`).
 - **Command/helper mixins** import groups from `src.cogs.<name>.groups`, never from `__init__.py`.
 - Mixins declare `client: DiscordBot` (under `TYPE_CHECKING`) so `self.client` type-checks instead of resolving to `Any`.
 - Import the base class as `from discord.ext.commands import Cog` (not `commands.Cog`) so a `commands.py` submodule cannot shadow the `commands` name in the package namespace.
@@ -275,8 +276,8 @@ Conventions:
 
 Special cases:
 
-- **`mod`**: registers the "Ban this anon" context menu in `setup()` alongside the cog; the anon moderation commands live under the `mod anon` subgroup.
-- **`events`**: global listeners (in `listeners.py`), not guild-scoped; has no slash commands.
+- **`mod`**: registers the "Ban this anon" context menu in `setup()` alongside the cog; the anon moderation commands live under the `mod anon` subgroup. Both `ModCommands` and `AnonModCommands` subclass `ModHelpers`.
+- **`events`**: global listeners (in `listeners.py`), not guild-scoped; has no slash commands. `EventListeners` subclasses `EventHelpers`.
 
 When adding a new cog package, CI runs `scripts/check_cog_imports.py` to catch import cycles early.
 

@@ -6,13 +6,12 @@ from discord.ext.commands import Cog
 
 from src.cogs.general.commands import GeneralCommands
 from src.cogs.general.components import RoleSelectView
-from src.cogs.general.helpers import GeneralHelpers
 
 if TYPE_CHECKING:
     from src.bot import DiscordBot
 
 
-class SlashGeneral(GeneralHelpers, GeneralCommands, Cog):
+class SlashGeneral(GeneralCommands, Cog):
     def __init__(self, client: DiscordBot) -> None:
         self.client = client
         self.cached_data = None

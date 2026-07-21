@@ -6,6 +6,7 @@ import discord
 from discord import app_commands
 
 from src.cogs.mod.groups import ModGroups
+from src.cogs.mod.helpers import ModHelpers
 from src.utils import decorators as bot_decorators
 from src.utils import general as ug
 
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
     from src.bot import DiscordBot
 
 
-class AnonModCommands:
+class AnonModCommands(ModHelpers):
     client: DiscordBot
 
     @ModGroups.mod_anon.command(name="ban", description="Ban a user from anon messaging using a message link or member")

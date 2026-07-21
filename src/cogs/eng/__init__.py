@@ -6,13 +6,12 @@ from discord.ext.commands import Cog
 
 from src.cogs.eng.commands import EngCommands
 from src.cogs.eng.groups import EngGroups
-from src.cogs.eng.helpers import EngHelpers
 
 if TYPE_CHECKING:
     from src.bot import DiscordBot
 
 
-class SlashEng(EngGroups, EngHelpers, EngCommands, Cog):
+class SlashEng(EngGroups, EngCommands, Cog):
     def __init__(self, client: DiscordBot) -> None:
         self.client = client
 

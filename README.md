@@ -70,13 +70,13 @@ For detailed development setup and contribution instructions, see our [Contribut
 
 The bot uses Discord.py's cogs system to organize functionality into modular components. **Each cog is a package** under `src/cogs/<name>/`, and every package with an `__init__.py` is auto-discovered and loaded as an extension. Files within a cog package follow a uniform scheme:
 
-- **`__init__.py`**: The `commands.Cog` subclass (composed from the mixins below), lifecycle bits (task loops, `on_ready`), and the `setup()` entrypoint.
-- **`commands.py`**: Command definitions for the cog's root group (or top-level commands), as a `*Commands` mixin.
+- **`__init__.py`**: The `commands.Cog` subclass (composed from groups + commands/listeners mixins), lifecycle bits (task loops, `on_ready`), and the `setup()` entrypoint.
+- **`commands.py`**: Command definitions for the cog's root group (or top-level commands), as a `*Commands` mixin. When the cog has helpers, this class **subclasses** `*Helpers` so helper methods type-check on `self`.
 - **`groups.py`**: The `app_commands.Group` definitions (only when the cog uses groups).
-- **child-group file** (e.g. `mod/link.py`): each child subgroup gets its own file; root commands stay in `commands.py`.
-- **`helpers.py`**: Internal helper methods / shared logic (optional).
+- **child-group file** (e.g. `mod/link.py`): each child subgroup gets its own file; root commands stay in `commands.py`. Child-group command mixins that need helpers also subclass `*Helpers`.
+- **`helpers.py`**: Internal helper methods / shared logic (optional). Inherited by `*Commands` / `*Listeners`, not listed again in `__init__.py`.
 - **`components.py`**: Discord UI such as views, selects, and buttons (optional).
-- **`listeners.py`**: Event listeners (used by the `events` cog, which has no slash commands).
+- **`listeners.py`**: Event listeners (used by the `events` cog, which has no slash commands). Subclasses `*Helpers` when helpers exist.
 
 Shared, cross-cog utilities live in `src/utils/` rather than inside any single cog.
 

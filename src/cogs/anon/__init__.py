@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import discord
@@ -36,7 +36,7 @@ class SlashAnon(AnonGroups, AnonCommands, Cog):
 
     @tasks.loop(seconds=30)
     async def check_anon_bans_loop(self) -> None:
-        current_time = datetime.datetime.now(datetime.UTC)
+        current_time = datetime.now(UTC)
         async for ban in self.client.anonban_collection.find(
             {"expiresAt": {"$ne": None, "$lt": current_time}, "active": True}
         ):
@@ -57,7 +57,7 @@ class SlashAnon(AnonGroups, AnonCommands, Cog):
     @tasks.loop(seconds=10)
     async def clear_anon_cache_loop(self) -> None:
         if self.client.anon_cache:
-            current_time = datetime.datetime.now(datetime.UTC)
+            current_time = datetime.now(UTC)
             min_time = 86400
             for key, value in self.client.anon_cache.items():
                 self.client.anon_cache[key] = [

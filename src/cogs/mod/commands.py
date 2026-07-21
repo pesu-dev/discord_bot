@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import datetime as dt
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 import discord
@@ -154,7 +153,7 @@ class ModCommands:
             return
 
         await member.add_roles(muted_role)
-        mute_time = datetime.now(dt.UTC)
+        mute_time = datetime.now(UTC)
         unmute_time = mute_time + timedelta(seconds=seconds)
 
         mute_record = {
@@ -218,7 +217,7 @@ class ModCommands:
             {
                 "$set": {
                     "active": False,
-                    "unmute_time": datetime.now(dt.UTC),
+                    "unmute_time": datetime.now(UTC),
                     "unmute_type": "manual",
                     "unmuted_by": interaction.user.id,
                 }
@@ -414,7 +413,7 @@ class ModCommands:
             await interaction.followup.send(content=target_error, ephemeral=True)
             return
 
-        timeout_until = discord.utils.utcnow() + timedelta(seconds=seconds)
+        timeout_until = datetime.now(UTC) + timedelta(seconds=seconds)
         await member.timeout(timeout_until, reason=reason)
 
         timeout_timestamp = int(timeout_until.timestamp())

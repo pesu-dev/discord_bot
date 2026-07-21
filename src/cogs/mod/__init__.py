@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import datetime as dt
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import discord
@@ -39,7 +38,7 @@ class SlashMod(ModGroups, ModHelpers, ModCommands, LinkCommands, AnonModCommands
 
     @tasks.loop(seconds=30)
     async def check_mutes_loop(self) -> None:
-        now = datetime.now(dt.UTC)
+        now = datetime.now(UTC)
         expired_mutes = await self.client.mute_collection.find({"unmute_time": {"$lte": now}, "active": True}).to_list(
             length=100
         )

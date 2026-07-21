@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import discord
@@ -77,7 +77,7 @@ class AnonCommands:
             self.client.anon_cache[str(interaction.user.id)] = []
 
         self.client.anon_cache[str(interaction.user.id)].append(
-            {"message_id": str(anon_message.id), "timestamp": datetime.datetime.now(datetime.UTC)}
+            {"message_id": str(anon_message.id), "timestamp": datetime.now(UTC)}
         )
 
     @AnonGroups.anon.command(

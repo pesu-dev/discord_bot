@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import time
 from typing import TYPE_CHECKING
 
 import discord
@@ -34,8 +33,8 @@ class GeneralCommands:
         not_found="The specified user does not exist or is not in the server",
     )
     async def info(self, interaction: discord.Interaction, user: discord.Member) -> None:
-        created_at_timestamp = int(time.mktime(user.created_at.timetuple()))
-        joined_at_timestamp = int(time.mktime(user.joined_at.timetuple())) if user.joined_at else None
+        created_at_timestamp = int(user.created_at.timestamp())
+        joined_at_timestamp = int(user.joined_at.timestamp()) if user.joined_at else None
 
         fields: list[dict] = [
             {"name": "Name", "value": user.name, "inline": True},

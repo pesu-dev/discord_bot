@@ -151,7 +151,7 @@ To run the bot locally for development:
 1. **Run the bot** (from the repository root):
 
    ```bash
-   uv run python -m src
+   uv run -m src
    ```
 
 The bot will start and connect to Discord. You should see connection logs in your terminal indicating successful startup.

@@ -58,7 +58,7 @@ runs:
         fi
 
         set +e
-        uv run python scripts/sync_guild_commands.py changed \
+        uv run scripts/sync_guild_commands.py changed \
           --base "${BASE_REF}" \
           --head "${HEAD_REF}"
         exit_code=$?
@@ -78,7 +78,7 @@ runs:
       env:
         BOT_TOKEN: ${{ inputs.bot_token }}
         APP_ENV: ${{ inputs.app_env }}
-      run: uv run python scripts/sync_guild_commands.py sync
+      run: uv run scripts/sync_guild_commands.py sync
 
     - name: Skip sync (no command additions or deletions)
       if: steps.detect.outputs.changed != 'true'

@@ -78,7 +78,7 @@ def _get_member(ctx_or_interaction: discord.Interaction | commands.Context) -> d
 
 def _get_channel(ctx_or_interaction: discord.Interaction | commands.Context) -> discord.abc.MessageableChannel | None:
     channel = ctx_or_interaction.channel
-    return channel if isinstance(channel, discord.abc.MessageableChannel) else None
+    return channel if isinstance(channel, discord.abc.Messageable) else None
 
 
 def _get_ephemeral() -> bool:

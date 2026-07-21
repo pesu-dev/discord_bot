@@ -6,10 +6,10 @@ Detects when slash commands or context menus were added/removed, and syncs the c
 
 ```bash
 # Compare two git refs (exit 0 = unchanged, exit 1 = added/removed)
-uv run python scripts/sync_guild_commands.py changed --base <old-sha> --head <new-sha>
+uv run scripts/sync_guild_commands.py changed --base <old-sha> --head <new-sha>
 
 # Push current commands to Discord (requires BOT_TOKEN and APP_ENV)
-uv run python scripts/sync_guild_commands.py sync
+uv run scripts/sync_guild_commands.py sync
 ```
 
 Used by `.github/actions/sync-guild-commands` during dev and prod deploys.

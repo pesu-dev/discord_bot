@@ -76,3 +76,16 @@ class AnonCommands:
         self.client.anon_cache[str(interaction.user.id)].append(
             {"message_id": str(anon_message.id), "timestamp": datetime.datetime.now(datetime.UTC)}
         )
+
+    @AnonGroups.anon.command(
+        name="vote",
+        description="Vote for a poll",
+    )
+    @bot_decorators.defer(ephemeral=True)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.handle_command_errors()
+    async def anon_vote(self, interaction: discord.Interaction) -> None:
+        await interaction.followup.send(
+            content="Feature coming soon!",
+            ephemeral=True,
+        )

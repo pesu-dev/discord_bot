@@ -2,8 +2,8 @@
 """Guild command registry utilities for local use and CI deploys.
 
 Usage:
-    uv run python scripts/sync_guild_commands.py changed --base <old-sha> --head <new-sha>
-    uv run python scripts/sync_guild_commands.py sync
+    uv run scripts/sync_guild_commands.py changed --base <old-sha> --head <new-sha>
+    uv run scripts/sync_guild_commands.py sync
 """
 
 from __future__ import annotations

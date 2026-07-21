@@ -79,7 +79,7 @@ run_quality_checks() {
 run_cog_import_checks() {
     print_action "Verifying cog package imports..."
 
-    if ! uv run python scripts/check_cog_imports.py; then
+    if ! uv run scripts/check_cog_imports.py; then
         print_error "Cog package import check failed"
         return 1
     fi

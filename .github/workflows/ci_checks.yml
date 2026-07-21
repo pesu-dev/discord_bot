@@ -65,10 +65,10 @@ jobs:
           uv run ruff format . --check
 
       - name: Run source compile checks
-        run: uv run python -m compileall -q .
+        run: uv run -m compileall -q .
 
       - name: Verify cog package imports
-        run: uv run python scripts/check_cog_imports.py
+        run: uv run scripts/check_cog_imports.py
 
   pr_image_build:
     name: Build image on PR

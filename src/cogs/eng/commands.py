@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import discord
@@ -27,8 +28,13 @@ class EngCommands:
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
     @bot_decorators.handle_command_errors()
     async def eng_uptime(self, interaction: discord.Interaction) -> None:
-        unixtmstmp = int(self.client.startTime)
-        await interaction.followup.send(content=f"Bot was started <t:{unixtmstmp}:R> \ni.e., on <t:{unixtmstmp}:f>")
+        started_at = datetime.fromtimestamp(self.client.start_time, tz=UTC)
+        await interaction.followup.send(
+            content=(
+                f"Bot was started {discord.utils.format_dt(started_at, 'R')} "
+                f"\ni.e., on {discord.utils.format_dt(started_at, 'f')}"
+            )
+        )
 
     @EngGroups.eng.command(name="support", description="Contribute to bot development")
     @bot_decorators.defer(ephemeral=False)

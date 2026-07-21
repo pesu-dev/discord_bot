@@ -88,7 +88,7 @@ class ModHelpers:
         }
 
         await self.client.anonban_collection.insert_one(ban_data)
-        return "Permanent" if expires_at is None else f"<t:{int(expires_at.timestamp())}:R>"
+        return "Permanent" if expires_at is None else discord.utils.format_dt(expires_at, "R")
 
     async def _apply_anon_ban(
         self,

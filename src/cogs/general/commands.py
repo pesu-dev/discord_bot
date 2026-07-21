@@ -33,16 +33,13 @@ class GeneralCommands:
         not_found="The specified user does not exist or is not in the server",
     )
     async def info(self, interaction: discord.Interaction, user: discord.Member) -> None:
-        created_at_timestamp = int(user.created_at.timestamp())
-        joined_at_timestamp = int(user.joined_at.timestamp()) if user.joined_at else None
-
         fields: list[dict] = [
             {"name": "Name", "value": user.name, "inline": True},
             {"name": "ID", "value": str(user.id), "inline": True},
-            {"name": "Creation", "value": f"<t:{created_at_timestamp}:R>", "inline": True},
+            {"name": "Creation", "value": discord.utils.format_dt(user.created_at, "R"), "inline": True},
         ]
-        if joined_at_timestamp:
-            fields.append({"name": "Join", "value": f"<t:{joined_at_timestamp}:R>", "inline": True})
+        if user.joined_at:
+            fields.append({"name": "Join", "value": discord.utils.format_dt(user.joined_at, "R"), "inline": True})
 
         roles = [role.mention for role in user.roles if role != interaction.guild.default_role]
         roles_value = " ".join(roles) if roles else "None"
@@ -69,12 +66,12 @@ class GeneralCommands:
     async def count(self, interaction: discord.Interaction, rolelist: str | None = None) -> None:
         # Server stats
         total_count = interaction.guild.member_count
-        rolec = len(self.client.config.linked_role.members)
+        linked_count = len(self.client.config.linked_role.members)
         channel_count = len(interaction.channel.members)
         bot_count = len([m for m in interaction.channel.members if m.bot])
         server_stats_content = "**Server Stats**"
         server_stats_content += f"\nTotal number of people on the server: `{total_count}`"
-        server_stats_content += f"\nTotal number of linked people: `{rolec}`"
+        server_stats_content += f"\nTotal number of linked people: `{linked_count}`"
         server_stats_content += f"\nNumber of people that can see this channel: `{channel_count}`"
         server_stats_content += f"\nNumber of bots that can see this channel: `{bot_count}`"
 
@@ -112,13 +109,13 @@ class GeneralCommands:
     async def spotify(self, interaction: discord.Interaction, user: discord.User | None = None) -> None:
         # discord.Interaction's user object doesn't receive presence data
         # we will have to fetch it from bot's cache instead
-        realuser = interaction.guild.get_member(user.id if user else interaction.user.id)
+        member = interaction.guild.get_member(user.id if user else interaction.user.id)
 
-        if realuser is None:
+        if member is None:
             await interaction.followup.send(content="User not found in this server.", ephemeral=True)
             return
 
-        for activity in realuser.activities:
+        for activity in member.activities:
             if isinstance(activity, discord.Spotify):
                 await interaction.followup.send(
                     content=f"Listening to `{activity.title}` by `{activity.artist}`\nSong link: {activity.track_url}",
@@ -141,7 +138,7 @@ class GeneralCommands:
         interaction: discord.Interaction,
         channel: discord.TextChannel | None = None,
     ) -> None:
-        embe = ug.build_embed(
+        embed = ug.build_embed(
             title="Additional Roles",
             color=discord.Color.blurple(),
             description="Pick up additional roles for access to more channels",
@@ -156,7 +153,7 @@ class GeneralCommands:
                 return
             channel = interaction.channel
         view = RoleSelectView(self.client)
-        await channel.send(embed=embe, view=view)
+        await channel.send(embed=embed, view=view)
         await interaction.followup.send(content=f"Role selection sent in {channel.mention}", ephemeral=True)
 
     @app_commands.command(name="pride", description="Flourishes you with the pride of PESU")

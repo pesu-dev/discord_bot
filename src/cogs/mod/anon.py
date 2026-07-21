@@ -148,7 +148,7 @@ class AnonModCommands:
 
         banned_at = user_anon_ban_check["bannedAt"]
         expires_at = user_anon_ban_check["expiresAt"]
-        expiry_timestamp = f"<t:{int(expires_at.timestamp())}:R>" if expires_at else "Permanent"
+        expiry_display = discord.utils.format_dt(expires_at, "R") if expires_at else "Permanent"
 
         embed = ug.build_embed(
             title="Anon Ban Info",
@@ -157,8 +157,8 @@ class AnonModCommands:
             fields=[
                 {"name": "User", "value": member.mention},
                 {"name": "Reason", "value": user_anon_ban_check.get("reason", "No reason provided")},
-                {"name": "Banned", "value": f"<t:{int(banned_at.timestamp())}:R>"},
-                {"name": "Expires", "value": expiry_timestamp},
+                {"name": "Banned", "value": discord.utils.format_dt(banned_at, "R")},
+                {"name": "Expires", "value": expiry_display},
             ],
         )
 

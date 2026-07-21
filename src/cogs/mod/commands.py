@@ -168,14 +168,14 @@ class ModCommands:
         }
         await self.client.mute_collection.insert_one(mute_record)
 
-        unmute_timestamp = int(unmute_time.timestamp())
+        unmute_relative = discord.utils.format_dt(unmute_time, "R")
         mute_embed = ug.build_embed(
             title="Mute",
             color=discord.Color.red(),
             fields=[
                 {
                     "name": "Muted User",
-                    "value": f"{member.mention} was muted\nUnmute: <t:{unmute_timestamp}:R>\nReason: {reason}",
+                    "value": f"{member.mention} was muted\nUnmute: {unmute_relative}\nReason: {reason}",
                 }
             ],
         )
@@ -416,8 +416,11 @@ class ModCommands:
         timeout_until = datetime.now(UTC) + timedelta(seconds=seconds)
         await member.timeout(timeout_until, reason=reason)
 
-        timeout_timestamp = int(timeout_until.timestamp())
-        timeout_value = f"{member.mention} was timed-out\nDe-time-out: <t:{timeout_timestamp}:R>\nReason: {reason}"
+        timeout_value = (
+            f"{member.mention} was timed-out\n"
+            f"De-time-out: {discord.utils.format_dt(timeout_until, 'R')}\n"
+            f"Reason: {reason}"
+        )
         timeout_embed = ug.build_embed(
             title="Time-out",
             color=discord.Color(0x8B0000),

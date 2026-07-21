@@ -100,11 +100,12 @@ class Config:
         settings = Config.ENVIRONMENTS[env]
         return env, settings["prefix"], settings["db_name"]
 
-    def __init__(self, bot: DiscordBot) -> None:
-        """Initialize with bot instance."""
+    def __init__(self, bot: DiscordBot, *, env: str, db_name: str) -> None:
+        """Initialize with bot instance and resolved environment settings."""
         self.bot = bot
         self.guild_id = self.GUILD_ID
-        self.env, self.prefix, self.db_name = self.resolve_env()
+        self.env = env
+        self.db_name = db_name
 
     @property
     def guild(self) -> discord.Guild:

@@ -29,7 +29,7 @@ class DiscordBot(commands.Bot):
     )
 
     def __init__(self) -> None:
-        _, prefix, _ = Config.resolve_env()
+        env, prefix, db_name = Config.resolve_env()
         super().__init__(
             command_prefix=prefix,
             help_command=None,
@@ -37,7 +37,7 @@ class DiscordBot(commands.Bot):
             tree_cls=CommandTree,
         )
         self.logger = logging.getLogger("discord.app")
-        self.config = Config(self)
+        self.config = Config(self, env=env, db_name=db_name)
 
         self.mongo_client: AsyncMongoClient
         self.db: AsyncDatabase
@@ -46,8 +46,7 @@ class DiscordBot(commands.Bot):
         self.anonban_collection: AsyncCollection
         self.mute_collection: AsyncCollection
         self.anon_cache: dict[str, list[dict]] = {}
-        self.startTime: float = time.time()
-        self.db_status: str = ""
+        self.start_time: float = time.time()
 
     async def init_db(self) -> None:
         """Connect to MongoDB and wire up collections."""
@@ -58,10 +57,9 @@ class DiscordBot(commands.Bot):
             self.student_collection = self.db["student"]
             self.anonban_collection = self.db["anonban"]
             self.mute_collection = self.db["mute"]
-            self.db_status = f"Connected to MongoDB ({self.config.db_name})"
+            self.logger.info(f"Connected to MongoDB ({self.config.db_name})")
         except Exception as e:
-            self.db_status = f"Failed to connect to MongoDB: {e}"
-        self.logger.info(self.db_status)
+            self.logger.info(f"Failed to connect to MongoDB: {e}")
 
     async def load_cogs(self) -> None:
         """Load every cog module or package in the cogs directory."""
@@ -92,7 +90,6 @@ class DiscordBot(commands.Bot):
         self.status_task.start()
 
     async def on_ready(self) -> None:
-        self.startTime = time.time()
         if self.user:
             self.logger.info(f"Logged in as {self.user.name} ({self.user.id})")
         self.logger.info("Bot is ready")

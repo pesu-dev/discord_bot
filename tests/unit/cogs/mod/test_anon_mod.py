@@ -1,0 +1,104 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+
+from src.cogs.anon import SlashAnon
+from src.cogs.mod.anon import AnonModCommands
+from tests.helpers import get_callback
+
+
+async def test_ban_anon_requires_exactly_one_target(mock_bot, interaction_factory, member_factory) -> None:
+    cmd = AnonModCommands()
+    cmd.client = mock_bot
+    interaction = interaction_factory()
+    await get_callback(cmd.ban_anon)(cmd, interaction, member=None, link=None)
+    assert "exactly one" in interaction.followup.send.await_args.kwargs["content"]
+
+
+async def test_ban_anon_member(mock_bot, interaction_factory, member_factory) -> None:
+    cmd = AnonModCommands()
+    cmd.client = mock_bot
+    mock_bot.anonban_collection.find_one = AsyncMock(return_value=None)
+    mock_bot.anonban_collection.insert_one = AsyncMock()
+    interaction = interaction_factory()
+    member = member_factory(user_id=44)
+    with patch("src.utils.general.send_dm_safely", AsyncMock(return_value=True)):
+        await get_callback(cmd.ban_anon)(cmd, interaction, member=member, link=None, time="1h", reason="spam")
+    mock_bot.anonban_collection.insert_one.assert_awaited()
+
+
+async def test_user_unban_anon(mock_bot, interaction_factory, member_factory) -> None:
+    cmd = AnonModCommands()
+    cmd.client = mock_bot
+    mock_bot.anonban_collection.find_one_and_update = AsyncMock(return_value={"active": True})
+    interaction = interaction_factory()
+    member = member_factory()
+    with patch("src.utils.general.send_dm_safely", AsyncMock(return_value=True)):
+        await get_callback(cmd.user_unban_anon)(cmd, interaction, member)
+    assert "unbanned" in interaction.followup.send.await_args.kwargs["content"].lower()
+
+
+async def test_user_unban_anon_not_banned(mock_bot, interaction_factory, member_factory) -> None:
+    cmd = AnonModCommands()
+    cmd.client = mock_bot
+    mock_bot.anonban_collection.find_one_and_update = AsyncMock(return_value=None)
+    interaction = interaction_factory()
+    await get_callback(cmd.user_unban_anon)(cmd, interaction, member_factory())
+    assert "wasn't even anon-banned" in interaction.followup.send.await_args.kwargs["content"]
+
+
+async def test_anon_ban_info(mock_bot, interaction_factory, member_factory) -> None:
+    cmd = AnonModCommands()
+    cmd.client = mock_bot
+    mock_bot.anonban_collection.find_one = AsyncMock(
+        return_value={
+            "reason": "spam",
+            "bannedAt": datetime.now(UTC),
+            "expiresAt": None,
+            "active": True,
+        }
+    )
+    interaction = interaction_factory()
+    await get_callback(cmd.anon_ban_info)(cmd, interaction, member_factory())
+    assert "embed" in interaction.followup.send.await_args.kwargs
+
+
+async def test_anon_context_menu_ban(mock_bot, interaction_factory, member_factory) -> None:
+    cmd = AnonModCommands()
+    cmd.client = mock_bot
+    member = member_factory(user_id=88)
+    mock_bot.anon_cache = {"88": [{"message_id": "123", "timestamp": datetime.now(UTC)}]}
+    mock_bot.anonban_collection.find_one = AsyncMock(return_value=None)
+    mock_bot.anonban_collection.insert_one = AsyncMock()
+    guild = MagicMock()
+    guild.id = 1
+    guild.get_member = MagicMock(return_value=member)
+    interaction = interaction_factory(guild=guild)
+    interaction.guild = guild
+    interaction.channel = MagicMock()
+    interaction.channel.id = 2
+    message = MagicMock()
+    message.id = 123
+    with patch("src.utils.general.send_dm_safely", AsyncMock(return_value=True)):
+        await get_callback(cmd.anon_ban_from_context_menu)(cmd, interaction, message)
+    mock_bot.anonban_collection.insert_one.assert_awaited()
+
+
+async def test_anon_clear_cache_loop(mock_bot) -> None:
+    with patch.object(
+        SlashAnon,
+        "__init__",
+        lambda self, client: setattr(self, "client", client) or setattr(self, "tasks", []),
+    ):
+        cog = SlashAnon(mock_bot)
+
+    old = datetime(2020, 1, 1, tzinfo=UTC)
+    recent = datetime.now(UTC)
+    mock_bot.anon_cache = {
+        "1": [{"message_id": "a", "timestamp": old}, {"message_id": "b", "timestamp": recent}],
+        "2": [{"message_id": "c", "timestamp": old}],
+    }
+    await SlashAnon.clear_anon_cache_loop(cog)
+    assert mock_bot.anon_cache["1"][0]["message_id"] == "b"
+    assert mock_bot.anon_cache["2"] == []

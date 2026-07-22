@@ -9,6 +9,7 @@ Guidance for AI coding agents working in this repository.
 - Python **>=3.13**, package manager **uv** (never pip/poetry/npm-style installs)
 - discord.py **2.7.x**, MongoDB via **pymongo**, HTTP via **httpx**
 - Lint/format: **Ruff** (see `[tool.ruff]` in `pyproject.toml`)
+- Tests: **pytest** + **pytest-asyncio** + **pytest-cov** + **respx** + **testcontainers** (see [TESTING.md](TESTING.md))
 
 ## Commands
 
@@ -25,6 +26,8 @@ uv run ruff check .
 uv run ruff format . --check
 uv run -m compileall -q .
 uv run scripts/check_cog_imports.py
+uv run pytest -m unit --cov=src --cov-report=term-missing --cov-fail-under=60
+uv run pytest -m integration   # needs Docker
 
 # Auto-fix style
 uv run ruff check . --fix
@@ -42,10 +45,11 @@ Use `uv run …` for all Python tooling. Prefer `uv sync --frozen` only when mat
 | `src/utils/`         | Shared config, decorators, helpers                    |
 | `src/data/`          | Static data (`faq.json`) + Mongo layer (`mongo/`)     |
 | `scripts/`           | CI/ops scripts (cog import check, guild command sync) |
+| `tests/`             | pytest unit + integration suites (see TESTING.md)     |
 | `deploy/`            | Compose + deploy helpers                              |
 | `.github/workflows/` | CI/CD                                                 |
 
-Human docs: `README.md`, `.github/CONTRIBUTING.md`. Prefer those for long setup detail; keep this file operational.
+Human docs: `README.md`, `.github/CONTRIBUTING.md`, `TESTING.md`. Prefer those for long setup detail; keep this file operational.
 
 ## Cog conventions
 
@@ -118,4 +122,5 @@ When adding a new cog package, ensure `scripts/check_cog_imports.py` still passe
 1. Change fits the cog/utils layout above
 2. `uv run ruff check .` and `uv run ruff format . --check` pass
 3. `uv run scripts/check_cog_imports.py` passes if cogs/imports changed
-4. No secrets or unrelated files staged
+4. `uv run pytest -m unit` passes (add/update tests for behavior you change); run `pytest -m integration` when touching Mongo write paths
+5. No secrets or unrelated files staged

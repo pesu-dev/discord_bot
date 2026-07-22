@@ -20,7 +20,13 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "pytest-mock>=3.14",
+    "respx>=0.22",
     "ruff>=0.15.0",
+    "testcontainers>=4.0",
 ]
 
 [project.urls]
@@ -54,6 +60,29 @@ select = [
     "RET",  # Return type rules
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ANN", "S101", "TC"]
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "unit: fast isolated tests",
+    "integration: needs Docker/Testcontainers",
+]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = ["src/__main__.py"]
+
+[tool.coverage.report]
+fail_under = 60
+show_missing = true
+skip_empty = true

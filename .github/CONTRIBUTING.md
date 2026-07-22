@@ -16,6 +16,7 @@ Thank you for your interest in contributing to the PESU Discord Bot! This docume
   - [Set Up Environment Variables](#set-up-environment-variables)
   - [Database Setup](#database-setup)
 - [Running the Bot](#-running-the-bot)
+- [Running Tests](#-running-tests)
 - [Submitting Changes](#-submitting-changes)
   - [Create a Branch](#-create-a-branch)
   - [Make and Commit Changes](#-make-and-commit-changes)
@@ -157,6 +158,26 @@ To run the bot locally for development:
 The bot will start and connect to Discord. You should see connection logs in your terminal indicating successful startup.
 
 **Note**: Make sure you have set up a test Discord server or have appropriate permissions in the PESU Discord server for development testing.
+
+---
+
+## 🧪 Running Tests
+
+Install the `dev` extra (includes pytest and Testcontainers):
+
+```bash
+uv sync --extra dev
+```
+
+```bash
+# Unit tests (fast; no Docker) — required for PRs
+uv run pytest -m unit --cov=src --cov-report=term-missing
+
+# Integration tests (needs Docker for MongoDB via Testcontainers)
+uv run pytest -m integration
+```
+
+CI runs unit and integration jobs **in parallel**. See [TESTING.md](../TESTING.md) for the test pyramid, fixtures, and conventions.
 
 ---
 

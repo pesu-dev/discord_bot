@@ -100,12 +100,13 @@ run_unit_tests() {
     return 0
 }
 
-# Install dependencies from pyproject.toml
+# Install dependencies from pyproject.toml (includes dev extra for pytest/ruff/etc.)
 maybe_install_packages() {
-    if uv sync; then
+    if uv sync --extra dev; then
         print_success "Dependencies installed successfully"
     else
         print_error "Failed to install dependencies"
+        print_info "Try: uv sync --extra dev"
         return 1
     fi
     return 0

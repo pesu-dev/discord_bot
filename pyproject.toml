@@ -76,6 +76,9 @@ markers = [
     "unit: fast isolated tests",
     "integration: needs Docker/Testcontainers",
 ]
+filterwarnings = [
+    "ignore:.*asyncio\\.iscoroutinefunction.*:DeprecationWarning:discord\\..*",
+]
 
 [tool.coverage.run]
 source = ["src"]

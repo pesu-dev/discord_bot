@@ -60,9 +60,6 @@ select = [
     "RET",  # Return type rules
 ]
 
-[tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101"]
-
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"

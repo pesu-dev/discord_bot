@@ -177,7 +177,7 @@ uv run pytest -m unit --cov=src --cov-report=term-missing
 uv run pytest -m integration
 ```
 
-CI runs unit and integration jobs **in parallel**. See [TESTING.md](../TESTING.md) for the test pyramid, fixtures, and conventions.
+CI runs unit and integration jobs **in parallel**. See [tests/README.md](../tests/README.md) for the test pyramid, fixtures, and conventions.
 
 ---
 

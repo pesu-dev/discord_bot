@@ -9,7 +9,7 @@ Guidance for AI coding agents working in this repository.
 - Python **>=3.13**, package manager **uv** (never pip/poetry/npm-style installs)
 - discord.py **2.7.x**, MongoDB via **pymongo**, HTTP via **httpx**
 - Lint/format: **Ruff** (see `[tool.ruff]` in `pyproject.toml`)
-- Tests: **pytest** + **pytest-asyncio** + **pytest-cov** + **respx** + **testcontainers** (see [TESTING.md](TESTING.md))
+- Tests: **pytest** + **pytest-asyncio** + **pytest-cov** + **respx** + **testcontainers** (see [tests/README.md](tests/README.md))
 
 ## Commands
 
@@ -38,18 +38,18 @@ Use `uv run …` for all Python tooling. Prefer `uv sync --frozen` only when mat
 
 ## Layout
 
-| Path                 | Purpose                                               |
-| -------------------- | ----------------------------------------------------- |
-| `src/bot.py`         | `DiscordBot` subclass, cog loading                    |
-| `src/cogs/<name>/`   | One package per cog (auto-discovered)                 |
-| `src/utils/`         | Shared config, decorators, helpers                    |
-| `src/data/`          | Static data (`faq.json`) + Mongo layer (`mongo/`)     |
-| `scripts/`           | CI/ops scripts (cog import check, guild command sync) |
-| `tests/`             | pytest unit + integration suites (see TESTING.md)     |
-| `deploy/`            | Compose + deploy helpers                              |
-| `.github/workflows/` | CI/CD                                                 |
+| Path                 | Purpose                                                       |
+| -------------------- | ------------------------------------------------------------- |
+| `src/bot.py`         | `DiscordBot` subclass, cog loading                            |
+| `src/cogs/<name>/`   | One package per cog (auto-discovered)                         |
+| `src/utils/`         | Shared config, decorators, helpers                            |
+| `src/data/`          | Static data (`faq.json`) + Mongo layer (`mongo/`)             |
+| `scripts/`           | CI/ops scripts (cog import check, guild command sync)         |
+| `tests/`             | pytest unit + integration suites (see `tests/README.md`)      |
+| `deploy/`            | Compose + deploy helpers                                      |
+| `.github/workflows/` | CI/CD                                                         |
 
-Human docs: `README.md`, `.github/CONTRIBUTING.md`, `TESTING.md`. Prefer those for long setup detail; keep this file operational.
+Human docs: `README.md`, `.github/CONTRIBUTING.md`, `tests/README.md`. Prefer those for long setup detail; keep this file operational.
 
 ## Cog conventions
 

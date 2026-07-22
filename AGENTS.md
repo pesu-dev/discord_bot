@@ -26,7 +26,7 @@ uv run ruff check .
 uv run ruff format . --check
 uv run -m compileall -q .
 uv run scripts/check_cog_imports.py
-uv run pytest -m unit --cov=src --cov-report=term-missing --cov-fail-under=60
+uv run pytest -m unit --cov=src --cov-report=term-missing --cov-fail-under=95
 uv run pytest -m integration   # needs Docker
 
 # Auto-fix style

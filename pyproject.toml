@@ -88,6 +88,6 @@ branch = true
 omit = ["src/__main__.py"]
 
 [tool.coverage.report]
-fail_under = 60
+fail_under = 95
 show_missing = true
 skip_empty = true

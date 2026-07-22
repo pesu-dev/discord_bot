@@ -29,7 +29,7 @@ uv run pytest -m integration
 uv run pytest
 ```
 
-Coverage floor is **60%** on `src/` (see `[tool.coverage.report]` in `pyproject.toml`), enforced on the unit CI job.
+Coverage floor is **95%** on `src/` (see `[tool.coverage.report]` in `pyproject.toml`), enforced on the unit CI job.
 
 ## Layout
 

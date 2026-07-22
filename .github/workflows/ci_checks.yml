@@ -89,7 +89,7 @@ jobs:
 
       - name: Run unit tests with coverage
         run: |
-          uv run pytest -m unit --cov=src --cov-report=term-missing --cov-fail-under=60
+          uv run pytest -m unit --cov=src --cov-report=term-missing --cov-fail-under=95
 
   integration_tests:
     name: Integration tests

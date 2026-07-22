@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
-import pytest
 import respx
 from httpx import Response
 
@@ -14,6 +13,11 @@ from src.cogs.general.helpers import (
     fetch_faq_data,
     load_local_faq,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    import pytest
 
 
 def test_load_local_faq() -> None:

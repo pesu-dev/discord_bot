@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import discord
 
 from src.utils import decorators as bot_decorators
+
+if TYPE_CHECKING:
+    from tests.conftest import InteractionFactory, MemberFactory
 
 
 class _Cog:
@@ -19,7 +23,7 @@ def _guild_channel() -> MagicMock:
     return channel
 
 
-async def test_defer_calls_interaction_response(mock_bot: MagicMock, interaction_factory) -> None:
+async def test_defer_calls_interaction_response(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     interaction = interaction_factory()
 
     @bot_decorators.defer(ephemeral=False)
@@ -31,7 +35,9 @@ async def test_defer_calls_interaction_response(mock_bot: MagicMock, interaction
     interaction.response.defer.assert_awaited_once_with(ephemeral=False)
 
 
-async def test_requires_location_rejects_non_guild(mock_bot: MagicMock, interaction_factory) -> None:
+async def test_requires_location_rejects_non_guild(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory
+) -> None:
     interaction = interaction_factory()
     interaction.user = MagicMock(spec=discord.User)  # not a Member
 
@@ -51,7 +57,9 @@ async def test_requires_location_rejects_non_guild(mock_bot: MagicMock, interact
     assert "server" in interaction.followup.send.await_args.kwargs["content"].lower()
 
 
-async def test_requires_location_guild_ok(mock_bot: MagicMock, member_factory, interaction_factory) -> None:
+async def test_requires_location_guild_ok(
+    mock_bot: MagicMock, member_factory: MemberFactory, interaction_factory: InteractionFactory
+) -> None:
     member = member_factory()
     interaction = interaction_factory(user=member)
 
@@ -67,7 +75,9 @@ async def test_requires_location_guild_ok(mock_bot: MagicMock, member_factory, i
         assert await handler(_Cog(mock_bot), interaction) == "ok"
 
 
-async def test_requires_roles_rejects(mock_bot: MagicMock, member_factory, interaction_factory) -> None:
+async def test_requires_roles_rejects(
+    mock_bot: MagicMock, member_factory: MemberFactory, interaction_factory: InteractionFactory
+) -> None:
     member = member_factory(roles=[])
     interaction = interaction_factory(user=member)
 
@@ -83,7 +93,9 @@ async def test_requires_roles_rejects(mock_bot: MagicMock, member_factory, inter
     interaction.followup.send.assert_awaited()
 
 
-async def test_requires_roles_allows_mod(mock_bot: MagicMock, member_factory, interaction_factory) -> None:
+async def test_requires_roles_allows_mod(
+    mock_bot: MagicMock, member_factory: MemberFactory, interaction_factory: InteractionFactory
+) -> None:
     member = member_factory(roles=[mock_bot.config.mod_role])
     interaction = interaction_factory(user=member)
 
@@ -96,7 +108,7 @@ async def test_requires_roles_allows_mod(mock_bot: MagicMock, member_factory, in
         assert await handler(_Cog(mock_bot), interaction) == "ok"
 
 
-async def test_handle_command_errors_catches(mock_bot: MagicMock, interaction_factory) -> None:
+async def test_handle_command_errors_catches(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     interaction = interaction_factory()
 
     @bot_decorators.defer(ephemeral=True)
@@ -115,18 +127,18 @@ def test_functional_role_config_attr() -> None:
 
 
 def test_is_guild_and_dm_helpers() -> None:
-    dm = MagicMock(spec=discord.DMChannel)
+    # The helpers use isinstance() checks against discord.py concrete types.
+    dm = object.__new__(discord.DMChannel)
     assert bot_decorators._is_dm_messageable(dm) is True
     assert bot_decorators._is_guild_messageable(dm) is False
-
-    text = MagicMock(spec=discord.TextChannel)
-    text.guild = MagicMock()
-    # MagicMock(spec=TextChannel) may not pass isinstance Messageable the same way;
-    # use a SimpleNamespace that is registered is not possible — patch not needed for DM.
+    guild_channel = MagicMock()
+    guild_channel.guild = MagicMock(spec=discord.Guild)
+    with patch("src.utils.decorators.discord.abc.Messageable", type(guild_channel)):
+        assert bot_decorators._is_guild_messageable(guild_channel) is True
     assert bot_decorators._is_dm_messageable(None) is False
 
 
-async def test_requires_location_dm(mock_bot: MagicMock, interaction_factory) -> None:
+async def test_requires_location_dm(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     interaction = interaction_factory()
 
     @bot_decorators.defer(ephemeral=True)

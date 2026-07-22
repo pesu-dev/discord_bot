@@ -1,14 +1,20 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from src.cogs.anon import SlashAnon
 from src.cogs.mod.anon import AnonModCommands
 from tests.helpers import get_callback
 
+if TYPE_CHECKING:
+    from tests.conftest import InteractionFactory, MemberFactory
 
-async def test_ban_anon_requires_exactly_one_target(mock_bot, interaction_factory, member_factory) -> None:
+
+async def test_ban_anon_requires_exactly_one_target(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
     cmd = AnonModCommands()
     cmd.client = mock_bot
     interaction = interaction_factory()
@@ -16,7 +22,9 @@ async def test_ban_anon_requires_exactly_one_target(mock_bot, interaction_factor
     assert "exactly one" in interaction.followup.send.await_args.kwargs["content"]
 
 
-async def test_ban_anon_member(mock_bot, interaction_factory, member_factory) -> None:
+async def test_ban_anon_member(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
     cmd = AnonModCommands()
     cmd.client = mock_bot
     mock_bot.anonban_collection.find_one = AsyncMock(return_value=None)
@@ -28,7 +36,9 @@ async def test_ban_anon_member(mock_bot, interaction_factory, member_factory) ->
     mock_bot.anonban_collection.insert_one.assert_awaited()
 
 
-async def test_user_unban_anon(mock_bot, interaction_factory, member_factory) -> None:
+async def test_user_unban_anon(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
     cmd = AnonModCommands()
     cmd.client = mock_bot
     mock_bot.anonban_collection.find_one_and_update = AsyncMock(return_value={"active": True})
@@ -39,7 +49,9 @@ async def test_user_unban_anon(mock_bot, interaction_factory, member_factory) ->
     assert "unbanned" in interaction.followup.send.await_args.kwargs["content"].lower()
 
 
-async def test_user_unban_anon_not_banned(mock_bot, interaction_factory, member_factory) -> None:
+async def test_user_unban_anon_not_banned(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
     cmd = AnonModCommands()
     cmd.client = mock_bot
     mock_bot.anonban_collection.find_one_and_update = AsyncMock(return_value=None)
@@ -48,7 +60,9 @@ async def test_user_unban_anon_not_banned(mock_bot, interaction_factory, member_
     assert "wasn't even anon-banned" in interaction.followup.send.await_args.kwargs["content"]
 
 
-async def test_anon_ban_info(mock_bot, interaction_factory, member_factory) -> None:
+async def test_anon_ban_info(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
     cmd = AnonModCommands()
     cmd.client = mock_bot
     mock_bot.anonban_collection.find_one = AsyncMock(
@@ -64,7 +78,9 @@ async def test_anon_ban_info(mock_bot, interaction_factory, member_factory) -> N
     assert "embed" in interaction.followup.send.await_args.kwargs
 
 
-async def test_anon_context_menu_ban(mock_bot, interaction_factory, member_factory) -> None:
+async def test_anon_context_menu_ban(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
     cmd = AnonModCommands()
     cmd.client = mock_bot
     member = member_factory(user_id=88)
@@ -85,7 +101,7 @@ async def test_anon_context_menu_ban(mock_bot, interaction_factory, member_facto
     mock_bot.anonban_collection.insert_one.assert_awaited()
 
 
-async def test_anon_clear_cache_loop(mock_bot) -> None:
+async def test_anon_clear_cache_loop(mock_bot: MagicMock) -> None:
     with patch.object(
         SlashAnon,
         "__init__",

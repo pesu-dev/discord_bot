@@ -2,13 +2,22 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
-def get_callback(command: Any) -> Callable[..., Any]:
+@runtime_checkable
+class SupportsCallback(Protocol):
+    """Minimal surface of discord.app_commands / ext.commands Command objects."""
+
+    callback: Callable[..., object]
+
+
+def get_callback(command: SupportsCallback | Callable[..., object]) -> Callable[..., object]:
     """Return the underlying coroutine for an app_commands/hybrid Command or plain function."""
-    callback = getattr(command, "callback", command)
+    callback: Callable[..., object] = command.callback if isinstance(command, SupportsCallback) else command
     while hasattr(callback, "__wrapped__"):
         callback = callback.__wrapped__
     return callback

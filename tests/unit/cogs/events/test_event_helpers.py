@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 
 import discord
 
 from src.cogs.events.helpers import EventHelpers
 from src.cogs.events.listeners import EventListeners
+
+if TYPE_CHECKING:
+    from tests.conftest import MemberFactory
 
 
 def test_filter_reply_mentions_strips_replied_author() -> None:
@@ -68,7 +72,7 @@ async def test_on_member_join_assigns_linked_roles(
     mock_bot: MagicMock,
     sample_link_doc: dict,
     sample_student_doc: dict,
-    member_factory,
+    member_factory: MemberFactory,
 ) -> None:
     listeners = EventListeners()
     listeners.client = mock_bot
@@ -89,7 +93,7 @@ async def test_on_member_join_assigns_linked_roles(
 async def test_on_member_join_incomplete_student_deletes_link(
     mock_bot: MagicMock,
     sample_link_doc: dict,
-    member_factory,
+    member_factory: MemberFactory,
 ) -> None:
     listeners = EventListeners()
     listeners.client = mock_bot
@@ -107,7 +111,7 @@ async def test_on_member_join_incomplete_student_deletes_link(
     mock_bot.link_collection.delete_one.assert_awaited_once_with({"_id": sample_link_doc["_id"]})
 
 
-async def test_on_member_join_no_link(mock_bot: MagicMock, member_factory) -> None:
+async def test_on_member_join_no_link(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
     listeners = EventListeners()
     listeners.client = mock_bot
     member = member_factory()
@@ -117,7 +121,7 @@ async def test_on_member_join_no_link(mock_bot: MagicMock, member_factory) -> No
     member.add_roles.assert_awaited_with(mock_bot.config.just_joined_role)
 
 
-async def test_on_member_remove_deletes_incomplete_link(mock_bot: MagicMock, member_factory) -> None:
+async def test_on_member_remove_deletes_incomplete_link(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
     listeners = EventListeners()
     listeners.client = mock_bot
     member = member_factory(user_id=55)

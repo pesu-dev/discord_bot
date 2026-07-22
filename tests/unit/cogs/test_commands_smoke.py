@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
-import pytest
 import respx
 from httpx import Response
 
@@ -18,8 +18,15 @@ from src.cogs.help.commands import HelpCommands
 from src.cogs.mod.commands import ModCommands
 from tests.helpers import get_callback
 
+if TYPE_CHECKING:
+    import pytest
 
-async def test_anon_send_requires_link(mock_bot: MagicMock, interaction_factory, member_factory) -> None:
+    from tests.conftest import InteractionFactory, MemberFactory
+
+
+async def test_anon_send_requires_link(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
     cmd = AnonCommands()
     cmd.client = mock_bot
     mock_bot.link_collection.find_one = AsyncMock(return_value=None)
@@ -28,7 +35,9 @@ async def test_anon_send_requires_link(mock_bot: MagicMock, interaction_factory,
     assert "not linked" in interaction.followup.send.await_args.kwargs["content"]
 
 
-async def test_anon_send_blocked_when_banned(mock_bot: MagicMock, interaction_factory, member_factory) -> None:
+async def test_anon_send_blocked_when_banned(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
     cmd = AnonCommands()
     cmd.client = mock_bot
     mock_bot.link_collection.find_one = AsyncMock(return_value={"userId": "1"})
@@ -38,7 +47,9 @@ async def test_anon_send_blocked_when_banned(mock_bot: MagicMock, interaction_fa
     assert "banned" in interaction.followup.send.await_args.kwargs["content"].lower()
 
 
-async def test_anon_send_success_caches_message(mock_bot: MagicMock, interaction_factory, member_factory) -> None:
+async def test_anon_send_success_caches_message(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
     cmd = AnonCommands()
     cmd.client = mock_bot
     mock_bot.link_collection.find_one = AsyncMock(return_value={"userId": "1001"})
@@ -55,7 +66,7 @@ async def test_anon_send_success_caches_message(mock_bot: MagicMock, interaction
     assert mock_bot.anon_cache["1001"][0]["message_id"] == "555"
 
 
-async def test_anon_vote_stub(mock_bot: MagicMock, interaction_factory) -> None:
+async def test_anon_vote_stub(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     cmd = AnonCommands()
     cmd.client = mock_bot
     interaction = interaction_factory()
@@ -63,7 +74,7 @@ async def test_anon_vote_stub(mock_bot: MagicMock, interaction_factory) -> None:
     assert "coming soon" in interaction.followup.send.await_args.kwargs["content"].lower()
 
 
-async def test_eng_ping(mock_bot: MagicMock, interaction_factory) -> None:
+async def test_eng_ping(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     cmd = EngCommands()
     cmd.client = mock_bot
     interaction = interaction_factory()
@@ -73,7 +84,7 @@ async def test_eng_ping(mock_bot: MagicMock, interaction_factory) -> None:
     assert "42ms" in content
 
 
-async def test_eng_uptime(mock_bot: MagicMock, interaction_factory) -> None:
+async def test_eng_uptime(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     cmd = EngCommands()
     cmd.client = mock_bot
     interaction = interaction_factory()
@@ -81,7 +92,7 @@ async def test_eng_uptime(mock_bot: MagicMock, interaction_factory) -> None:
     assert "Bot was started" in interaction.followup.send.await_args.kwargs["content"]
 
 
-async def test_eng_support(mock_bot: MagicMock, interaction_factory) -> None:
+async def test_eng_support(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     cmd = EngCommands()
     cmd.client = mock_bot
     interaction = interaction_factory()
@@ -89,7 +100,7 @@ async def test_eng_support(mock_bot: MagicMock, interaction_factory) -> None:
     assert "github.com/pesu-dev/discord_bot" in interaction.followup.send.await_args.kwargs["content"]
 
 
-async def test_eng_reload_single(mock_bot: MagicMock, interaction_factory) -> None:
+async def test_eng_reload_single(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     helpers = EngHelpers()
     helpers.client = mock_bot
     interaction = interaction_factory()
@@ -99,7 +110,9 @@ async def test_eng_reload_single(mock_bot: MagicMock, interaction_factory) -> No
     mock_bot.reload_extension.assert_awaited_with("src.cogs.eng")
 
 
-async def test_help_unlinked(mock_bot: MagicMock, interaction_factory, member_factory) -> None:
+async def test_help_unlinked(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
     cmd = HelpCommands()
     cmd.client = mock_bot
     interaction = interaction_factory(user=member_factory(roles=[]))
@@ -108,7 +121,9 @@ async def test_help_unlinked(mock_bot: MagicMock, interaction_factory, member_fa
     assert "embed" in interaction.followup.send.await_args.kwargs
 
 
-async def test_help_linked(mock_bot: MagicMock, interaction_factory, member_factory) -> None:
+async def test_help_linked(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
     cmd = HelpCommands()
     cmd.client = mock_bot
     interaction = interaction_factory(user=member_factory(roles=[mock_bot.config.linked_role]))
@@ -121,7 +136,9 @@ async def test_help_linked(mock_bot: MagicMock, interaction_factory, member_fact
     interaction.followup.send.assert_awaited()
 
 
-async def test_mod_mute_self_too_short(mock_bot: MagicMock, interaction_factory, member_factory) -> None:
+async def test_mod_mute_self_too_short(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
     cmd = ModCommands()
     cmd.client = mock_bot
     member = member_factory(user_id=5)
@@ -131,7 +148,9 @@ async def test_mod_mute_self_too_short(mock_bot: MagicMock, interaction_factory,
     assert "1 hour" in interaction.followup.send.await_args.kwargs["content"]
 
 
-async def test_mod_mute_success(mock_bot: MagicMock, interaction_factory, member_factory) -> None:
+async def test_mod_mute_success(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
     cmd = ModCommands()
     cmd.client = mock_bot
     mod = member_factory(user_id=1, roles=[mock_bot.config.mod_role])
@@ -146,7 +165,9 @@ async def test_mod_mute_success(mock_bot: MagicMock, interaction_factory, member
     mock_bot.mute_collection.insert_one.assert_awaited()
 
 
-async def test_mod_unmute(mock_bot: MagicMock, interaction_factory, member_factory) -> None:
+async def test_mod_unmute(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
     cmd = ModCommands()
     cmd.client = mock_bot
     mod = member_factory(roles=[mock_bot.config.mod_role])
@@ -160,7 +181,9 @@ async def test_mod_unmute(mock_bot: MagicMock, interaction_factory, member_facto
     mock_bot.mute_collection.update_many.assert_awaited()
 
 
-async def test_mod_kick(mock_bot: MagicMock, interaction_factory, member_factory) -> None:
+async def test_mod_kick(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
     cmd = ModCommands()
     cmd.client = mock_bot
     mod = member_factory(roles=[mock_bot.config.mod_role])
@@ -174,7 +197,9 @@ async def test_mod_kick(mock_bot: MagicMock, interaction_factory, member_factory
     target.kick.assert_awaited()
 
 
-async def test_mod_purge(mock_bot: MagicMock, interaction_factory, member_factory) -> None:
+async def test_mod_purge(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
     cmd = ModCommands()
     cmd.client = mock_bot
     interaction = interaction_factory(user=member_factory(roles=[mock_bot.config.mod_role]))
@@ -185,7 +210,9 @@ async def test_mod_purge(mock_bot: MagicMock, interaction_factory, member_factor
     interaction.channel.purge.assert_awaited()
 
 
-async def test_mod_timeout(mock_bot: MagicMock, interaction_factory, member_factory) -> None:
+async def test_mod_timeout(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
     cmd = ModCommands()
     cmd.client = mock_bot
     mod = member_factory(roles=[mock_bot.config.mod_role])
@@ -197,7 +224,9 @@ async def test_mod_timeout(mock_bot: MagicMock, interaction_factory, member_fact
 
 
 @respx.mock
-async def test_ask_success_chunks(mock_bot: MagicMock, interaction_factory, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_ask_success_chunks(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("ASKPESU_API", "https://askpesu.test/api")
     cmd = GeneralCommands()
     cmd.client = mock_bot
@@ -212,7 +241,9 @@ async def test_ask_success_chunks(mock_bot: MagicMock, interaction_factory, monk
 
 
 @respx.mock
-async def test_ask_http_error(mock_bot: MagicMock, interaction_factory, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_ask_http_error(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("ASKPESU_API", "https://askpesu.test/api")
     cmd = GeneralCommands()
     cmd.client = mock_bot
@@ -222,7 +253,7 @@ async def test_ask_http_error(mock_bot: MagicMock, interaction_factory, monkeypa
     assert "500" in interaction.followup.send.await_args.kwargs["content"]
 
 
-async def test_faq_invalid_category(mock_bot: MagicMock, interaction_factory) -> None:
+async def test_faq_invalid_category(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     cmd = GeneralCommands()
     cmd.client = mock_bot
     cmd.cached_data = {"Campus": []}
@@ -231,7 +262,7 @@ async def test_faq_invalid_category(mock_bot: MagicMock, interaction_factory) ->
     assert "Invalid category" in interaction.followup.send.await_args.kwargs["content"]
 
 
-async def test_general_handle_category_only(mock_bot: MagicMock, interaction_factory) -> None:
+async def test_general_handle_category_only(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     helpers = GeneralHelpers()
     helpers.client = mock_bot
     helpers.cached_data = None
@@ -241,7 +272,7 @@ async def test_general_handle_category_only(mock_bot: MagicMock, interaction_fac
     interaction.followup.send.assert_awaited()
 
 
-async def test_role_select_requires_linked(mock_bot: MagicMock, member_factory) -> None:
+async def test_role_select_requires_linked(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
     select = RoleSelect(mock_bot)
     interaction = MagicMock(spec=discord.Interaction)
     interaction.user = member_factory(roles=[])
@@ -256,7 +287,7 @@ async def test_role_select_requires_linked(mock_bot: MagicMock, member_factory) 
     assert "link" in content.lower()
 
 
-async def test_role_select_add_role(mock_bot: MagicMock, member_factory) -> None:
+async def test_role_select_add_role(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
     select = RoleSelect(mock_bot)
     member = member_factory(roles=[mock_bot.config.linked_role])
     role = MagicMock(spec=discord.Role)

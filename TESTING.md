@@ -4,11 +4,11 @@ How we test the PESU Discord bot.
 
 ## Pyramid
 
-| Layer | What | How |
-| --- | --- | --- |
-| **Unit** (majority) | Pure helpers, decorators, command callbacks with mocked Discord/Mongo/HTTP | `pytest -m unit` |
-| **Integration** (selective) | Real MongoDB via Testcontainers for mute / anonban / join-role flows | `pytest -m integration` (needs Docker) |
-| **Smoke** | Cog import check (existing CI script) | `uv run scripts/check_cog_imports.py` |
+| Layer                       | What                                                                       | How                                    |
+| --------------------------- | -------------------------------------------------------------------------- | -------------------------------------- |
+| **Unit** (majority)         | Pure helpers, decorators, command callbacks with mocked Discord/Mongo/HTTP | `pytest -m unit`                       |
+| **Integration** (selective) | Real MongoDB via Testcontainers for mute / anonban / join-role flows       | `pytest -m integration` (needs Docker) |
+| **Smoke**                   | Cog import check (existing CI script)                                      | `uv run scripts/check_cog_imports.py`  |
 
 We do **not** run live Discord e2e in CI (tokens, flakiness, rate limits).
 
@@ -33,7 +33,7 @@ Coverage floor is **60%** on `src/` (see `[tool.coverage.report]` in `pyproject.
 
 ## Layout
 
-```
+```text
 tests/
   conftest.py           # shared fixtures (Interaction, Member, Config, bot)
   helpers.py            # get_callback() for app_commands Command objects

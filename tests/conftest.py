@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -16,12 +17,17 @@ os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
 os.environ.setdefault("BOT_TOKEN", "test-token-not-real")
 os.environ.setdefault("ASKPESU_API", "https://askpesu.test/api")
 
+type RoleFactory = Callable[..., MagicMock]
+type MemberFactory = Callable[..., MagicMock]
+type InteractionFactory = Callable[..., MagicMock]
+
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     """Auto-mark tests by directory so CI can split unit vs integration."""
     for item in items:
-        path = str(item.fspath)
-        if "/integration/" in path or path.endswith(os.path.join("integration", item.name)):
+        raw = getattr(item, "path", None) or getattr(item, "fspath", None)
+        path = str(raw).replace("\\", "/") if raw is not None else ""
+        if "/integration/" in path:
             item.add_marker(pytest.mark.integration)
         elif "/unit/" in path:
             item.add_marker(pytest.mark.unit)
@@ -95,17 +101,17 @@ def make_interaction(
 
 
 @pytest.fixture
-def role_factory():
+def role_factory() -> RoleFactory:
     return make_role
 
 
 @pytest.fixture
-def member_factory():
+def member_factory() -> MemberFactory:
     return make_member
 
 
 @pytest.fixture
-def interaction_factory():
+def interaction_factory() -> InteractionFactory:
     return make_interaction
 
 

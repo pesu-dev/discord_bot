@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
@@ -8,6 +9,9 @@ import discord
 from src.cogs.mod.helpers import ModHelpers
 from src.cogs.mod.link import LinkCommands
 from tests.helpers import get_callback
+
+if TYPE_CHECKING:
+    from tests.conftest import InteractionFactory, MemberFactory
 
 
 class _Helpers(ModHelpers):
@@ -26,7 +30,7 @@ async def test_check_user_anon_ban(mock_bot: MagicMock) -> None:
     assert await helpers._check_user_anon_ban("1") == {"active": True}
 
 
-async def test_validate_and_parse_time_too_short(mock_bot: MagicMock, interaction_factory) -> None:
+async def test_validate_and_parse_time_too_short(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     helpers = _Helpers()
     helpers.client = mock_bot
     interaction = interaction_factory()
@@ -34,21 +38,21 @@ async def test_validate_and_parse_time_too_short(mock_bot: MagicMock, interactio
     interaction.followup.send.assert_awaited()
 
 
-async def test_validate_and_parse_time_invalid(mock_bot: MagicMock, interaction_factory) -> None:
+async def test_validate_and_parse_time_invalid(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     helpers = _Helpers()
     helpers.client = mock_bot
     interaction = interaction_factory()
     assert await helpers._validate_and_parse_time(interaction, "nope") is None
 
 
-async def test_validate_and_parse_time_ok(mock_bot: MagicMock, interaction_factory) -> None:
+async def test_validate_and_parse_time_ok(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     helpers = _Helpers()
     helpers.client = mock_bot
     interaction = interaction_factory()
     assert await helpers._validate_and_parse_time(interaction, "1h") == 3600
 
 
-def test_find_user_from_message(mock_bot: MagicMock, member_factory) -> None:
+def test_find_user_from_message(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
     helpers = _Helpers()
     helpers.client = mock_bot
     member = member_factory(user_id=42)
@@ -77,7 +81,9 @@ async def test_create_and_store_ban_permanent(mock_bot: MagicMock) -> None:
     assert await helpers._create_and_store_ban("7", "spam") == "Permanent"
 
 
-async def test_apply_anon_ban_already_banned(mock_bot: MagicMock, member_factory, interaction_factory) -> None:
+async def test_apply_anon_ban_already_banned(
+    mock_bot: MagicMock, member_factory: MemberFactory, interaction_factory: InteractionFactory
+) -> None:
     helpers = _Helpers()
     helpers.client = mock_bot
     mock_bot.anonban_collection.find_one = AsyncMock(return_value={"active": True})
@@ -86,7 +92,9 @@ async def test_apply_anon_ban_already_banned(mock_bot: MagicMock, member_factory
     assert "already banned" in interaction.followup.send.await_args.kwargs["content"]
 
 
-async def test_apply_anon_ban_success(mock_bot: MagicMock, member_factory, interaction_factory) -> None:
+async def test_apply_anon_ban_success(
+    mock_bot: MagicMock, member_factory: MemberFactory, interaction_factory: InteractionFactory
+) -> None:
     helpers = _Helpers()
     helpers.client = mock_bot
     mock_bot.anonban_collection.find_one = AsyncMock(return_value=None)
@@ -100,7 +108,9 @@ async def test_apply_anon_ban_success(mock_bot: MagicMock, member_factory, inter
     assert any("banned from anon" in (c.kwargs.get("content") or "") for c in interaction.followup.send.await_args_list)
 
 
-async def test_mod_link_info_not_linked(mock_bot: MagicMock, member_factory, interaction_factory) -> None:
+async def test_mod_link_info_not_linked(
+    mock_bot: MagicMock, member_factory: MemberFactory, interaction_factory: InteractionFactory
+) -> None:
     commands = LinkCommands()
     commands.client = mock_bot
     mock_bot.link_collection.find_one = AsyncMock(return_value=None)
@@ -110,7 +120,9 @@ async def test_mod_link_info_not_linked(mock_bot: MagicMock, member_factory, int
     assert any(f.name == "Status" for f in embed.fields)
 
 
-async def test_mod_link_info_with_prn(mock_bot: MagicMock, member_factory, interaction_factory) -> None:
+async def test_mod_link_info_with_prn(
+    mock_bot: MagicMock, member_factory: MemberFactory, interaction_factory: InteractionFactory
+) -> None:
     commands = LinkCommands()
     commands.client = mock_bot
     mock_bot.link_collection.find_one = AsyncMock(return_value={"prn": "PES1UG21CS001"})
@@ -120,7 +132,9 @@ async def test_mod_link_info_with_prn(mock_bot: MagicMock, member_factory, inter
     assert any(f.name == "PRN" for f in embed.fields)
 
 
-async def test_mod_link_disconnect_not_linked(mock_bot: MagicMock, member_factory, interaction_factory) -> None:
+async def test_mod_link_disconnect_not_linked(
+    mock_bot: MagicMock, member_factory: MemberFactory, interaction_factory: InteractionFactory
+) -> None:
     commands = LinkCommands()
     commands.client = mock_bot
     mock_bot.link_collection.delete_one = AsyncMock(return_value=_DeleteResult(0))
@@ -129,7 +143,9 @@ async def test_mod_link_disconnect_not_linked(mock_bot: MagicMock, member_factor
     assert "not linked" in interaction.followup.send.await_args.kwargs["content"]
 
 
-async def test_mod_link_disconnect_strips_roles(mock_bot: MagicMock, member_factory, interaction_factory) -> None:
+async def test_mod_link_disconnect_strips_roles(
+    mock_bot: MagicMock, member_factory: MemberFactory, interaction_factory: InteractionFactory
+) -> None:
     commands = LinkCommands()
     commands.client = mock_bot
     guild = MagicMock(spec=discord.Guild)
@@ -182,7 +198,7 @@ async def test_mute_loop_marks_inactive_when_member_left(mock_bot: MagicMock) ->
     assert update["unmute_type"] == "auto_member_left"
 
 
-async def test_mute_loop_unmutes_member(mock_bot: MagicMock, member_factory) -> None:
+async def test_mute_loop_unmutes_member(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
     from src.cogs.mod import SlashMod
 
     with patch.object(

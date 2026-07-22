@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 
 import discord
@@ -16,6 +16,11 @@ from src.utils.general import (
     resolve_cog_extension,
     send_dm_safely,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from tests.conftest import MemberFactory
 
 
 @pytest.mark.parametrize(
@@ -94,22 +99,22 @@ async def test_handle_command_error_unknown_uses_embed() -> None:
     assert "embed" in kwargs
 
 
-def test_mod_target_error_bot(fake_config: MagicMock, member_factory) -> None:
+def test_mod_target_error_bot(fake_config: MagicMock, member_factory: MemberFactory) -> None:
     member = member_factory(bot=True)
     assert mod_target_error(member, fake_config) is not None
 
 
-def test_mod_target_error_admin(fake_config: MagicMock, member_factory) -> None:
+def test_mod_target_error_admin(fake_config: MagicMock, member_factory: MemberFactory) -> None:
     member = member_factory(roles=[fake_config.admin_role])
     assert "admin/mod" in (mod_target_error(member, fake_config) or "").lower()
 
 
-def test_mod_target_error_allow_mod(fake_config: MagicMock, member_factory) -> None:
+def test_mod_target_error_allow_mod(fake_config: MagicMock, member_factory: MemberFactory) -> None:
     member = member_factory(roles=[fake_config.mod_role])
     assert mod_target_error(member, fake_config, allow_mod_target=True) is None
 
 
-def test_mod_target_error_ok(fake_config: MagicMock, member_factory) -> None:
+def test_mod_target_error_ok(fake_config: MagicMock, member_factory: MemberFactory) -> None:
     member = member_factory()
     assert mod_target_error(member, fake_config) is None
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
@@ -8,12 +9,15 @@ import discord
 from src.cogs.mod import SlashMod
 from src.cogs.mod.helpers import ModHelpers
 
+if TYPE_CHECKING:
+    from tests.conftest import MemberFactory
+
 
 class _Helpers(ModHelpers):
     pass
 
 
-async def test_mute_document_round_trip(wired_bot) -> None:
+async def test_mute_document_round_trip(wired_bot: MagicMock) -> None:
     now = datetime.now(UTC)
     record = {
         "user_id": 12345,
@@ -40,7 +44,7 @@ async def test_mute_document_round_trip(wired_bot) -> None:
     assert updated["unmute_type"] == "manual"
 
 
-async def test_mute_loop_expires_with_real_mongo(wired_bot, member_factory) -> None:
+async def test_mute_loop_expires_with_real_mongo(wired_bot: MagicMock, member_factory: MemberFactory) -> None:
     now = datetime.now(UTC)
     inserted = await wired_bot.mute_collection.insert_one(
         {

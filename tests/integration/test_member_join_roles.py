@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 from src.cogs.events.listeners import EventListeners
+
+if TYPE_CHECKING:
+    from unittest.mock import MagicMock
+
+    from tests.conftest import MemberFactory
 
 
 async def test_member_join_linked_roles_with_mongo(
-    wired_bot,
-    sample_link_doc,
-    sample_student_doc,
-    member_factory,
+    wired_bot: MagicMock,
+    sample_link_doc: dict[str, Any],
+    sample_student_doc: dict[str, Any],
+    member_factory: MemberFactory,
 ) -> None:
     await wired_bot.student_collection.insert_one(sample_student_doc)
     await wired_bot.link_collection.insert_one({**sample_link_doc, "userId": "1001"})
@@ -26,7 +33,7 @@ async def test_member_join_linked_roles_with_mongo(
     assert remaining is not None
 
 
-async def test_member_join_incomplete_student_deletes_link(wired_bot, member_factory) -> None:
+async def test_member_join_incomplete_student_deletes_link(wired_bot: MagicMock, member_factory: MemberFactory) -> None:
     await wired_bot.student_collection.insert_one({"prn": "PES1UG21CS999", "year": "2021"})
     await wired_bot.link_collection.insert_one(
         {
@@ -47,7 +54,7 @@ async def test_member_join_incomplete_student_deletes_link(wired_bot, member_fac
     assert await wired_bot.link_collection.find_one({"userId": "2002"}) is None
 
 
-async def test_member_remove_deletes_unlinked_record(wired_bot, member_factory) -> None:
+async def test_member_remove_deletes_unlinked_record(wired_bot: MagicMock, member_factory: MemberFactory) -> None:
     await wired_bot.link_collection.insert_one({"_id": "leave-1", "userId": "3003", "linkedAt": None})
     listeners = EventListeners()
     listeners.client = wired_bot

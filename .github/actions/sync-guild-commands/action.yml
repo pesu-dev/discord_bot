@@ -29,8 +29,9 @@ runs:
       run: git fetch --depth=1 origin "${{ inputs.base_ref }}" || true
 
     - name: Install uv
-      uses: astral-sh/setup-uv@v8.2.0
+      uses: astral-sh/setup-uv@v9.0.0
       with:
+        python-version: "3.13"
         enable-cache: true
 
     - name: Install dependencies

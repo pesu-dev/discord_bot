@@ -138,3 +138,16 @@ def test_discover_real_cogs() -> None:
     extensions = discover_cog_extensions()
     assert "src.cogs.mod" in extensions
     assert "src.cogs.events" in extensions
+
+
+async def test_handle_command_error_via_context() -> None:
+    from discord.ext import commands
+
+    ctx = MagicMock(spec=commands.Context)
+    ctx.send = AsyncMock()
+    await handle_command_error(ctx, discord.Forbidden(MagicMock(), "no"), forbidden="denied")
+    ctx.send.assert_awaited_once()
+    assert ctx.send.await_args.kwargs["content"] == "denied"
+
+    await handle_command_error(ctx, RuntimeError("x"))
+    assert "embed" in ctx.send.await_args.kwargs

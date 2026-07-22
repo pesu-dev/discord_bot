@@ -19,6 +19,8 @@ if TYPE_CHECKING:
 
     import pytest
 
+    from tests.conftest import InteractionFactory
+
 
 def test_load_local_faq() -> None:
     data = load_local_faq()
@@ -72,3 +74,30 @@ async def test_fetch_faq_data_fallback(tmp_path: Path, monkeypatch: pytest.Monke
     respx.get("https://reddit.com/r/PESU/comments/14c1iym/.json").mock(return_value=Response(503, text="down"))
     data = await fetch_faq_data(logger=MagicMock())
     assert "LocalOnly" in data
+
+
+def test_faq_multi_link_and_trailing_newline() -> None:
+    from src.cogs.general.helpers import _parse_reddit_data, _process_news_item
+
+    data: dict = {}
+    _process_news_item("[Q1](https://a.com) or [Q2](https://b.com)\n", "Multi", data)
+    assert len(data["Multi"]) == 2
+
+    data2: dict = {}
+    _process_news_item("[Solo](https://c.com)\n", "SoloCat", data2)
+    assert data2["SoloCat"][0]["answer"] == "https://c.com)"
+
+    selftext = "This post will be updated\n\nintro\n\n# SkipMe\n\n* [Only](https://example.com/x)\n\n"
+    payload = [{"data": {"children": [{"data": {"selftext": selftext}}]}}]
+    assert "SkipMe" in _parse_reddit_data(payload)
+
+
+async def test_handle_specific_question_strip_url(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
+    from src.cogs.general.helpers import GeneralHelpers
+
+    helpers = GeneralHelpers()
+    helpers.client = mock_bot
+    interaction = interaction_factory()
+    data = {"C": [{"question": "Q", "answer": "https://example.com)\n"}]}
+    await helpers._handle_specific_question(interaction, data, "C", "Q")
+    assert "https://example.com" in interaction.followup.send.await_args.kwargs["content"]

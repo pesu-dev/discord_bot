@@ -38,12 +38,13 @@ tests/
   conftest.py           # shared fixtures (Interaction, Member, Config, bot)
   helpers.py            # get_callback() for app_commands Command objects
   fixtures/             # optional static JSON fixtures
-  unit/                 # mirrors src/
-  integration/          # Testcontainers Mongo
+  unit/                 # mirrors src/; modules named *_test.py
+  integration/          # Testcontainers Mongo; modules named *_test.py
 ```
 
 ## Conventions
 
+- Name test modules `*_test.py` (see `python_files` in `pyproject.toml`).
 - Prefer asserting **outcomes** (DB docs, followup content, roles changed), not mock call sequences that mirror implementation.
 - Invoke slash handlers via `tests.helpers.get_callback(cmd.some_command)` — Discord wraps methods in `Command` objects.
 - Cancel / avoid starting cog background tasks when constructing real cog classes in tests (patch `__init__` or cancel loops in teardown).

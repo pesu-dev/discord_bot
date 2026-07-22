@@ -164,3 +164,24 @@ async def test_on_thread_create_joins(mock_bot: MagicMock) -> None:
     thread.join = AsyncMock()
     await listeners.on_thread_create(thread)
     thread.join.assert_awaited_once()
+
+
+def test_filter_reply_exception_path() -> None:
+    resolved = MagicMock(spec=discord.Message)
+    type(resolved).author = property(lambda self: (_ for _ in ()).throw(RuntimeError("boom")))
+    message = MagicMock(spec=discord.Message)
+    message.type = discord.MessageType.reply
+    message.reference = MagicMock()
+    message.reference.resolved = resolved
+    message.mentions = [MagicMock()]
+    assert EventHelpers._filter_reply_mentions(message) == message.mentions
+
+
+def test_filter_reply_non_message_resolved() -> None:
+    message = MagicMock(spec=discord.Message)
+    message.type = discord.MessageType.reply
+    message.reference = MagicMock()
+    message.reference.resolved = MagicMock()
+    user = MagicMock()
+    message.mentions = [user]
+    assert EventHelpers._filter_reply_mentions(message) == [user]

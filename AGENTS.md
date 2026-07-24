@@ -40,7 +40,7 @@ Use `uv run …` for all Python tooling. Prefer `uv sync --frozen` only when mat
 | `src/bot.py`         | `DiscordBot` subclass, cog loading                    |
 | `src/cogs/<name>/`   | One package per cog (auto-discovered)                 |
 | `src/utils/`         | Shared config, decorators, helpers                    |
-| `src/data/`          | Static data (e.g. `faq.json`)                         |
+| `src/data/`          | Static data (`faq.json`) + Mongo layer (`mongo/`)     |
 | `scripts/`           | CI/ops scripts (cog import check, guild command sync) |
 | `deploy/`            | Compose + deploy helpers                              |
 | `.github/workflows/` | CI/CD                                                 |

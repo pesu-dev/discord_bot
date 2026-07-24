@@ -25,19 +25,20 @@ class EventListeners(EventHelpers):
         just_joined = self.client.config.just_joined_role
         await bot_logs.send(f"{member.mention} Joined!!")
 
-        link_record = await self.client.link_collection.find_one({"userId": str(member.id)})
+        link_record = await self.client.stores.links.find_one(user_id=str(member.id))
         roles_to_add = [just_joined]
-        should_delete_link = bool(link_record and not link_record.get("linkedAt"))
+        should_delete_link = bool(link_record and not link_record.linked_at)
 
-        if link_record and link_record.get("linkedAt") and link_record.get("prn"):
-            student_record = await self.client.student_collection.find_one({"prn": link_record.get("prn")})
+        if link_record and link_record.linked_at and link_record.prn:
+            student_record = await self.client.stores.students.find_one(prn=link_record.prn)
             if student_record:
                 roles_to_add = []
-                role_configs = [("YEAR", ["year"]), ("BRANCH", ["branch", "short"]), ("CAMPUS", ["campus", "short"])]
-                for role_type, key_path in role_configs:
-                    value = student_record
-                    for key in key_path:
-                        value = value.get(key) if value else None
+                role_values = [
+                    ("YEAR", student_record.year),
+                    ("BRANCH", student_record.branch.short),
+                    ("CAMPUS", student_record.campus.short),
+                ]
+                for role_type, value in role_values:
                     if value and (role := self.client.config.get_role(role_type, value)):
                         roles_to_add.append(role)
                 if len(roles_to_add) == 3:
@@ -49,18 +50,18 @@ class EventListeners(EventHelpers):
                 should_delete_link = True
 
         await member.add_roles(*roles_to_add)
-        if should_delete_link and link_record:
-            await self.client.link_collection.delete_one({"_id": link_record["_id"]})
+        if should_delete_link and link_record and link_record.id is not None:
+            await self.client.stores.links.delete_one(id=link_record.id)
 
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member) -> None:
         bot_logs = self.client.config.bot_logs_channel
         await bot_logs.send(f"{member.mention} Left!!")
 
-        link_record = await self.client.link_collection.find_one({"userId": str(member.id)})
+        link_record = await self.client.stores.links.find_one(user_id=str(member.id))
 
-        if link_record and link_record.get("linkedAt") is None:
-            await self.client.link_collection.delete_one({"_id": link_record["_id"]})
+        if link_record and link_record.linked_at is None and link_record.id is not None:
+            await self.client.stores.links.delete_one(id=link_record.id)
             await bot_logs.send(f"Linked record of {member.mention} has been deleted.!")
 
     @commands.Cog.listener()

@@ -9,6 +9,7 @@ from discord.ext import commands
 
 from src.cogs.mod.groups import ModGroups
 from src.cogs.mod.helpers import ModHelpers
+from src.data.mongo import Mute
 from src.utils import decorators as bot_decorators
 from src.utils import general as ug
 from src.utils.config import Config
@@ -157,17 +158,18 @@ class ModCommands(ModHelpers):
         mute_time = datetime.now(UTC)
         unmute_time = mute_time + timedelta(seconds=seconds)
 
-        mute_record = {
-            "user_id": member.id,
-            "channel_id": interaction.channel.id,
-            "moderator_id": interaction.user.id,
-            "mute_time": mute_time,
-            "unmute_time": unmute_time,
-            "reason": reason,
-            "active": True,
-            "is_self_mute": is_self_mute,
-        }
-        await self.client.mute_collection.insert_one(mute_record)
+        mute_record = Mute(
+            user_id=member.id,
+            channel_id=interaction.channel.id,
+            moderator_id=interaction.user.id,
+            mute_time=mute_time,
+            unmute_time=unmute_time,
+            duration_seconds=seconds,
+            reason=reason,
+            active=True,
+            is_self_mute=is_self_mute,
+        )
+        await self.client.stores.mutes.insert_one(mute_record)
 
         unmute_relative = discord.utils.format_dt(unmute_time, "R")
         mute_embed = ug.build_embed(
@@ -213,16 +215,11 @@ class ModCommands(ModHelpers):
 
         await member.remove_roles(muted_role)
 
-        await self.client.mute_collection.update_many(
-            {"user_id": member.id, "active": True},
-            {
-                "$set": {
-                    "active": False,
-                    "unmute_time": datetime.now(UTC),
-                    "unmute_type": "manual",
-                    "unmuted_by": interaction.user.id,
-                }
-            },
+        await self.client.stores.mutes.deactivate_active(
+            member.id,
+            unmute_time=datetime.now(UTC),
+            unmute_type="manual",
+            unmuted_by=interaction.user.id,
         )
 
         await interaction.followup.send(

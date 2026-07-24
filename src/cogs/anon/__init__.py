@@ -37,11 +37,11 @@ class SlashAnon(AnonGroups, AnonCommands, Cog):
     @tasks.loop(seconds=30)
     async def check_anon_bans_loop(self) -> None:
         current_time = datetime.now(UTC)
-        async for ban in self.client.anonban_collection.find(
-            {"expiresAt": {"$ne": None, "$lt": current_time}, "active": True}
-        ):
-            await self.client.anonban_collection.update_one({"_id": ban["_id"]}, {"$set": {"active": False}})
-            user = await self.client.fetch_user(ban["userId"])
+        async for ban in self.client.stores.anonbans.find_expired(current_time):
+            if ban.id is None:
+                continue
+            await self.client.stores.anonbans.update_one(id=ban.id, set_fields={"active": False})
+            user = await self.client.fetch_user(int(ban.user_id))
             if user:
                 embed = ug.build_embed(
                     title="Notification",

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import discord
 
+from src.data.mongo import AnonBan
 from src.utils import general as ug
 
 if TYPE_CHECKING:
@@ -18,9 +19,9 @@ class ModHelpers:
         """Send an embed to the configured mod logs channel."""
         await self.client.config.mod_logs_channel.send(embed=embed)
 
-    async def _check_user_anon_ban(self, user_id: str) -> dict | None:
-        """Check if user is banned from anon messaging."""
-        return await self.client.anonban_collection.find_one({"userId": user_id, "active": True})
+    async def _check_user_anon_ban(self, user_id: str) -> bool:
+        """Return whether the user has an active anon messaging ban."""
+        return await self.client.stores.anonbans.exists(user_id=user_id, active=True)
 
     async def _validate_and_parse_time(self, interaction: discord.Interaction, time_str: str) -> int | None:
         """Validate and parse time string, return seconds or None if invalid."""
@@ -79,15 +80,15 @@ class ModHelpers:
         else:
             expires_at = None
 
-        ban_data = {
-            "userId": user_id,
-            "reason": reason,
-            "bannedAt": banned_at,
-            "expiresAt": expires_at,
-            "active": True,
-        }
+        ban = AnonBan(
+            user_id=user_id,
+            reason=reason,
+            banned_at=banned_at,
+            expires_at=expires_at,
+            active=True,
+        )
 
-        await self.client.anonban_collection.insert_one(ban_data)
+        await self.client.stores.anonbans.insert_one(ban)
         return "Permanent" if expires_at is None else discord.utils.format_dt(expires_at, "R")
 
     async def _apply_anon_ban(

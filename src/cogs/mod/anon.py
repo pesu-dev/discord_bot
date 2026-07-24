@@ -114,9 +114,7 @@ class AnonModCommands(ModHelpers):
     @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
     @bot_decorators.handle_command_errors()
     async def user_unban_anon(self, interaction: discord.Interaction, member: discord.Member) -> None:
-        result = await self.client.anonban_collection.find_one_and_update(
-            {"userId": str(member.id), "active": True}, {"$set": {"active": False}}
-        )
+        result = await self.client.stores.anonbans.deactivate(str(member.id))
 
         if result is None:
             await interaction.followup.send(
@@ -142,14 +140,12 @@ class AnonModCommands(ModHelpers):
     @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
     @bot_decorators.handle_command_errors()
     async def anon_ban_info(self, interaction: discord.Interaction, member: discord.Member) -> None:
-        user_anon_ban_check = await self._check_user_anon_ban(str(member.id))
-        if not user_anon_ban_check:
+        ban = await self.client.stores.anonbans.find_one(user_id=str(member.id), active=True)
+        if ban is None:
             await interaction.followup.send(content="This fellow is not banned from anon messaging", ephemeral=True)
             return
 
-        banned_at = user_anon_ban_check["bannedAt"]
-        expires_at = user_anon_ban_check["expiresAt"]
-        expiry_display = discord.utils.format_dt(expires_at, "R") if expires_at else "Permanent"
+        expiry_display = discord.utils.format_dt(ban.expires_at, "R") if ban.expires_at else "Permanent"
 
         embed = ug.build_embed(
             title="Anon Ban Info",
@@ -157,8 +153,8 @@ class AnonModCommands(ModHelpers):
             color=discord.Color.red(),
             fields=[
                 {"name": "User", "value": member.mention},
-                {"name": "Reason", "value": user_anon_ban_check.get("reason", "No reason provided")},
-                {"name": "Banned", "value": discord.utils.format_dt(banned_at, "R")},
+                {"name": "Reason", "value": ban.reason},
+                {"name": "Banned", "value": discord.utils.format_dt(ban.banned_at, "R")},
                 {"name": "Expires", "value": expiry_display},
             ],
         )

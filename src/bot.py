@@ -12,11 +12,11 @@ from discord.ext import commands, tasks
 from discord.ext.commands import Context
 from pymongo import AsyncMongoClient
 
+from src.data.mongo import Stores
 from src.utils.config import Config
 from src.utils.general import COGS_PACKAGE, discover_cog_extensions, get_cogs_dir
 
 if TYPE_CHECKING:
-    from pymongo.asynchronous.collection import AsyncCollection
     from pymongo.asynchronous.database import AsyncDatabase
 
 
@@ -41,22 +41,16 @@ class DiscordBot(commands.Bot):
 
         self.mongo_client: AsyncMongoClient
         self.db: AsyncDatabase
-        self.link_collection: AsyncCollection
-        self.student_collection: AsyncCollection
-        self.anonban_collection: AsyncCollection
-        self.mute_collection: AsyncCollection
+        self.stores: Stores
         self.anon_cache: dict[str, list[dict]] = {}
         self.start_time: float = time.time()
 
     async def init_db(self) -> None:
-        """Connect to MongoDB and wire up collections."""
+        """Connect to MongoDB and wire up typed collection stores."""
         try:
             self.mongo_client = AsyncMongoClient(os.environ["MONGO_URI"], tz_aware=True)
             self.db = self.mongo_client[self.config.db_name]
-            self.link_collection = self.db["link"]
-            self.student_collection = self.db["student"]
-            self.anonban_collection = self.db["anonban"]
-            self.mute_collection = self.db["mute"]
+            self.stores = Stores(self.db)
             self.logger.info(f"Connected to MongoDB ({self.config.db_name})")
         except Exception as e:
             self.logger.info(f"Failed to connect to MongoDB: {e}")

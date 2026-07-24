@@ -82,12 +82,12 @@ Shared, cross-cog utilities live in `src/utils/` rather than inside any single c
 
 ### Database Collections
 
-The bot maintains several MongoDB collections:
+The bot maintains several MongoDB collections. Document shapes and typed CRUD live together in `src/data/mongo/`; access them via `client.stores` (`links`, `students`, `anonbans`, `mutes`):
 
-- `link`: Stores Discord-PESU account links
-- `student`: Student linking data
-- `anonban`: Anonymous messaging ban records
-- `mute`: Server mute records
+- `link`: Stores Discord-PESU account links (`Link` / `LinkStore`)
+- `student`: Student linking data (`Student` / `StudentStore`)
+- `anonban`: Anonymous messaging ban records (`AnonBan` / `AnonBanStore`)
+- `mute`: Server mute records (`Mute` / `MuteStore`)
 
 ## Configuration
 

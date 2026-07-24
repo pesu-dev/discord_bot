@@ -38,24 +38,19 @@ class SlashMod(ModGroups, ModCommands, LinkCommands, AnonModCommands, Cog):
     @tasks.loop(seconds=30)
     async def check_mutes_loop(self) -> None:
         now = datetime.now(UTC)
-        expired_mutes = await self.client.mute_collection.find({"unmute_time": {"$lte": now}, "active": True}).to_list(
-            length=100
-        )
+        expired_mutes = await self.client.stores.mutes.find_expired(now, limit=100)
 
         guild = self.client.config.guild
         for mute in expired_mutes:
+            if mute.id is None:
+                continue
             try:
-                member = await guild.fetch_member(mute["user_id"])
+                member = await guild.fetch_member(mute.user_id)
             except discord.NotFound:
-                await self.client.mute_collection.update_one(
-                    {"_id": mute["_id"]},
-                    {
-                        "$set": {
-                            "active": False,
-                            "unmute_time": now,
-                            "unmute_type": "auto_member_left",
-                        }
-                    },
+                await self.client.stores.mutes.mark_unmuted(
+                    mute.id,
+                    unmute_time=now,
+                    unmute_type="auto_member_left",
                 )
                 continue
 
@@ -68,18 +63,13 @@ class SlashMod(ModGroups, ModCommands, LinkCommands, AnonModCommands, Cog):
                     bot_logs = self.client.config.bot_logs_channel
                     await bot_logs.send(embed=embed)
 
-            await self.client.mute_collection.update_one(
-                {"_id": mute["_id"]},
-                {
-                    "$set": {
-                        "active": False,
-                        "unmute_time": now,
-                        "unmute_type": "loop_auto",
-                    }
-                },
+            await self.client.stores.mutes.mark_unmuted(
+                mute.id,
+                unmute_time=now,
+                unmute_type="loop_auto",
             )
 
-            channel = guild.get_channel(mute["channel_id"])
+            channel = guild.get_channel(mute.channel_id)
             if not isinstance(channel, discord.TextChannel | discord.Thread):
                 continue
 

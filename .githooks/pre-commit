@@ -23,5 +23,12 @@ if ! run_cog_import_checks; then
 fi
 echo
 
+# Fast unit suite only (integration needs Docker; runs in CI)
+if ! run_unit_tests; then
+    print_error "Unit tests failed. Commit aborted."
+    exit 1
+fi
+echo
+
 print_success "🎉 All pre-commit checks passed!"
 exit 0

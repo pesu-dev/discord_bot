@@ -70,6 +70,50 @@ jobs:
       - name: Verify cog package imports
         run: uv run scripts/check_cog_imports.py
 
+  unit_tests:
+    name: Unit tests
+    needs: [pr_source_checker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen --extra dev
+
+      - name: Run unit tests with coverage
+        run: |
+          uv run pytest -m unit --cov=src --cov-report=term-missing --cov-fail-under=95
+
+  integration_tests:
+    name: Integration tests
+    needs: [pr_source_checker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen --extra dev
+
+      - name: Run integration tests
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+        run: |
+          uv run pytest -m integration
+
   pr_image_build:
     name: Build image on PR
     needs: [pr_source_checker]

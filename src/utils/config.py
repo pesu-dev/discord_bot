@@ -26,59 +26,34 @@ class Config:
         "local": {"prefix": "?", "db_name": "pesu_v2"},
     }
 
-    # Role IDs
     ROLES = {
-        "FUNCTIONAL": {
-            "ADMIN": 742800061280550923,
-            "MOD": 742798158966292640,
-            "BOT_DEV": 750556082371559485,
-            "LINKED": 749683320941445250,
-            "JUST_JOINED": 798765678739062804,
-            "MUTED": 775981947079491614,
-        },
-        "BRANCH": {
-            "CSE": 984846616580198450,
-            "CSE (AI&ML)": 1061350128939716768,
-            "ECE": 984846618371174400,
-            "EEE": 984846620157964389,
-            "ME": 984846621848248320,
-            "BT": 984846623676969030,
-            "CV": 984846625446985728,
-            "B ARCH": 984846627158257684,
-            "BBA": 984846628596899881,
-            "B.DES": 984846630396235850,
-            "BBA LLB": 984846632405315646,
-            "BBA-HEM": 984846634385047632,
-            "BA LLB": 984846636226314270,
-            "BBA - Sports Management": 984846638025670726,
-            "BCA": 984846639841820752,
-            "B.Com": 984846642354192484,
-            "BBA (Hons) in Business Analytics": 1023509952964341820,
-            "B.Com (Hons) with ACCA": 1023510367026036826,
-            "Psychology": 1023510685705044009,
-            "Sports Management": 1023511154649223240,
-            "Bachelor of Pharmacy": 1023512100724817940,
-            "Nursing": 1061350434675101726,
-            "CA": 1086905421291335711,
-            "International Accounting and Finance": 1129414449485316176,
-            "Business Analytics": 1136371141330608138,
-            "MBA": 1289303483522093127,
-            "MBBS": 1336785790730108978,
-        },
-        "YEAR": {
-            "2015": 1119203107130318889,
-            "2016": 1106834902667759717,
-            "2017": 1079825096287453244,
-            "2018": 984846644031942697,
-            "2019": 984846646271696977,
-            "2020": 984846648112971867,
-            "2021": 984846649488732161,
-            "2022": 1023513091994025994,
-            "2023": 1123313984163041410,
-            "2024": 1244601965514588170,
-            "2025": 1381083961895157813,
-        },
-        "CAMPUS": {"RR": 984872936529887322, "EC": 984873178339897384},
+        "ADMIN": 742800061280550923,
+        "MOD": 742798158966292640,
+        "BOT_DEV": 750556082371559485,
+        "LINKED": 749683320941445250,
+        "JUST_JOINED": 798765678739062804,
+        "MUTED": 775981947079491614,
+    }
+
+    # Guild academic roles use this color (#818689).
+    ACADEMIC_ROLE_COLOR = 0x818689
+
+    # PESU full branch name -> Guild role short name.
+    BRANCH_SHORT_CODES = {
+        "Computer Science and Engineering": "CSE",
+        "Computer Science and Engineering (AI&ML)": "CSE (AI&ML)",
+        "Electronics and Communication Engineering": "ECE",
+        "Mechanical Engineering": "ME",
+        "Electrical and Electronics Engineering": "EEE",
+        "Civil Engineering": "CV",
+        "Biotechnology": "BT",
+        "Bachelor of Computer Applications": "BCA",
+        "Bachelor of Commerce": "B.Com",
+        "Bachelor of Business Administration": "BBA",
+        "-Bachelor of Business Administration": "BBA",
+        "Master of Business Administration": "MBA",
+        "Master of Computer Applications": "MCA",
+        "Bachelor of Design": "B.DES",
     }
 
     # Channel IDs
@@ -121,14 +96,25 @@ class Config:
         """Lightweight guild reference for command registration (no cache needed)."""
         return discord.Object(id=self.guild_id)
 
-    def get_role(self, category: str, name: str) -> discord.Role:
-        """Get role by category and name using discord.py utilities."""
-        role_id = self.ROLES.get(category, {}).get(name)
+    def get_role(self, name: str) -> discord.Role:
+        """Get a functional role by name using its configured Discord role ID."""
+        role_id = self.ROLES.get(name)
         if role_id is None:
-            raise ValueError(f"Role '{name}' not found in category '{category}'")
+            raise ValueError(f"Role '{name}' not found")
         role = self.guild.get_role(role_id)
         if role is None:
             raise ValueError(f"Role with ID {role_id} not found")
+        return role
+
+    def resolve_academic_role(self, name: str) -> discord.Role:
+        """Resolve an academic role by exact Discord name and academic color."""
+        role = discord.utils.get(self.guild.roles, name=name)
+        if role is None:
+            raise ValueError(f"Academic role '{name}' not found")
+        if role.color.value != self.ACADEMIC_ROLE_COLOR:
+            raise ValueError(
+                f"Academic role '{name}' has color {role.color.value:#x}, expected {self.ACADEMIC_ROLE_COLOR:#x}"
+            )
         return role
 
     def get_channel(self, name: str) -> discord.TextChannel | discord.Thread:
@@ -146,32 +132,32 @@ class Config:
     @property
     def admin_role(self) -> discord.Role:
         """Get admin role."""
-        return self.get_role("FUNCTIONAL", "ADMIN")
+        return self.get_role("ADMIN")
 
     @property
     def mod_role(self) -> discord.Role:
         """Get moderator role."""
-        return self.get_role("FUNCTIONAL", "MOD")
+        return self.get_role("MOD")
 
     @property
     def bot_dev_role(self) -> discord.Role:
         """Get bot developer role."""
-        return self.get_role("FUNCTIONAL", "BOT_DEV")
+        return self.get_role("BOT_DEV")
 
     @property
     def linked_role(self) -> discord.Role:
         """Get linked role."""
-        return self.get_role("FUNCTIONAL", "LINKED")
+        return self.get_role("LINKED")
 
     @property
     def just_joined_role(self) -> discord.Role:
         """Get just joined role."""
-        return self.get_role("FUNCTIONAL", "JUST_JOINED")
+        return self.get_role("JUST_JOINED")
 
     @property
     def muted_role(self) -> discord.Role:
         """Get muted role."""
-        return self.get_role("FUNCTIONAL", "MUTED")
+        return self.get_role("MUTED")
 
     # Convenience methods for common channels
 

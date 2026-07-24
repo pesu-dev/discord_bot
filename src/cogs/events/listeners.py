@@ -33,14 +33,17 @@ class EventListeners(EventHelpers):
             student_record = await self.client.stores.students.find_one(prn=link_record.prn)
             if student_record:
                 roles_to_add = []
-                role_values = [
-                    ("YEAR", student_record.year),
-                    ("BRANCH", student_record.branch.short),
-                    ("CAMPUS", student_record.campus.short),
-                ]
-                for role_type, value in role_values:
-                    if value and (role := self.client.config.get_role(role_type, value)):
-                        roles_to_add.append(role)
+                for value in (
+                    student_record.year,
+                    student_record.branch.short,
+                    student_record.campus.short,
+                ):
+                    if not value:
+                        continue
+                    try:
+                        roles_to_add.append(self.client.config.resolve_academic_role(value))
+                    except ValueError:
+                        continue
                 if len(roles_to_add) == 3:
                     roles_to_add.append(self.client.config.linked_role)
                 else:

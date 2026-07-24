@@ -38,10 +38,12 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
             item.add_marker(pytest.mark.unit)
 
 
-def make_role(*, role_id: int, name: str = "role") -> MagicMock:
+def make_role(*, role_id: int, name: str = "role", color: int | None = None) -> MagicMock:
     role = MagicMock(spec=discord.Role)
     role.id = role_id
     role.name = name
+    role.color = MagicMock()
+    role.color.value = color if color is not None else 0
     role.__eq__ = lambda self, other: getattr(other, "id", None) == role_id  # type: ignore[method-assign]
     role.__hash__ = lambda self: hash(role_id)  # type: ignore[method-assign]
     return role
@@ -121,7 +123,7 @@ def interaction_factory() -> InteractionFactory:
 def functional_roles() -> dict[str, MagicMock]:
     from src.utils.config import Config
 
-    return {name: make_role(role_id=role_id, name=name) for name, role_id in Config.ROLES["FUNCTIONAL"].items()}
+    return {name: make_role(role_id=role_id, name=name) for name, role_id in Config.ROLES.items()}
 
 
 @pytest.fixture
@@ -134,6 +136,8 @@ def fake_config(functional_roles: dict[str, MagicMock]) -> MagicMock:
     config.env = "local"
     config.db_name = "pesu_v2_test"
     config.guild_object = discord.Object(id=Config.GUILD_ID)
+    config.BRANCH_SHORT_CODES = Config.BRANCH_SHORT_CODES
+    config.ACADEMIC_ROLE_COLOR = Config.ACADEMIC_ROLE_COLOR
 
     config.admin_role = functional_roles["ADMIN"]
     config.mod_role = functional_roles["MOD"]
@@ -142,23 +146,45 @@ def fake_config(functional_roles: dict[str, MagicMock]) -> MagicMock:
     config.just_joined_role = functional_roles["JUST_JOINED"]
     config.muted_role = functional_roles["MUTED"]
 
-    year_roles = {name: make_role(role_id=role_id, name=name) for name, role_id in Config.ROLES["YEAR"].items()}
-    branch_roles = {name: make_role(role_id=role_id, name=name) for name, role_id in Config.ROLES["BRANCH"].items()}
-    campus_roles = {name: make_role(role_id=role_id, name=name) for name, role_id in Config.ROLES["CAMPUS"].items()}
+    # Academic roles used by member-join fixtures (year / branch.short / campus.short).
+    academic_roles = {
+        name: make_role(role_id=10_000 + i, name=name, color=Config.ACADEMIC_ROLE_COLOR)
+        for i, name in enumerate(
+            [
+                *Config.BRANCH_SHORT_CODES.values(),
+                "2015",
+                "2016",
+                "2017",
+                "2018",
+                "2019",
+                "2020",
+                "2021",
+                "2022",
+                "2023",
+                "2024",
+                "2025",
+                "RR",
+                "EC",
+            ]
+        )
+    }
 
-    def get_role(category: str, name: str) -> MagicMock:
-        mapping = {
-            "FUNCTIONAL": functional_roles,
-            "YEAR": year_roles,
-            "BRANCH": branch_roles,
-            "CAMPUS": campus_roles,
-        }
-        role = mapping.get(category, {}).get(name)
+    def get_role(name: str) -> MagicMock:
+        role = functional_roles.get(name)
         if role is None:
-            raise ValueError(f"Role '{name}' not found in category '{category}'")
+            raise ValueError(f"Role '{name}' not found")
+        return role
+
+    def resolve_academic_role(name: str) -> MagicMock:
+        role = academic_roles.get(name)
+        if role is None:
+            raise ValueError(f"Academic role '{name}' not found")
+        if role.color.value != Config.ACADEMIC_ROLE_COLOR:
+            raise ValueError(f"Academic role '{name}' has wrong color")
         return role
 
     config.get_role = get_role
+    config.resolve_academic_role = resolve_academic_role
     config.bot_logs_channel = make_text_channel(channel_id=Config.CHANNELS["BOT_LOGS"])
     config.mod_logs_channel = make_text_channel(channel_id=Config.CHANNELS["MOD_LOGS"])
     config.lobby_channel = make_text_channel(channel_id=Config.CHANNELS["LOBBY"])

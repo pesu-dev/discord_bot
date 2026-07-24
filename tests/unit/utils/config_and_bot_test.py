@@ -210,9 +210,9 @@ def test_config_errors() -> None:
     bot.get_guild = MagicMock(return_value=guild)
     config = Config(bot, env="local", db_name="pesu_v2")
     with pytest.raises(ValueError, match="Role 'NOPE'"):
-        config.get_role("FUNCTIONAL", "NOPE")
+        config.get_role("NOPE")
     with pytest.raises(ValueError, match="Role with ID"):
-        config.get_role("FUNCTIONAL", "ADMIN")
+        config.get_role("ADMIN")
     with pytest.raises(ValueError, match="Channel 'NOPE'"):
         config.get_channel("NOPE")
     with pytest.raises(ValueError, match="Channel with ID"):
@@ -239,3 +239,50 @@ def test_config_role_channel_properties() -> None:
     assert config.bot_logs_channel is channel
     assert config.mod_logs_channel is channel
     assert config.lobby_channel is channel
+
+
+def test_branch_short_codes_from_portal() -> None:
+    assert Config.BRANCH_SHORT_CODES["Civil Engineering"] == "CV"
+    assert Config.BRANCH_SHORT_CODES["Master of Computer Applications"] == "MCA"
+    assert "CE" not in Config.BRANCH_SHORT_CODES.values()
+
+
+def test_resolve_academic_role_match() -> None:
+    import discord
+
+    bot = MagicMock()
+    guild = MagicMock()
+    role = MagicMock(spec=discord.Role)
+    role.name = "CSE"
+    role.color = MagicMock()
+    role.color.value = Config.ACADEMIC_ROLE_COLOR
+    guild.roles = [role]
+    bot.get_guild = MagicMock(return_value=guild)
+    config = Config(bot, env="local", db_name="pesu_v2")
+    assert config.resolve_academic_role("CSE") is role
+
+
+def test_resolve_academic_role_wrong_color() -> None:
+    import discord
+
+    bot = MagicMock()
+    guild = MagicMock()
+    role = MagicMock(spec=discord.Role)
+    role.name = "CSE"
+    role.color = MagicMock()
+    role.color.value = 0xFF0000
+    guild.roles = [role]
+    bot.get_guild = MagicMock(return_value=guild)
+    config = Config(bot, env="local", db_name="pesu_v2")
+    with pytest.raises(ValueError, match="color"):
+        config.resolve_academic_role("CSE")
+
+
+def test_resolve_academic_role_missing() -> None:
+    bot = MagicMock()
+    guild = MagicMock()
+    guild.roles = []
+    bot.get_guild = MagicMock(return_value=guild)
+    config = Config(bot, env="local", db_name="pesu_v2")
+    with pytest.raises(ValueError, match="not found"):
+        config.resolve_academic_role("NOPE")

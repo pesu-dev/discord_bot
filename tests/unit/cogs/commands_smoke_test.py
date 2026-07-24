@@ -29,7 +29,7 @@ async def test_anon_send_requires_link(
 ) -> None:
     cmd = AnonCommands()
     cmd.client = mock_bot
-    mock_bot.link_collection.find_one = AsyncMock(return_value=None)
+    mock_bot.stores.links.exists = AsyncMock(return_value=False)
     interaction = interaction_factory(user=member_factory())
     await get_callback(cmd.anon_send)(cmd, interaction, "hello")
     assert "not linked" in interaction.followup.send.await_args.kwargs["content"]
@@ -40,8 +40,8 @@ async def test_anon_send_blocked_when_banned(
 ) -> None:
     cmd = AnonCommands()
     cmd.client = mock_bot
-    mock_bot.link_collection.find_one = AsyncMock(return_value={"userId": "1"})
-    mock_bot.anonban_collection.find_one = AsyncMock(return_value={"active": True})
+    mock_bot.stores.links.exists = AsyncMock(return_value=True)
+    mock_bot.stores.anonbans.exists = AsyncMock(return_value=True)
     interaction = interaction_factory(user=member_factory())
     await get_callback(cmd.anon_send)(cmd, interaction, "hello")
     assert "banned" in interaction.followup.send.await_args.kwargs["content"].lower()
@@ -52,8 +52,8 @@ async def test_anon_send_success_caches_message(
 ) -> None:
     cmd = AnonCommands()
     cmd.client = mock_bot
-    mock_bot.link_collection.find_one = AsyncMock(return_value={"userId": "1001"})
-    mock_bot.anonban_collection.find_one = AsyncMock(return_value=None)
+    mock_bot.stores.links.exists = AsyncMock(return_value=True)
+    mock_bot.stores.anonbans.exists = AsyncMock(return_value=False)
     member = member_factory(user_id=1001)
     interaction = interaction_factory(user=member)
     mock_bot.config.lobby_channel.permissions_for = MagicMock(return_value=SimpleNamespace(send_messages=True))
@@ -157,12 +157,12 @@ async def test_mod_mute_success(
     target = member_factory(user_id=2, roles=[])
     interaction = interaction_factory(user=mod)
     interaction.user = mod
-    mock_bot.mute_collection.insert_one = AsyncMock()
+    mock_bot.stores.mutes.insert_one = AsyncMock()
     mock_bot.config.mod_logs_channel.send = AsyncMock()
 
     await get_callback(cmd.mute)(cmd, interaction, target, "2h", "noise")
     target.add_roles.assert_awaited_with(mock_bot.config.muted_role)
-    mock_bot.mute_collection.insert_one.assert_awaited()
+    mock_bot.stores.mutes.insert_one.assert_awaited()
 
 
 async def test_mod_unmute(
@@ -173,12 +173,12 @@ async def test_mod_unmute(
     mod = member_factory(roles=[mock_bot.config.mod_role])
     target = member_factory(roles=[mock_bot.config.muted_role])
     interaction = interaction_factory(user=mod)
-    mock_bot.mute_collection.update_many = AsyncMock()
+    mock_bot.stores.mutes.deactivate_active = AsyncMock()
     mock_bot.config.mod_logs_channel.send = AsyncMock()
 
     await get_callback(cmd.unmute)(cmd, interaction, target)
     target.remove_roles.assert_awaited_with(mock_bot.config.muted_role)
-    mock_bot.mute_collection.update_many.assert_awaited()
+    mock_bot.stores.mutes.deactivate_active.assert_awaited()
 
 
 async def test_mod_kick(

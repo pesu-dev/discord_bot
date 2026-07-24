@@ -11,6 +11,8 @@ from unittest.mock import AsyncMock, MagicMock
 import discord
 import pytest
 
+from src.data.mongo import Link, Student
+
 # Ensure Config.resolve_env / bot init never require a real .env during tests.
 os.environ.setdefault("APP_ENV", "local")
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
@@ -171,10 +173,12 @@ def mock_bot(fake_config: MagicMock) -> MagicMock:
     bot.start_time = 1_700_000_000.0
     bot.logger = MagicMock()
     bot.anon_cache = {}
-    bot.link_collection = AsyncMock()
-    bot.student_collection = AsyncMock()
-    bot.anonban_collection = AsyncMock()
-    bot.mute_collection = AsyncMock()
+    stores = MagicMock()
+    stores.links = AsyncMock()
+    stores.students = AsyncMock()
+    stores.anonbans = AsyncMock()
+    stores.mutes = AsyncMock()
+    bot.stores = stores
     bot.wait_until_ready = AsyncMock()
     bot.load_extension = AsyncMock()
     bot.unload_extension = AsyncMock()
@@ -187,16 +191,28 @@ def sample_student_doc() -> dict[str, Any]:
     return {
         "prn": "PES1UG21CS001",
         "year": "2021",
-        "branch": {"short": "CSE"},
-        "campus": {"short": "RR"},
+        "branch": {"full": "Computer Science and Engineering", "short": "CSE"},
+        "campus": {"code": 1, "short": "RR"},
     }
 
 
 @pytest.fixture
 def sample_link_doc() -> dict[str, Any]:
+    from bson import ObjectId
+
     return {
-        "_id": "link-oid-1",
+        "_id": ObjectId(),
         "userId": "1001",
         "prn": "PES1UG21CS001",
         "linkedAt": "2024-01-01T00:00:00Z",
     }
+
+
+@pytest.fixture
+def sample_link(sample_link_doc: dict[str, Any]) -> Link:
+    return Link.from_document(sample_link_doc)
+
+
+@pytest.fixture
+def sample_student(sample_student_doc: dict[str, Any]) -> Student:
+    return Student.from_document(sample_student_doc)

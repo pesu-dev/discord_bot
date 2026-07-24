@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
+from bson import ObjectId
 
 from src.cogs.anon import SlashAnon
 from src.cogs.anon.commands import AnonCommands
+from src.data.mongo import AnonBan
 from tests.helpers import get_callback
 
 if TYPE_CHECKING:
@@ -33,8 +36,8 @@ async def test_anon_send_locked_channel(
 ) -> None:
     cmd = AnonCommands()
     cmd.client = mock_bot
-    mock_bot.link_collection.find_one = AsyncMock(return_value={"userId": "1"})
-    mock_bot.anonban_collection.find_one = AsyncMock(return_value=None)
+    mock_bot.stores.links.exists = AsyncMock(return_value=True)
+    mock_bot.stores.anonbans.exists = AsyncMock(return_value=False)
     mock_bot.config.lobby_channel.permissions_for = MagicMock(return_value=MagicMock(send_messages=False))
     interaction = interaction_factory(user=member_factory())
     await get_callback(cmd.anon_send)(cmd, interaction, "hello")
@@ -46,8 +49,8 @@ async def test_anon_send_reply_link(
 ) -> None:
     cmd = AnonCommands()
     cmd.client = mock_bot
-    mock_bot.link_collection.find_one = AsyncMock(return_value={"userId": "1001"})
-    mock_bot.anonban_collection.find_one = AsyncMock(return_value=None)
+    mock_bot.stores.links.exists = AsyncMock(return_value=True)
+    mock_bot.stores.anonbans.exists = AsyncMock(return_value=False)
     mock_bot.config.lobby_channel.permissions_for = MagicMock(return_value=MagicMock(send_messages=True))
     reply_msg = MagicMock()
     sent = MagicMock()
@@ -65,8 +68,8 @@ async def test_anon_send_bad_reply_link(
 ) -> None:
     cmd = AnonCommands()
     cmd.client = mock_bot
-    mock_bot.link_collection.find_one = AsyncMock(return_value={"userId": "1001"})
-    mock_bot.anonban_collection.find_one = AsyncMock(return_value=None)
+    mock_bot.stores.links.exists = AsyncMock(return_value=True)
+    mock_bot.stores.anonbans.exists = AsyncMock(return_value=False)
     mock_bot.config.lobby_channel.permissions_for = MagicMock(return_value=MagicMock(send_messages=True))
     mock_bot.config.lobby_channel.fetch_message = AsyncMock(side_effect=discord.NotFound(MagicMock(), "x"))
     sent = MagicMock(id=1)
@@ -84,14 +87,21 @@ async def test_anon_ban_loop_expires(mock_bot: MagicMock) -> None:
     ):
         cog = SlashAnon(mock_bot)
 
-    ban = {"_id": "b1", "userId": 55}
-    mock_bot.anonban_collection.find = MagicMock(return_value=_AsyncIter([ban]))
-    mock_bot.anonban_collection.update_one = AsyncMock()
+    ban = AnonBan(
+        id=ObjectId(),
+        user_id="55",
+        reason="expired",
+        banned_at=datetime.now(UTC),
+        active=True,
+        expires_at=datetime.now(UTC),
+    )
+    mock_bot.stores.anonbans.find_expired = MagicMock(return_value=_AsyncIter([ban]))
+    mock_bot.stores.anonbans.update_one = AsyncMock()
     user = MagicMock()
     mock_bot.fetch_user = AsyncMock(return_value=user)
     with patch("src.utils.general.send_dm_safely", AsyncMock(return_value=True)) as dm:
         await SlashAnon.check_anon_bans_loop(cog)
-    mock_bot.anonban_collection.update_one.assert_awaited()
+    mock_bot.stores.anonbans.update_one.assert_awaited()
     dm.assert_awaited()
 
 

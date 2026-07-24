@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
+from bson import ObjectId
 
 from src.cogs.events.listeners import EventListeners
+from src.data.mongo import Link
 
 if TYPE_CHECKING:
     import pytest
@@ -17,35 +20,42 @@ async def test_on_member_join_unlinked_record_deleted(mock_bot: MagicMock, membe
     listeners = EventListeners()
     listeners.client = mock_bot
     member = member_factory(user_id=7)
-    link = {"_id": "l1", "userId": "7", "linkedAt": None}
-    mock_bot.link_collection.find_one = AsyncMock(return_value=link)
-    mock_bot.link_collection.delete_one = AsyncMock()
+    link = Link(id=ObjectId(), user_id="7", prn="PES1UG21CS001", linked_at=None)
+    mock_bot.stores.links.find_one = AsyncMock(return_value=link)
+    mock_bot.stores.links.delete_one = AsyncMock()
     await listeners.on_member_join(member)
     member.add_roles.assert_awaited_with(mock_bot.config.just_joined_role)
-    mock_bot.link_collection.delete_one.assert_awaited_once_with({"_id": "l1"})
+    mock_bot.stores.links.delete_one.assert_awaited_once_with(id=link.id)
 
 
 async def test_on_member_join_missing_student(
-    mock_bot: MagicMock, sample_link_doc: dict, member_factory: MemberFactory
+    mock_bot: MagicMock, sample_link: Link, member_factory: MemberFactory
 ) -> None:
     listeners = EventListeners()
     listeners.client = mock_bot
     member = member_factory(user_id=1001)
-    mock_bot.link_collection.find_one = AsyncMock(return_value=sample_link_doc)
-    mock_bot.student_collection.find_one = AsyncMock(return_value=None)
-    mock_bot.link_collection.delete_one = AsyncMock()
+    mock_bot.stores.links.find_one = AsyncMock(return_value=sample_link)
+    mock_bot.stores.students.find_one = AsyncMock(return_value=None)
+    mock_bot.stores.links.delete_one = AsyncMock()
     await listeners.on_member_join(member)
-    mock_bot.link_collection.delete_one.assert_awaited()
+    mock_bot.stores.links.delete_one.assert_awaited()
 
 
 async def test_on_member_remove_keeps_complete_link(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
     listeners = EventListeners()
     listeners.client = mock_bot
     member = member_factory(user_id=55)
-    mock_bot.link_collection.find_one = AsyncMock(return_value={"_id": "x", "userId": "55", "linkedAt": "2024-01-01"})
-    mock_bot.link_collection.delete_one = AsyncMock()
+    mock_bot.stores.links.find_one = AsyncMock(
+        return_value=Link(
+            id=ObjectId(),
+            user_id="55",
+            prn="PES1UG21CS001",
+            linked_at=datetime(2024, 1, 1, tzinfo=UTC),
+        )
+    )
+    mock_bot.stores.links.delete_one = AsyncMock()
     await listeners.on_member_remove(member)
-    mock_bot.link_collection.delete_one.assert_not_called()
+    mock_bot.stores.links.delete_one.assert_not_called()
 
 
 async def test_on_message_ignores_bots(mock_bot: MagicMock) -> None:

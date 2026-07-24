@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from src.cogs.anon import SlashAnon
 from src.cogs.mod.anon import AnonModCommands
+from src.data.mongo import AnonBan
 from tests.helpers import get_callback
 
 if TYPE_CHECKING:
@@ -27,13 +28,13 @@ async def test_ban_anon_member(
 ) -> None:
     cmd = AnonModCommands()
     cmd.client = mock_bot
-    mock_bot.anonban_collection.find_one = AsyncMock(return_value=None)
-    mock_bot.anonban_collection.insert_one = AsyncMock()
+    mock_bot.stores.anonbans.exists = AsyncMock(return_value=False)
+    mock_bot.stores.anonbans.insert_one = AsyncMock()
     interaction = interaction_factory()
     member = member_factory(user_id=44)
     with patch("src.utils.general.send_dm_safely", AsyncMock(return_value=True)):
         await get_callback(cmd.ban_anon)(cmd, interaction, member=member, link=None, time="1h", reason="spam")
-    mock_bot.anonban_collection.insert_one.assert_awaited()
+    mock_bot.stores.anonbans.insert_one.assert_awaited()
 
 
 async def test_user_unban_anon(
@@ -41,7 +42,14 @@ async def test_user_unban_anon(
 ) -> None:
     cmd = AnonModCommands()
     cmd.client = mock_bot
-    mock_bot.anonban_collection.find_one_and_update = AsyncMock(return_value={"active": True})
+    mock_bot.stores.anonbans.deactivate = AsyncMock(
+        return_value=AnonBan(
+            user_id="1",
+            reason="spam",
+            banned_at=datetime.now(UTC),
+            active=True,
+        )
+    )
     interaction = interaction_factory()
     member = member_factory()
     with patch("src.utils.general.send_dm_safely", AsyncMock(return_value=True)):
@@ -54,7 +62,7 @@ async def test_user_unban_anon_not_banned(
 ) -> None:
     cmd = AnonModCommands()
     cmd.client = mock_bot
-    mock_bot.anonban_collection.find_one_and_update = AsyncMock(return_value=None)
+    mock_bot.stores.anonbans.deactivate = AsyncMock(return_value=None)
     interaction = interaction_factory()
     await get_callback(cmd.user_unban_anon)(cmd, interaction, member_factory())
     assert "wasn't even anon-banned" in interaction.followup.send.await_args.kwargs["content"]
@@ -65,13 +73,14 @@ async def test_anon_ban_info(
 ) -> None:
     cmd = AnonModCommands()
     cmd.client = mock_bot
-    mock_bot.anonban_collection.find_one = AsyncMock(
-        return_value={
-            "reason": "spam",
-            "bannedAt": datetime.now(UTC),
-            "expiresAt": None,
-            "active": True,
-        }
+    mock_bot.stores.anonbans.find_one = AsyncMock(
+        return_value=AnonBan(
+            user_id="1",
+            reason="spam",
+            banned_at=datetime.now(UTC),
+            expires_at=None,
+            active=True,
+        )
     )
     interaction = interaction_factory()
     await get_callback(cmd.anon_ban_info)(cmd, interaction, member_factory())
@@ -85,8 +94,8 @@ async def test_anon_context_menu_ban(
     cmd.client = mock_bot
     member = member_factory(user_id=88)
     mock_bot.anon_cache = {"88": [{"message_id": "123", "timestamp": datetime.now(UTC)}]}
-    mock_bot.anonban_collection.find_one = AsyncMock(return_value=None)
-    mock_bot.anonban_collection.insert_one = AsyncMock()
+    mock_bot.stores.anonbans.exists = AsyncMock(return_value=False)
+    mock_bot.stores.anonbans.insert_one = AsyncMock()
     guild = MagicMock()
     guild.id = 1
     guild.get_member = MagicMock(return_value=member)
@@ -98,7 +107,7 @@ async def test_anon_context_menu_ban(
     message.id = 123
     with patch("src.utils.general.send_dm_safely", AsyncMock(return_value=True)):
         await get_callback(cmd.anon_ban_from_context_menu)(cmd, interaction, message)
-    mock_bot.anonban_collection.insert_one.assert_awaited()
+    mock_bot.stores.anonbans.insert_one.assert_awaited()
 
 
 async def test_anon_clear_cache_loop(mock_bot: MagicMock) -> None:
@@ -135,12 +144,12 @@ async def test_context_menu_already_banned_and_dm_fail(
     interaction.channel = MagicMock(id=2)
     message = MagicMock(id=123)
 
-    mock_bot.anonban_collection.find_one = AsyncMock(return_value={"active": True})
+    mock_bot.stores.anonbans.exists = AsyncMock(return_value=True)
     await get_callback(cmd.anon_ban_from_context_menu)(cmd, interaction, message)
     assert "already banned" in interaction.followup.send.await_args.kwargs["content"]
 
-    mock_bot.anonban_collection.find_one = AsyncMock(return_value=None)
-    mock_bot.anonban_collection.insert_one = AsyncMock()
+    mock_bot.stores.anonbans.exists = AsyncMock(return_value=False)
+    mock_bot.stores.anonbans.insert_one = AsyncMock()
     with patch("src.utils.general.send_dm_safely", AsyncMock(return_value=False)):
         await get_callback(cmd.anon_ban_from_context_menu)(cmd, interaction, message)
     assert "couldn't DM" in interaction.followup.send.await_args.kwargs["content"]
@@ -151,7 +160,7 @@ async def test_anon_ban_info_not_banned(
 ) -> None:
     cmd = AnonModCommands()
     cmd.client = mock_bot
-    mock_bot.anonban_collection.find_one = AsyncMock(return_value=None)
+    mock_bot.stores.anonbans.find_one = AsyncMock(return_value=None)
     interaction = interaction_factory()
     await get_callback(cmd.anon_ban_info)(cmd, interaction, member_factory())
     assert "not banned" in interaction.followup.send.await_args.kwargs["content"]
@@ -162,7 +171,14 @@ async def test_unban_dm_closed(
 ) -> None:
     cmd = AnonModCommands()
     cmd.client = mock_bot
-    mock_bot.anonban_collection.find_one_and_update = AsyncMock(return_value={"active": True})
+    mock_bot.stores.anonbans.deactivate = AsyncMock(
+        return_value=AnonBan(
+            user_id="1",
+            reason="spam",
+            banned_at=datetime.now(UTC),
+            active=True,
+        )
+    )
     interaction = interaction_factory()
     with patch("src.utils.general.send_dm_safely", AsyncMock(return_value=False)):
         await get_callback(cmd.user_unban_anon)(cmd, interaction, member_factory())
@@ -175,15 +191,15 @@ async def test_ban_anon_via_link(
     cmd = AnonModCommands()
     cmd.client = mock_bot
     member = member_factory(user_id=42)
-    mock_bot.anonban_collection.find_one = AsyncMock(return_value=None)
-    mock_bot.anonban_collection.insert_one = AsyncMock()
+    mock_bot.stores.anonbans.exists = AsyncMock(return_value=False)
+    mock_bot.stores.anonbans.insert_one = AsyncMock()
     interaction = interaction_factory()
     with (
         patch.object(cmd, "_handle_ban_message_link", AsyncMock(return_value=member)),
         patch("src.utils.general.send_dm_safely", AsyncMock(return_value=True)),
     ):
         await get_callback(cmd.ban_anon)(cmd, interaction, member=None, link="https://x/1")
-    mock_bot.anonban_collection.insert_one.assert_awaited()
+    mock_bot.stores.anonbans.insert_one.assert_awaited()
 
 
 async def test_context_menu_not_anon(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:

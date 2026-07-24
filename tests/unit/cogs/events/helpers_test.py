@@ -4,9 +4,11 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 
 import discord
+from bson import ObjectId
 
 from src.cogs.events.helpers import EventHelpers
 from src.cogs.events.listeners import EventListeners
+from src.data.mongo import Branch, Campus, Link, Student
 
 if TYPE_CHECKING:
     from tests.conftest import MemberFactory
@@ -70,16 +72,16 @@ def test_ghost_ping_field_helpers() -> None:
 
 async def test_on_member_join_assigns_linked_roles(
     mock_bot: MagicMock,
-    sample_link_doc: dict,
-    sample_student_doc: dict,
+    sample_link: Link,
+    sample_student: Student,
     member_factory: MemberFactory,
 ) -> None:
     listeners = EventListeners()
     listeners.client = mock_bot
     member = member_factory(user_id=1001)
 
-    mock_bot.link_collection.find_one = AsyncMock(return_value=sample_link_doc)
-    mock_bot.student_collection.find_one = AsyncMock(return_value=sample_student_doc)
+    mock_bot.stores.links.find_one = AsyncMock(return_value=sample_link)
+    mock_bot.stores.students.find_one = AsyncMock(return_value=sample_student)
 
     await listeners.on_member_join(member)
 
@@ -87,35 +89,40 @@ async def test_on_member_join_assigns_linked_roles(
     member.add_roles.assert_awaited()
     roles = member.add_roles.await_args.args
     assert mock_bot.config.linked_role in roles
-    mock_bot.link_collection.delete_one.assert_not_called()
+    mock_bot.stores.links.delete_one.assert_not_called()
 
 
 async def test_on_member_join_incomplete_student_deletes_link(
     mock_bot: MagicMock,
-    sample_link_doc: dict,
+    sample_link: Link,
     member_factory: MemberFactory,
 ) -> None:
     listeners = EventListeners()
     listeners.client = mock_bot
     member = member_factory(user_id=1001)
 
-    mock_bot.link_collection.find_one = AsyncMock(return_value=sample_link_doc)
-    mock_bot.student_collection.find_one = AsyncMock(
-        return_value={"prn": "PES1UG21CS001", "year": "2021"}  # missing branch/campus
+    # Empty branch short skips that role → fewer than 3 academic roles → delete link
+    incomplete = Student(
+        prn="PES1UG21CS001",
+        year="2021",
+        branch=Branch(full="Computer Science", short=""),
+        campus=Campus(code=1, short="RR"),
     )
-    mock_bot.link_collection.delete_one = AsyncMock()
+    mock_bot.stores.links.find_one = AsyncMock(return_value=sample_link)
+    mock_bot.stores.students.find_one = AsyncMock(return_value=incomplete)
+    mock_bot.stores.links.delete_one = AsyncMock()
 
     await listeners.on_member_join(member)
 
     member.add_roles.assert_awaited_with(mock_bot.config.just_joined_role)
-    mock_bot.link_collection.delete_one.assert_awaited_once_with({"_id": sample_link_doc["_id"]})
+    mock_bot.stores.links.delete_one.assert_awaited_once_with(id=sample_link.id)
 
 
 async def test_on_member_join_no_link(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
     listeners = EventListeners()
     listeners.client = mock_bot
     member = member_factory()
-    mock_bot.link_collection.find_one = AsyncMock(return_value=None)
+    mock_bot.stores.links.find_one = AsyncMock(return_value=None)
 
     await listeners.on_member_join(member)
     member.add_roles.assert_awaited_with(mock_bot.config.just_joined_role)
@@ -125,11 +132,12 @@ async def test_on_member_remove_deletes_incomplete_link(mock_bot: MagicMock, mem
     listeners = EventListeners()
     listeners.client = mock_bot
     member = member_factory(user_id=55)
-    mock_bot.link_collection.find_one = AsyncMock(return_value={"_id": "x", "userId": "55", "linkedAt": None})
-    mock_bot.link_collection.delete_one = AsyncMock()
+    link = Link(id=ObjectId(), user_id="55", prn="PES1UG21CS001", linked_at=None)
+    mock_bot.stores.links.find_one = AsyncMock(return_value=link)
+    mock_bot.stores.links.delete_one = AsyncMock()
 
     await listeners.on_member_remove(member)
-    mock_bot.link_collection.delete_one.assert_awaited_once_with({"_id": "x"})
+    mock_bot.stores.links.delete_one.assert_awaited_once_with(id=link.id)
 
 
 async def test_on_message_delete_sends_ghost_ping(mock_bot: MagicMock) -> None:

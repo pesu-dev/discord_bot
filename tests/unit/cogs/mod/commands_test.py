@@ -232,8 +232,8 @@ async def test_apply_anon_ban_dm_closed(
 ) -> None:
     helpers = _Helpers()
     helpers.client = mock_bot
-    mock_bot.anonban_collection.find_one = AsyncMock(return_value=None)
-    mock_bot.anonban_collection.insert_one = AsyncMock()
+    mock_bot.stores.anonbans.exists = AsyncMock(return_value=False)
+    mock_bot.stores.anonbans.insert_one = AsyncMock()
     interaction = interaction_factory()
     with patch("src.utils.general.send_dm_safely", AsyncMock(return_value=False)):
         await helpers._apply_anon_ban(interaction, member_factory(), time=None, reason="x", message_link="https://x")

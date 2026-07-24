@@ -7,57 +7,55 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import discord
 
 from src.cogs.mod import SlashMod
-from src.cogs.mod.helpers import ModHelpers
+from src.data.mongo import Mute
 
 if TYPE_CHECKING:
     from tests.conftest import MemberFactory
 
 
-class _Helpers(ModHelpers):
-    pass
-
-
 async def test_mute_document_round_trip(wired_bot: MagicMock) -> None:
     now = datetime.now(UTC)
-    record = {
-        "user_id": 12345,
-        "channel_id": 2001,
-        "moderator_id": 1,
-        "mute_time": now,
-        "unmute_time": now + timedelta(hours=1),
-        "reason": "test",
-        "active": True,
-        "is_self_mute": False,
-    }
-    result = await wired_bot.mute_collection.insert_one(record)
-    found = await wired_bot.mute_collection.find_one({"_id": result.inserted_id})
-    assert found is not None
-    assert found["active"] is True
-    assert found["user_id"] == 12345
-
-    await wired_bot.mute_collection.update_many(
-        {"user_id": 12345, "active": True},
-        {"$set": {"active": False, "unmute_type": "manual"}},
+    mute = Mute(
+        user_id=12345,
+        channel_id=2001,
+        moderator_id=1,
+        mute_time=now,
+        unmute_time=now + timedelta(hours=1),
+        reason="test",
+        active=True,
+        is_self_mute=False,
     )
-    updated = await wired_bot.mute_collection.find_one({"_id": result.inserted_id})
-    assert updated["active"] is False
-    assert updated["unmute_type"] == "manual"
+    result = await wired_bot.stores.mutes.insert_one(mute)
+    found = await wired_bot.stores.mutes.find_one(id=result.inserted_id)
+    assert found is not None
+    assert found.active is True
+    assert found.user_id == 12345
+
+    await wired_bot.stores.mutes.deactivate_active(
+        12345,
+        unmute_time=now,
+        unmute_type="manual",
+        unmuted_by=1,
+    )
+    updated = await wired_bot.stores.mutes.find_one(id=result.inserted_id)
+    assert updated is not None
+    assert updated.active is False
+    assert updated.unmute_type == "manual"
 
 
 async def test_mute_loop_expires_with_real_mongo(wired_bot: MagicMock, member_factory: MemberFactory) -> None:
     now = datetime.now(UTC)
-    inserted = await wired_bot.mute_collection.insert_one(
-        {
-            "user_id": 50,
-            "channel_id": 2001,
-            "moderator_id": 1,
-            "mute_time": now - timedelta(hours=2),
-            "unmute_time": now - timedelta(seconds=5),
-            "reason": "expired",
-            "active": True,
-            "is_self_mute": False,
-        }
+    mute = Mute(
+        user_id=50,
+        channel_id=2001,
+        moderator_id=1,
+        mute_time=now - timedelta(hours=2),
+        unmute_time=now - timedelta(seconds=5),
+        reason="expired",
+        active=True,
+        is_self_mute=False,
     )
+    inserted = await wired_bot.stores.mutes.insert_one(mute)
 
     with patch.object(
         SlashMod,
@@ -76,7 +74,8 @@ async def test_mute_loop_expires_with_real_mongo(wired_bot: MagicMock, member_fa
 
     await SlashMod.check_mutes_loop(cog)
 
-    doc = await wired_bot.mute_collection.find_one({"_id": inserted.inserted_id})
-    assert doc["active"] is False
-    assert doc["unmute_type"] == "loop_auto"
+    doc = await wired_bot.stores.mutes.find_one(id=inserted.inserted_id)
+    assert doc is not None
+    assert doc.active is False
+    assert doc.unmute_type == "loop_auto"
     member.remove_roles.assert_awaited()

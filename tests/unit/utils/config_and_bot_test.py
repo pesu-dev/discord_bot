@@ -66,8 +66,9 @@ async def test_bot_init_db_success(monkeypatch: pytest.MonkeyPatch) -> None:
 
         bot = DiscordBot()
         await bot.init_db()
-        assert bot.link_collection is not None
-        assert bot.mute_collection is not None
+        assert bot.stores is not None
+        assert bot.stores.links is not None
+        assert bot.stores.mutes is not None
 
 
 async def test_bot_init_db_failure(monkeypatch: pytest.MonkeyPatch) -> None:

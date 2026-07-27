@@ -108,6 +108,43 @@ async def test_requires_roles_allows_mod(
         assert await handler(_Cog(mock_bot), interaction) == "ok"
 
 
+async def test_requires_roles_forbid_rejects_when_present(
+    mock_bot: MagicMock, member_factory: MemberFactory, interaction_factory: InteractionFactory
+) -> None:
+    member = member_factory(roles=[mock_bot.config.linked_role])
+    interaction = interaction_factory(user=member)
+
+    @bot_decorators.defer(ephemeral=True)
+    @bot_decorators.requires_roles(
+        bot_decorators.FunctionalRole.LINKED,
+        forbid=True,
+        message="already linked",
+    )
+    async def handler(self: _Cog, interaction: discord.Interaction) -> str:
+        return "ok"
+
+    with patch("src.utils.decorators._get_member", return_value=member):
+        result = await handler(_Cog(mock_bot), interaction)
+
+    assert result is None
+    assert interaction.followup.send.await_args.kwargs["content"] == "already linked"
+
+
+async def test_requires_roles_forbid_allows_when_absent(
+    mock_bot: MagicMock, member_factory: MemberFactory, interaction_factory: InteractionFactory
+) -> None:
+    member = member_factory(roles=[])
+    interaction = interaction_factory(user=member)
+
+    @bot_decorators.defer(ephemeral=True)
+    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.LINKED, forbid=True)
+    async def handler(self: _Cog, interaction: discord.Interaction) -> str:
+        return "ok"
+
+    with patch("src.utils.decorators._get_member", return_value=member):
+        assert await handler(_Cog(mock_bot), interaction) == "ok"
+
+
 async def test_handle_command_errors_catches(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     interaction = interaction_factory()
 

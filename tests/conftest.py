@@ -59,6 +59,7 @@ def make_member(
     member.id = user_id
     member.bot = bot
     member.roles = list(roles or [])
+    member.name = f"user{user_id}"
     member.mention = f"<@{user_id}>"
     member.display_avatar = MagicMock()
     member.display_avatar.url = "https://cdn.example/avatar.png"
@@ -188,6 +189,9 @@ def fake_config(functional_roles: dict[str, MagicMock]) -> MagicMock:
     config.bot_logs_channel = make_text_channel(channel_id=Config.CHANNELS["BOT_LOGS"])
     config.mod_logs_channel = make_text_channel(channel_id=Config.CHANNELS["MOD_LOGS"])
     config.lobby_channel = make_text_channel(channel_id=Config.CHANNELS["LOBBY"])
+    config.additional_roles_channel = make_text_channel(channel_id=Config.CHANNELS["ADDITIONAL_ROLES"])
+    config.verification_logs_channel = make_text_channel(channel_id=Config.CHANNELS["VERIFICATION_LOGS"])
+    config.error_logs_channel = make_text_channel(channel_id=Config.CHANNELS["ERROR_LOGS"])
     return config
 
 

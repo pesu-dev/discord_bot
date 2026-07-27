@@ -217,6 +217,25 @@ async def test_typed_collection_crud() -> None:
     assert updated is not None
 
 
+async def test_student_upsert_by_prn() -> None:
+    coll = _collection()
+    coll.update_one = AsyncMock()
+    store = StudentStore(coll)
+    student = Student(
+        prn="PES1UG21CS001",
+        year="2021",
+        branch=Branch(full="CSE Full", short="CSE"),
+        campus=Campus(code=1, short="RR"),
+    )
+    await store.upsert_by_prn(student)
+    coll.update_one.assert_awaited_once()
+    args, kwargs = coll.update_one.await_args
+    assert args[0] == {"prn": "PES1UG21CS001"}
+    assert kwargs["upsert"] is True
+    assert args[1]["$set"]["year"] == "2021"
+    assert args[1]["$setOnInsert"]["prn"] == "PES1UG21CS001"
+
+
 async def test_typed_collection_errors() -> None:
     store = LinkStore(_collection())
     with pytest.raises(TypeError, match="Unknown field"):

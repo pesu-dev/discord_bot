@@ -21,10 +21,23 @@ class GeneralCommands(GeneralHelpers):
     cached_data: dict | None
 
     @app_commands.command(name="link", description="Link your PESU account to Discord")
+    @app_commands.describe(
+        username="PESU Academy username",
+        password="PESU Academy password",
+    )
     @bot_decorators.defer(ephemeral=True)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
-    async def link(self, interaction: discord.Interaction) -> None:
-        await interaction.followup.send("Coming soon", ephemeral=True)
+    @bot_decorators.requires_roles(
+        bot_decorators.FunctionalRole.LINKED,
+        forbid=True,
+        message="This Discord user is already linked to a PESU Academy account",
+    )
+    @bot_decorators.handle_command_errors()
+    async def link(self, interaction: discord.Interaction, username: str, password: str) -> None:
+        message, followup = await self.link_account(interaction.user, username, password)
+        await interaction.followup.send(content=message, ephemeral=True)
+        if followup is not None:
+            await interaction.followup.send(content=followup, ephemeral=True)
 
     @app_commands.command(name="info", description="Get info about a user")
     @app_commands.describe(user="User to fetch info about")

@@ -56,6 +56,9 @@ class Config:
         "Bachelor of Design": "B.DES",
     }
 
+    # PESU Academy auth service (used by /link).
+    PESU_AUTH_URL = "https://pesu-auth.onrender.com/authenticate"
+
     # Channel IDs
     CHANNELS = {
         "BOT_LOGS": 786084620944146504,
@@ -63,6 +66,9 @@ class Config:
         "NQN_LOGS": 927077979383824484,
         "WELCOME": 742946580285620225,
         "LOBBY": 860224115633160203,
+        "ADDITIONAL_ROLES": 778823213345538068,
+        "VERIFICATION_LOGS": 1100722146956820510,
+        "ERROR_LOGS": 1129317221848596490,
     }
 
     @staticmethod
@@ -118,11 +124,11 @@ class Config:
         return role
 
     def get_channel(self, name: str) -> discord.TextChannel | discord.Thread:
-        """Get channel by name using discord.py utilities."""
+        """Get channel or thread by config name."""
         channel_id = self.CHANNELS.get(name)
         if channel_id is None:
             raise ValueError(f"Channel '{name}' not found")
-        channel = self.guild.get_channel(channel_id)
+        channel = self.guild.get_channel_or_thread(channel_id)
         if isinstance(channel, discord.TextChannel | discord.Thread):
             return channel
         raise ValueError(f"Channel with ID {channel_id} not found")
@@ -172,6 +178,27 @@ class Config:
         return self.get_channel("MOD_LOGS")
 
     @property
-    def lobby_channel(self) -> discord.TextChannel | discord.Thread:
+    def lobby_channel(self) -> discord.TextChannel:
         """Get lobby channel."""
-        return self.get_channel("LOBBY")
+        channel = self.get_channel("LOBBY")
+        if not isinstance(channel, discord.TextChannel):
+            raise ValueError("LOBBY must be a text channel")
+        return channel
+
+    @property
+    def additional_roles_channel(self) -> discord.TextChannel:
+        """Get additional roles channel."""
+        channel = self.get_channel("ADDITIONAL_ROLES")
+        if not isinstance(channel, discord.TextChannel):
+            raise ValueError("ADDITIONAL_ROLES must be a text channel")
+        return channel
+
+    @property
+    def verification_logs_channel(self) -> discord.TextChannel | discord.Thread:
+        """Get verification logs thread/channel."""
+        return self.get_channel("VERIFICATION_LOGS")
+
+    @property
+    def error_logs_channel(self) -> discord.TextChannel | discord.Thread:
+        """Get error logs thread/channel."""
+        return self.get_channel("ERROR_LOGS")

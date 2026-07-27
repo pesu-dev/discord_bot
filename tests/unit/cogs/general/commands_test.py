@@ -10,7 +10,7 @@ import respx
 
 from src.cogs.general.commands import GeneralCommands
 from src.cogs.general.components import RoleSelect
-from src.cogs.general.helpers import GeneralHelpers
+from src.cogs.general.helpers import ONBOARDING_CHECKLIST, GeneralHelpers, LinkMessage
 from tests.helpers import get_callback
 
 if TYPE_CHECKING:
@@ -19,12 +19,33 @@ if TYPE_CHECKING:
     from tests.conftest import InteractionFactory, MemberFactory
 
 
-async def test_link_coming_soon(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
+async def test_link_invokes_orchestration(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
     cmd = GeneralCommands()
     cmd.client = mock_bot
-    interaction = interaction_factory()
-    await get_callback(cmd.link)(cmd, interaction)
-    assert "Coming soon" in interaction.followup.send.await_args.args[0]
+    member = member_factory()
+    interaction = interaction_factory(user=member)
+    with patch.object(cmd, "link_account", AsyncMock(return_value=("User linked successfully", None))) as link_account:
+        await get_callback(cmd.link)(cmd, interaction, "PES1UG21CS001", "secret")
+    link_account.assert_awaited_once_with(member, "PES1UG21CS001", "secret")
+    interaction.followup.send.assert_awaited_once_with(content="User linked successfully", ephemeral=True)
+
+
+async def test_link_onboarding_incomplete_sends_checklist(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
+    cmd = GeneralCommands()
+    cmd.client = mock_bot
+    member = member_factory()
+    interaction = interaction_factory(user=member)
+    with patch.object(
+        cmd, "link_account", AsyncMock(return_value=(LinkMessage.ONBOARDING_INCOMPLETE, ONBOARDING_CHECKLIST))
+    ):
+        await get_callback(cmd.link)(cmd, interaction, "PES1UG21CS001", "secret")
+    assert interaction.followup.send.await_count == 2
+    assert interaction.followup.send.await_args_list[0].kwargs["content"] == LinkMessage.ONBOARDING_INCOMPLETE
+    assert interaction.followup.send.await_args_list[1].kwargs["content"] == ONBOARDING_CHECKLIST
 
 
 async def test_info_with_roles(

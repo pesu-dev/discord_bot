@@ -20,6 +20,7 @@ The bot is built with security and privacy in mind, ensuring safe and effective 
 The bot is currently deployed and active in the PESU Discord Server. Use slash commands to interact with the bot:
 
 - Type `/` in any channel to see available commands
+- Use `/link <username> <password>` to link your PESU Academy account (primary linking path)
 - Use `/help` for detailed command documentation
 - Contact moderators for support with bot-related issues
 
@@ -97,7 +98,7 @@ Refer to our Contributing Guide for environment setup and the list of variables:
 
 ### `src/utils/config.py`
 
-Holds guild-specific functional role and channel ID mappings (`get_role` / `get_channel`). Academic roles (year, branch, campus) are resolved at runtime by Discord role name and color `0x818689` via `resolve_academic_role`. `BRANCH_SHORT_CODES` maps PESU full branch names to Discord short names (from auth-link-portal; Civil Engineering → `CV`).
+Holds guild-specific functional role and channel ID mappings (`get_role` / `get_channel`). Academic roles (year, branch, campus) are resolved at runtime by Discord role name and color `0x818689` via `resolve_academic_role`. `BRANCH_SHORT_CODES` maps PESU full branch names to Discord short names (from auth-link-portal; Civil Engineering → `CV`). `PESU_AUTH_URL` and verification/error/additional-roles channel IDs support `/link`.
 
 ### `faq.json`
 

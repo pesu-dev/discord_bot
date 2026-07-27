@@ -7,6 +7,7 @@ import discord
 import pytest
 
 from src.utils.general import (
+    DM_AUTO_GENERATED_NOTICE,
     build_embed,
     build_unknown_error_embed,
     discover_cog_extensions,
@@ -68,11 +69,43 @@ def test_build_unknown_error_embed() -> None:
     assert any(f.name == "Error Type" and f.value == "RuntimeError" for f in embed.fields)
 
 
-async def test_send_dm_safely_success() -> None:
+async def test_send_dm_safely_embed_only_adds_notice_embed() -> None:
     user = MagicMock()
     user.send = AsyncMock()
-    assert await send_dm_safely(user, build_embed(title="x")) is True
-    user.send.assert_awaited_once()
+    embed = build_embed(title="x", description="body", footer="keep me")
+    assert await send_dm_safely(user, embed) is True
+    assert user.send.await_args.kwargs["content"] is None
+    sent_embeds = user.send.await_args.kwargs["embeds"]
+    assert sent_embeds[0] is embed
+    assert sent_embeds[0].description == "body"
+    assert sent_embeds[0].footer.text == "keep me"
+    assert sent_embeds[1].description == DM_AUTO_GENERATED_NOTICE
+
+
+async def test_send_dm_safely_content_only_adds_notice_embed() -> None:
+    user = MagicMock()
+    user.send = AsyncMock()
+    assert await send_dm_safely(user, content="hello") is True
+    sent_embeds = user.send.await_args.kwargs["embeds"]
+    assert user.send.await_args.kwargs["content"] == "hello"
+    assert len(sent_embeds) == 1
+    assert sent_embeds[0].description == DM_AUTO_GENERATED_NOTICE
+
+
+async def test_send_dm_safely_content_and_embed_sends_two_embeds() -> None:
+    user = MagicMock()
+    user.send = AsyncMock()
+    embed = build_embed(title="x", description="body")
+    assert await send_dm_safely(user, embed, content="hello") is True
+    sent_embeds = user.send.await_args.kwargs["embeds"]
+    assert user.send.await_args.kwargs["content"] == "hello"
+    assert sent_embeds[0] is embed
+    assert sent_embeds[1].description == DM_AUTO_GENERATED_NOTICE
+
+
+async def test_send_dm_safely_requires_payload() -> None:
+    with pytest.raises(ValueError, match="embed and/or content"):
+        await send_dm_safely(MagicMock())
 
 
 async def test_send_dm_safely_forbidden() -> None:

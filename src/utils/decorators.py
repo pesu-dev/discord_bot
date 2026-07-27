@@ -166,7 +166,13 @@ def requires_location(
 def requires_roles(
     *roles: FunctionalRole,
     message: str | None = None,
+    forbid: bool = False,
 ) -> Callable[[Callable[P, Awaitable[R]]], Callable[P, Awaitable[R | None]]]:
+    """Require (or forbid) one of the given functional roles.
+
+    When ``forbid`` is False (default), the member must have at least one listed role.
+    When ``forbid`` is True, the member must have none of the listed roles.
+    """
     rejection_message = message or "You are not authorised to run this command."
 
     def decorator(func: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R | None]]:
@@ -181,7 +187,12 @@ def requires_roles(
                 return None
 
             config: Config = args[0].client.config  # type: ignore[attr-defined, union-attr]
-            if not any(_member_has_role(member, role, config) for role in roles):
+            has_role = any(_member_has_role(member, role, config) for role in roles)
+            if forbid:
+                if has_role:
+                    await _send_rejection(ctx_or_interaction, rejection_message, ephemeral=ephemeral)
+                    return None
+            elif not has_role:
                 await _send_rejection(ctx_or_interaction, rejection_message, ephemeral=ephemeral)
                 return None
 

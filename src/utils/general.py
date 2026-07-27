@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from src.utils.config import Config
 
 COGS_PACKAGE = "src.cogs"
+DM_AUTO_GENERATED_NOTICE = "(Do not reply to this bot. This message was auto-generated, and replies are not monitored.)"
 
 
 def parse_time(time_str: str) -> int:
@@ -60,10 +61,26 @@ def build_embed(
     return embed
 
 
-async def send_dm_safely(user: discord.User | discord.Member, embed: discord.Embed) -> bool:
-    """Send a DM to a user, returning True on success and False if it could not be delivered."""
+async def send_dm_safely(
+    user: discord.User | discord.Member,
+    embed: discord.Embed | None = None,
+    *,
+    content: str | None = None,
+) -> bool:
+    """Send a DM to a user, returning True on success and False if it could not be delivered.
+
+    At least one of ``embed`` or ``content`` must be provided.
+    """
+    if embed is None and content is None:
+        raise ValueError("send_dm_safely requires embed and/or content")
+
+    embeds: list[discord.Embed] = []
+    if embed is not None:
+        embeds.append(embed)
+    embeds.append(build_embed(description=DM_AUTO_GENERATED_NOTICE))
+
     try:
-        await user.send(embed=embed)
+        await user.send(content=content, embeds=embeds)
         return True
     except (discord.Forbidden, discord.HTTPException):
         return False

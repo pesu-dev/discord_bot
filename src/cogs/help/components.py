@@ -29,7 +29,7 @@ HELP_PAGES: dict[str, list[tuple[str, list[dict]]]] = {
         (
             "General Commands",
             [
-                {"name": "Link your Account", "value": "`/link`"},
+                {"name": "Link your Account", "value": "`/link <username> <password>`"},
                 {"name": "User Info", "value": "`/info`"},
             ],
         ),
@@ -105,7 +105,7 @@ class HelpEmbeds:
                 title="PESU Bot",
                 color=purple,
                 description=f"Visit {welcome.mention} to get started, then link your account below.",
-                fields=[{"name": "Link your Account", "value": "`/link`"}],
+                fields=[{"name": "Link your Account", "value": "`/link <username> <password>`"}],
             ),
         ]
 

@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 from src.data.mongo._base import TypedCollection, omit_none, parse_object_id
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from bson import ObjectId
 
 
@@ -92,3 +91,23 @@ class StudentStore(TypedCollection[Student]):
         "created_at": "createdAt",
         "updated_at": "updatedAt",
     }
+
+    async def upsert_by_prn(self, student: Student) -> None:
+        """Create or update a student document keyed by PRN."""
+        now = datetime.now(UTC)
+        await self._collection.update_one(
+            {"prn": student.prn},
+            {
+                "$set": {
+                    "branch": student.branch.to_document(),
+                    "year": student.year,
+                    "campus": student.campus.to_document(),
+                    "updatedAt": now,
+                },
+                "$setOnInsert": {
+                    "prn": student.prn,
+                    "createdAt": now,
+                },
+            },
+            upsert=True,
+        )

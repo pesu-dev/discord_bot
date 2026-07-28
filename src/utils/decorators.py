@@ -29,6 +29,7 @@ class CommandLocation(StrEnum):
 class FunctionalRole(StrEnum):
     ADMIN = "ADMIN"
     MOD = "MOD"
+    JUNIOR_MOD = "JUNIOR_MOD"
     BOT_DEV = "BOT_DEV"
     LINKED = "LINKED"
     JUST_JOINED = "JUST_JOINED"

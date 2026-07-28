@@ -29,6 +29,7 @@ class Config:
     ROLES = {
         "ADMIN": 742800061280550923,
         "MOD": 742798158966292640,
+        "JUNIOR_MOD": 1518781529600295113,
         "BOT_DEV": 750556082371559485,
         "LINKED": 749683320941445250,
         "JUST_JOINED": 798765678739062804,
@@ -144,6 +145,11 @@ class Config:
     def mod_role(self) -> discord.Role:
         """Get moderator role."""
         return self.get_role("MOD")
+
+    @property
+    def junior_mod_role(self) -> discord.Role:
+        """Get junior moderator role."""
+        return self.get_role("JUNIOR_MOD")
 
     @property
     def bot_dev_role(self) -> discord.Role:

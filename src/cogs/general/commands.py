@@ -145,7 +145,11 @@ class GeneralCommands(GeneralHelpers):
     @app_commands.describe(channel="The channel to send the role selection in (default: current channel)")
     @bot_decorators.defer(ephemeral=True)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
-    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.requires_roles(
+        bot_decorators.FunctionalRole.ADMIN,
+        bot_decorators.FunctionalRole.MOD,
+        bot_decorators.FunctionalRole.JUNIOR_MOD,
+    )
     @bot_decorators.handle_command_errors()
     async def addroles_command(
         self,

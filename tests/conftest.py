@@ -142,6 +142,7 @@ def fake_config(functional_roles: dict[str, MagicMock]) -> MagicMock:
 
     config.admin_role = functional_roles["ADMIN"]
     config.mod_role = functional_roles["MOD"]
+    config.junior_mod_role = functional_roles["JUNIOR_MOD"]
     config.bot_dev_role = functional_roles["BOT_DEV"]
     config.linked_role = functional_roles["LINKED"]
     config.just_joined_role = functional_roles["JUST_JOINED"]

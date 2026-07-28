@@ -100,7 +100,30 @@ async def test_requires_roles_allows_mod(
     interaction = interaction_factory(user=member)
 
     @bot_decorators.defer(ephemeral=True)
-    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.requires_roles(
+        bot_decorators.FunctionalRole.ADMIN,
+        bot_decorators.FunctionalRole.MOD,
+        bot_decorators.FunctionalRole.JUNIOR_MOD,
+    )
+    async def handler(self: _Cog, interaction: discord.Interaction) -> str:
+        return "ok"
+
+    with patch("src.utils.decorators._get_member", return_value=member):
+        assert await handler(_Cog(mock_bot), interaction) == "ok"
+
+
+async def test_requires_roles_allows_junior_mod(
+    mock_bot: MagicMock, member_factory: MemberFactory, interaction_factory: InteractionFactory
+) -> None:
+    member = member_factory(roles=[mock_bot.config.junior_mod_role])
+    interaction = interaction_factory(user=member)
+
+    @bot_decorators.defer(ephemeral=True)
+    @bot_decorators.requires_roles(
+        bot_decorators.FunctionalRole.ADMIN,
+        bot_decorators.FunctionalRole.MOD,
+        bot_decorators.FunctionalRole.JUNIOR_MOD,
+    )
     async def handler(self: _Cog, interaction: discord.Interaction) -> str:
         return "ok"
 
@@ -161,6 +184,7 @@ async def test_handle_command_errors_catches(mock_bot: MagicMock, interaction_fa
 
 def test_functional_role_config_attr() -> None:
     assert bot_decorators.FunctionalRole.BOT_DEV.config_attr == "bot_dev_role"
+    assert bot_decorators.FunctionalRole.JUNIOR_MOD.config_attr == "junior_mod_role"
 
 
 def test_is_guild_and_dm_helpers() -> None:

@@ -26,7 +26,11 @@ class AnonModCommands(ModHelpers):
     )
     @bot_decorators.defer(ephemeral=True)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
-    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.requires_roles(
+        bot_decorators.FunctionalRole.ADMIN,
+        bot_decorators.FunctionalRole.MOD,
+        bot_decorators.FunctionalRole.JUNIOR_MOD,
+    )
     @bot_decorators.handle_command_errors()
     async def ban_anon(
         self,
@@ -65,7 +69,11 @@ class AnonModCommands(ModHelpers):
 
     @bot_decorators.defer(ephemeral=True)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
-    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.requires_roles(
+        bot_decorators.FunctionalRole.ADMIN,
+        bot_decorators.FunctionalRole.MOD,
+        bot_decorators.FunctionalRole.JUNIOR_MOD,
+    )
     @bot_decorators.handle_command_errors()
     async def anon_ban_from_context_menu(self, interaction: discord.Interaction, message: discord.Message) -> None:
         ban_user = self._find_user_from_message(str(message.id), interaction.guild)
@@ -111,7 +119,11 @@ class AnonModCommands(ModHelpers):
     @app_commands.describe(member="The member to unban")
     @bot_decorators.defer(ephemeral=True)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
-    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.requires_roles(
+        bot_decorators.FunctionalRole.ADMIN,
+        bot_decorators.FunctionalRole.MOD,
+        bot_decorators.FunctionalRole.JUNIOR_MOD,
+    )
     @bot_decorators.handle_command_errors()
     async def user_unban_anon(self, interaction: discord.Interaction, member: discord.Member) -> None:
         result = await self.client.stores.anonbans.deactivate(str(member.id))
@@ -137,7 +149,11 @@ class AnonModCommands(ModHelpers):
     @app_commands.describe(member="The member to get info about")
     @bot_decorators.defer(ephemeral=True)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
-    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.requires_roles(
+        bot_decorators.FunctionalRole.ADMIN,
+        bot_decorators.FunctionalRole.MOD,
+        bot_decorators.FunctionalRole.JUNIOR_MOD,
+    )
     @bot_decorators.handle_command_errors()
     async def anon_ban_info(self, interaction: discord.Interaction, member: discord.Member) -> None:
         ban = await self.client.stores.anonbans.find_one(user_id=str(member.id), active=True)

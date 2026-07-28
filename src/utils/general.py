@@ -152,7 +152,9 @@ def mod_target_error(
     """Return user-facing error string, or None if target is valid."""
     if member.bot:
         return "You dare target one of my kind nin amn"
-    if not allow_mod_target and any(role in member.roles for role in (config.admin_role, config.mod_role)):
+    if not allow_mod_target and any(
+        role in member.roles for role in (config.admin_role, config.mod_role, config.junior_mod_role)
+    ):
         return "Leyy, he's admin/mod. Can't target them"
     return None
 

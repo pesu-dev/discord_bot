@@ -25,7 +25,11 @@ class ModCommands(ModHelpers):
     @app_commands.describe(member="The member to kick", reason="Reason for the kick")
     @bot_decorators.defer(ephemeral=False)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
-    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.requires_roles(
+        bot_decorators.FunctionalRole.ADMIN,
+        bot_decorators.FunctionalRole.MOD,
+        bot_decorators.FunctionalRole.JUNIOR_MOD,
+    )
     @bot_decorators.handle_command_errors(
         not_found="This user doesn't even exist here, who are you trying to kick?",
         forbidden="I am unable to kick this user at this time",
@@ -66,7 +70,7 @@ class ModCommands(ModHelpers):
     @bot_decorators.requires_roles(
         bot_decorators.FunctionalRole.ADMIN,
         bot_decorators.FunctionalRole.MOD,
-        bot_decorators.FunctionalRole.BOT_DEV,
+        bot_decorators.FunctionalRole.JUNIOR_MOD,
     )
     @bot_decorators.handle_command_errors(
         not_found="The specified channel does not exist",
@@ -124,7 +128,12 @@ class ModCommands(ModHelpers):
             is_self_mute = True
         else:
             if not any(
-                role in interaction.user.roles for role in (self.client.config.admin_role, self.client.config.mod_role)
+                role in interaction.user.roles
+                for role in (
+                    self.client.config.admin_role,
+                    self.client.config.mod_role,
+                    self.client.config.junior_mod_role,
+                )
             ):
                 await interaction.followup.send(content="You are not authorised to do that", ephemeral=True)
                 return
@@ -201,7 +210,11 @@ class ModCommands(ModHelpers):
     @app_commands.describe(member="The member to unmute")
     @bot_decorators.defer(ephemeral=False)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
-    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.requires_roles(
+        bot_decorators.FunctionalRole.ADMIN,
+        bot_decorators.FunctionalRole.MOD,
+        bot_decorators.FunctionalRole.JUNIOR_MOD,
+    )
     @bot_decorators.handle_command_errors(
         not_found="This user doesn't even exist here, who are you trying to unmute?",
         forbidden="I am unable to unmute this user at this time",
@@ -242,7 +255,11 @@ class ModCommands(ModHelpers):
     @app_commands.describe(amount="Number of messages to delete")
     @bot_decorators.defer(ephemeral=True)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
-    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.requires_roles(
+        bot_decorators.FunctionalRole.ADMIN,
+        bot_decorators.FunctionalRole.MOD,
+        bot_decorators.FunctionalRole.JUNIOR_MOD,
+    )
     @bot_decorators.handle_command_errors(
         forbidden="I am unable to delete messages in this channel at this time",
         not_found="This channel doesn't exist or has been deleted",
@@ -268,7 +285,11 @@ class ModCommands(ModHelpers):
     )
     @bot_decorators.defer(ephemeral=False)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
-    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.requires_roles(
+        bot_decorators.FunctionalRole.ADMIN,
+        bot_decorators.FunctionalRole.MOD,
+        bot_decorators.FunctionalRole.JUNIOR_MOD,
+    )
     @bot_decorators.handle_command_errors(
         not_found="This channel doesn't exist or has been deleted",
         forbidden="I am unable to lock this channel at this time",
@@ -320,7 +341,11 @@ class ModCommands(ModHelpers):
     @app_commands.describe(channel="The channel to unlock (defaults to current channel)")
     @bot_decorators.defer(ephemeral=False)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
-    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.requires_roles(
+        bot_decorators.FunctionalRole.ADMIN,
+        bot_decorators.FunctionalRole.MOD,
+        bot_decorators.FunctionalRole.JUNIOR_MOD,
+    )
     @bot_decorators.handle_command_errors(
         not_found="This channel doesn't exist or has been deleted",
         forbidden="I am unable to unlock this channel at this time",
@@ -374,7 +399,11 @@ class ModCommands(ModHelpers):
     )
     @bot_decorators.defer(ephemeral=False)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
-    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.requires_roles(
+        bot_decorators.FunctionalRole.ADMIN,
+        bot_decorators.FunctionalRole.MOD,
+        bot_decorators.FunctionalRole.JUNIOR_MOD,
+    )
     @bot_decorators.handle_command_errors(
         not_found="This user doesn't even exist here, who are you trying to timeout?",
         forbidden="I am unable to timeout this user at this time",
@@ -442,7 +471,11 @@ class ModCommands(ModHelpers):
     @app_commands.describe(member="The member to remove timeout from")
     @bot_decorators.defer(ephemeral=False)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
-    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.requires_roles(
+        bot_decorators.FunctionalRole.ADMIN,
+        bot_decorators.FunctionalRole.MOD,
+        bot_decorators.FunctionalRole.JUNIOR_MOD,
+    )
     @bot_decorators.handle_command_errors(
         not_found="This user doesn't even exist here, who are you trying to de-timeout?",
         forbidden="I am unable to de-timeout this user at this time",

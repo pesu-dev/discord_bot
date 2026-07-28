@@ -142,6 +142,11 @@ def test_mod_target_error_admin(fake_config: MagicMock, member_factory: MemberFa
     assert "admin/mod" in (mod_target_error(member, fake_config) or "").lower()
 
 
+def test_mod_target_error_junior_mod(fake_config: MagicMock, member_factory: MemberFactory) -> None:
+    member = member_factory(roles=[fake_config.junior_mod_role])
+    assert "admin/mod" in (mod_target_error(member, fake_config) or "").lower()
+
+
 def test_mod_target_error_allow_mod(fake_config: MagicMock, member_factory: MemberFactory) -> None:
     member = member_factory(roles=[fake_config.mod_role])
     assert mod_target_error(member, fake_config, allow_mod_target=True) is None

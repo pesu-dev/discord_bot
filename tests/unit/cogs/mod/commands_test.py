@@ -32,6 +32,19 @@ async def test_kick_mod_target_blocked(
     target.kick.assert_not_awaited()
 
 
+async def test_kick_junior_mod_target_blocked(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
+    cmd = ModCommands()
+    cmd.client = mock_bot
+    mod = member_factory(user_id=1, roles=[mock_bot.config.mod_role])
+    target = member_factory(user_id=2, roles=[mock_bot.config.junior_mod_role])
+    interaction = interaction_factory(user=mod)
+    await get_callback(cmd.kick)(cmd, interaction, target, "spam")
+    assert interaction.followup.send.await_args.kwargs.get("ephemeral") is True
+    target.kick.assert_not_awaited()
+
+
 async def test_echo_with_and_without_attachment(mock_bot: MagicMock) -> None:
     cmd = ModCommands()
     cmd.client = mock_bot
@@ -72,6 +85,23 @@ async def test_mute_unauthorized_and_invalid_time(
     interaction.user = mod
     await get_callback(cmd.mute)(cmd, interaction, target, "bad")
     assert "proper amount of time" in interaction.followup.send.await_args.kwargs["content"]
+
+
+async def test_mute_junior_mod_authorized(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
+    cmd = ModCommands()
+    cmd.client = mock_bot
+    junior_mod = member_factory(user_id=1, roles=[mock_bot.config.junior_mod_role])
+    target = member_factory(user_id=2, roles=[])
+    interaction = interaction_factory(user=junior_mod)
+    interaction.user = junior_mod
+    mock_bot.stores.mutes.insert_one = AsyncMock()
+    mock_bot.config.mod_logs_channel.send = AsyncMock()
+
+    await get_callback(cmd.mute)(cmd, interaction, target, "2h", "noise")
+    target.add_roles.assert_awaited_with(mock_bot.config.muted_role)
+    mock_bot.stores.mutes.insert_one.assert_awaited()
 
 
 async def test_mute_already_muted(
@@ -269,6 +299,19 @@ async def test_mute_protected_target(
     assert interaction.followup.send.await_args.kwargs.get("ephemeral") is True
 
 
+async def test_mute_junior_mod_target_blocked(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
+    cmd = ModCommands()
+    cmd.client = mock_bot
+    mod = member_factory(user_id=1, roles=[mock_bot.config.mod_role])
+    target = member_factory(user_id=2, roles=[mock_bot.config.junior_mod_role])
+    interaction = interaction_factory(user=mod)
+    interaction.user = mod
+    await get_callback(cmd.mute)(cmd, interaction, target, "1h")
+    assert interaction.followup.send.await_args.kwargs.get("ephemeral") is True
+
+
 async def test_timeout_protected_target(
     mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
 ) -> None:
@@ -276,6 +319,19 @@ async def test_timeout_protected_target(
     cmd.client = mock_bot
     mod = member_factory(roles=[mock_bot.config.mod_role])
     target = member_factory(roles=[mock_bot.config.mod_role])
+    target.is_timed_out = MagicMock(return_value=False)
+    interaction = interaction_factory(user=mod)
+    await get_callback(cmd.timeout_member)(cmd, interaction, target, "10m")
+    assert interaction.followup.send.await_args.kwargs.get("ephemeral") is True
+
+
+async def test_timeout_junior_mod_target_blocked(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
+    cmd = ModCommands()
+    cmd.client = mock_bot
+    mod = member_factory(roles=[mock_bot.config.mod_role])
+    target = member_factory(roles=[mock_bot.config.junior_mod_role])
     target.is_timed_out = MagicMock(return_value=False)
     interaction = interaction_factory(user=mod)
     await get_callback(cmd.timeout_member)(cmd, interaction, target, "10m")

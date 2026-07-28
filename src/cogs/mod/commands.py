@@ -105,12 +105,17 @@ class ModCommands(ModHelpers):
 
     @ModGroups.mod.command(name="mute", description="Mute a member for a specified duration")
     @app_commands.describe(
-        member="The member to mute (or yourself for self-mute)",
+        member="The member to mute",
         time="Duration for mute (e.g., 1h, 30m, 2d, and ofc y(💀))",
         reason="Reason for the mute (optional)",
     )
     @bot_decorators.defer(ephemeral=False)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.requires_roles(
+        bot_decorators.FunctionalRole.ADMIN,
+        bot_decorators.FunctionalRole.MOD,
+        bot_decorators.FunctionalRole.JUNIOR_MOD,
+    )
     @bot_decorators.handle_command_errors(
         not_found="This user doesn't even exist here, who are you trying to mute?",
         forbidden="I am unable to mute this user at this time",
@@ -124,21 +129,6 @@ class ModCommands(ModHelpers):
     ) -> None:
         muted_role = self.client.config.muted_role
 
-        if interaction.user.id == member.id:
-            is_self_mute = True
-        else:
-            if not any(
-                role in interaction.user.roles
-                for role in (
-                    self.client.config.admin_role,
-                    self.client.config.mod_role,
-                    self.client.config.junior_mod_role,
-                )
-            ):
-                await interaction.followup.send(content="You are not authorised to do that", ephemeral=True)
-                return
-            is_self_mute = False
-
         try:
             seconds = ug.parse_time(time)
         except ValueError:
@@ -148,10 +138,6 @@ class ModCommands(ModHelpers):
             )
             return
 
-        if is_self_mute and seconds < 3600:
-            await interaction.followup.send(content="Self-mute is only for 1 hour or more", ephemeral=True)
-            return
-
         if muted_role in member.roles:
             await interaction.followup.send(
                 content="Brother, leave the already muted poor soul alone",
@@ -159,7 +145,7 @@ class ModCommands(ModHelpers):
             )
             return
 
-        if not is_self_mute and (target_error := ug.mod_target_error(member, self.client.config)) is not None:
+        if (target_error := ug.mod_target_error(member, self.client.config)) is not None:
             await interaction.followup.send(content=target_error, ephemeral=True)
             return
 
@@ -176,7 +162,7 @@ class ModCommands(ModHelpers):
             duration_seconds=seconds,
             reason=reason,
             active=True,
-            is_self_mute=is_self_mute,
+            is_self_mute=False,
         )
         await self.client.stores.mutes.insert_one(mute_record)
 
@@ -193,14 +179,15 @@ class ModCommands(ModHelpers):
         )
         await interaction.followup.send(content=member.mention, embed=mute_embed)
 
-        moderator_mention = interaction.user.mention if not is_self_mute else "Self"
         mute_logs_embed = ug.build_embed(
             title="Mute",
             color=discord.Color.red(),
             fields=[
                 {
                     "name": "Muted User",
-                    "value": f"{member.mention}\nTime: {time}\nReason: {reason}\nModerator: {moderator_mention}",
+                    "value": (
+                        f"{member.mention}\nTime: {time}\nReason: {reason}\nModerator: {interaction.user.mention}"
+                    ),
                 }
             ],
         )

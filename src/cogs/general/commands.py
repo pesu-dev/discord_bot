@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 import discord
@@ -9,6 +10,7 @@ from discord import app_commands
 
 from src.cogs.general.components import RoleSelectView
 from src.cogs.general.helpers import GeneralHelpers
+from src.data.mongo import Mute
 from src.utils import decorators as bot_decorators
 from src.utils import general as ug
 
@@ -245,6 +247,91 @@ class GeneralCommands(GeneralHelpers):
                     await interaction.followup.send(content=f"Request failed with status {resp.status_code}.")
         except Exception as e:
             await interaction.followup.send(embed=ug.build_unknown_error_embed(e))
+
+    @app_commands.command(name="selfmute", description="Mute yourself for a specified duration")
+    @app_commands.describe(
+        time="Duration for mute (e.g., 1h, 2h, 1d). Defaults to 1 hour. Minimum 1 hour.",
+        reason="Reason for the mute (optional)",
+    )
+    @bot_decorators.defer(ephemeral=False)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.handle_command_errors(
+        forbidden="I am unable to mute you at this time",
+    )
+    async def selfmute(
+        self,
+        interaction: discord.Interaction,
+        time: str | None = None,
+        reason: str = "",
+    ) -> None:
+        assert isinstance(interaction.user, discord.Member)
+        member = interaction.user
+        muted_role = self.client.config.muted_role
+        time_display = time if time is not None else "1h"
+
+        if time is None:
+            seconds = 3600
+        else:
+            try:
+                seconds = ug.parse_time(time)
+            except ValueError:
+                await interaction.followup.send(
+                    content="Mention the proper amount of time\nAccepted Time Format: Should end with `d/h/m/s/y`",
+                    ephemeral=True,
+                )
+                return
+            if seconds < 3600:
+                await interaction.followup.send(content="Self-mute is only for 1 hour or more", ephemeral=True)
+                return
+
+        if muted_role in member.roles:
+            await interaction.followup.send(
+                content="Brother, how can you able to mute yourself when you are already muted?",
+                ephemeral=True,
+            )
+            return
+
+        await member.add_roles(muted_role, reason=reason)
+        mute_time = datetime.now(UTC)
+        unmute_time = mute_time + timedelta(seconds=seconds)
+
+        mute_record = Mute(
+            user_id=member.id,
+            channel_id=interaction.channel.id,
+            moderator_id=member.id,
+            mute_time=mute_time,
+            unmute_time=unmute_time,
+            duration_seconds=seconds,
+            reason=reason,
+            active=True,
+            is_self_mute=True,
+        )
+        await self.client.stores.mutes.insert_one(mute_record)
+
+        unmute_relative = discord.utils.format_dt(unmute_time, "R")
+        mute_embed = ug.build_embed(
+            title="Mute",
+            color=discord.Color.red(),
+            fields=[
+                {
+                    "name": "Muted User",
+                    "value": f"{member.mention} was muted\nUnmute: {unmute_relative}\nReason: {reason}",
+                }
+            ],
+        )
+        await interaction.followup.send(content=member.mention, embed=mute_embed)
+
+        mute_logs_embed = ug.build_embed(
+            title="Mute",
+            color=discord.Color.red(),
+            fields=[
+                {
+                    "name": "Muted User",
+                    "value": f"{member.mention}\nTime: {time_display}\nReason: {reason}\nModerator: Self",
+                }
+            ],
+        )
+        await self.client.config.mod_logs_channel.send(embed=mute_logs_embed)
 
     @app_commands.command(name="faq", description="Read the FAQ for PESU")
     @app_commands.describe(

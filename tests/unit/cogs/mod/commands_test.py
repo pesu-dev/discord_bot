@@ -68,19 +68,13 @@ async def test_echo_with_and_without_attachment(mock_bot: MagicMock) -> None:
     channel.send.assert_awaited_with(content="with file", file=fake_file)
 
 
-async def test_mute_unauthorized_and_invalid_time(
+async def test_mute_invalid_time(
     mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
 ) -> None:
     cmd = ModCommands()
     cmd.client = mock_bot
-    user = member_factory(user_id=1, roles=[])
-    target = member_factory(user_id=2)
-    interaction = interaction_factory(user=user)
-    interaction.user = user
-    await get_callback(cmd.mute)(cmd, interaction, target, "1h")
-    assert "not authorised" in interaction.followup.send.await_args.kwargs["content"]
-
     mod = member_factory(user_id=3, roles=[mock_bot.config.mod_role])
+    target = member_factory(user_id=2)
     interaction = interaction_factory(user=mod)
     interaction.user = mod
     await get_callback(cmd.mute)(cmd, interaction, target, "bad")

@@ -39,6 +39,7 @@ HELP_PAGES: dict[str, list[tuple[str, list[dict]]]] = {
                 {"name": "Count", "value": "`/count`"},
                 {"name": "Spotify", "value": "`/spotify`"},
                 {"name": "Add Roles", "value": "`/addroles`"},
+                {"name": "Self Mute", "value": "`/selfmute`"},
             ],
         ),
         (

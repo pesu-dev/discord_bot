@@ -136,15 +136,15 @@ async def test_help_linked(
     interaction.followup.send.assert_awaited()
 
 
-async def test_mod_mute_self_too_short(
+async def test_selfmute_too_short(
     mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
 ) -> None:
-    cmd = ModCommands()
+    cmd = GeneralCommands()
     cmd.client = mock_bot
     member = member_factory(user_id=5)
     interaction = interaction_factory(user=member)
     interaction.user = member
-    await get_callback(cmd.mute)(cmd, interaction, member, "30m")
+    await get_callback(cmd.selfmute)(cmd, interaction, "30m")
     assert "1 hour" in interaction.followup.send.await_args.kwargs["content"]
 
 

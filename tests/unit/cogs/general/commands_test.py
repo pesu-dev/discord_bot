@@ -395,3 +395,63 @@ async def test_ask_empty_answer_chunk(
     respx.post("https://askpesu.test/api").mock(return_value=Response(200, json={"answer": "\n\n"}))
     await get_callback(cmd.ask)(cmd, interaction, "q")
     interaction.followup.send.assert_awaited()
+
+
+async def test_selfmute_default_duration(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
+    cmd = GeneralCommands()
+    cmd.client = mock_bot
+    member = member_factory(user_id=5, roles=[])
+    interaction = interaction_factory(user=member)
+    interaction.user = member
+    mock_bot.stores.mutes.insert_one = AsyncMock()
+    mock_bot.config.mod_logs_channel.send = AsyncMock()
+
+    await get_callback(cmd.selfmute)(cmd, interaction, None)
+    member.add_roles.assert_awaited_with(mock_bot.config.muted_role, reason="")
+    mute_record = mock_bot.stores.mutes.insert_one.await_args.args[0]
+    assert mute_record.duration_seconds == 3600
+    assert mute_record.is_self_mute is True
+    assert mute_record.reason == ""
+    mock_bot.config.mod_logs_channel.send.assert_awaited()
+
+
+async def test_selfmute_custom_duration(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
+    cmd = GeneralCommands()
+    cmd.client = mock_bot
+    member = member_factory(user_id=5, roles=[])
+    interaction = interaction_factory(user=member)
+    interaction.user = member
+    mock_bot.stores.mutes.insert_one = AsyncMock()
+    mock_bot.config.mod_logs_channel.send = AsyncMock()
+
+    await get_callback(cmd.selfmute)(cmd, interaction, "2h", "studying")
+    mute_record = mock_bot.stores.mutes.insert_one.await_args.args[0]
+    assert mute_record.duration_seconds == 7200
+    assert mute_record.is_self_mute is True
+    assert mute_record.reason == "studying"
+
+
+async def test_selfmute_too_short_and_invalid_and_already_muted(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
+    cmd = GeneralCommands()
+    cmd.client = mock_bot
+    member = member_factory(user_id=5, roles=[])
+    interaction = interaction_factory(user=member)
+    interaction.user = member
+
+    await get_callback(cmd.selfmute)(cmd, interaction, "30m")
+    assert "1 hour" in interaction.followup.send.await_args.kwargs["content"]
+
+    await get_callback(cmd.selfmute)(cmd, interaction, "bad")
+    assert "proper amount of time" in interaction.followup.send.await_args.kwargs["content"]
+
+    muted = member_factory(user_id=6, roles=[mock_bot.config.muted_role])
+    interaction = interaction_factory(user=muted)
+    interaction.user = muted
+    await get_callback(cmd.selfmute)(cmd, interaction, "1h")
+    assert "already muted" in interaction.followup.send.await_args.kwargs["content"]

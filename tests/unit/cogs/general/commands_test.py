@@ -9,7 +9,6 @@ import discord
 import respx
 
 from src.cogs.general.commands import GeneralCommands
-from src.cogs.general.components import RoleSelect
 from src.cogs.general.helpers import ONBOARDING_CHECKLIST, GeneralHelpers, LinkMessage
 from tests.helpers import get_callback
 
@@ -198,25 +197,41 @@ async def test_spotify_not_found_and_no_activity(
     assert "No spotify" in interaction.followup.send.await_args.kwargs["content"]
 
 
-async def test_addroles_sends_view(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
+async def test_togglerole_adds_role(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     cmd = GeneralCommands()
     cmd.client = mock_bot
-    channel = MagicMock(spec=discord.TextChannel)
-    channel.mention = "<#9>"
-    channel.send = AsyncMock()
-    interaction = interaction_factory()
-    await get_callback(cmd.addroles_command)(cmd, interaction, channel=channel)
-    channel.send.assert_awaited()
-    assert "Role selection sent" in interaction.followup.send.await_args.kwargs["content"]
+    role = MagicMock(spec=discord.Role)
+    role.mention = "<@&gamer>"
+    guild = MagicMock(spec=discord.Guild)
+    guild.get_role = MagicMock(return_value=role)
+    interaction = interaction_factory(guild=guild)
+    await get_callback(cmd.togglerole)(cmd, interaction, role="778825985361051660")
+    interaction.user.add_roles.assert_awaited_with(role)
+    assert "now have" in interaction.followup.send.await_args.kwargs["content"]
 
 
-async def test_addroles_rejects_non_text(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
+async def test_togglerole_removes_role(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     cmd = GeneralCommands()
     cmd.client = mock_bot
-    interaction = interaction_factory()
-    interaction.channel = MagicMock()  # not a TextChannel
-    await get_callback(cmd.addroles_command)(cmd, interaction, channel=None)
-    assert "text channel" in interaction.followup.send.await_args.kwargs["content"]
+    role = MagicMock(spec=discord.Role)
+    role.mention = "<@&gamer>"
+    guild = MagicMock(spec=discord.Guild)
+    guild.get_role = MagicMock(return_value=role)
+    interaction = interaction_factory(guild=guild)
+    interaction.user.roles.append(role)
+    await get_callback(cmd.togglerole)(cmd, interaction, role="778825985361051660")
+    interaction.user.remove_roles.assert_awaited_with(role)
+    assert "Removed" in interaction.followup.send.await_args.kwargs["content"]
+
+
+async def test_togglerole_role_not_found(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
+    cmd = GeneralCommands()
+    cmd.client = mock_bot
+    guild = MagicMock(spec=discord.Guild)
+    guild.get_role = MagicMock(return_value=None)
+    interaction = interaction_factory(guild=guild)
+    await get_callback(cmd.togglerole)(cmd, interaction, role="778825985361051660")
+    assert "Role not found" in interaction.followup.send.await_args.kwargs["content"]
 
 
 async def test_pride_with_and_without_link(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
@@ -325,61 +340,6 @@ async def test_get_data_caches(mock_bot: MagicMock) -> None:
         first = await helpers.get_data()
         second = await helpers.get_data()
     assert first is second
-
-
-async def test_role_select_deselect_and_remove(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
-    select = RoleSelect(mock_bot)
-    member = member_factory(roles=[mock_bot.config.linked_role])
-    role = MagicMock(spec=discord.Role)
-    role.mention = "<@&1>"
-    member.roles.append(role)
-    interaction = MagicMock(spec=discord.Interaction)
-    interaction.user = member
-    interaction.guild = MagicMock(spec=discord.Guild)
-    interaction.guild.get_role = MagicMock(return_value=role)
-    interaction.response = MagicMock()
-    interaction.response.defer = AsyncMock()
-    interaction.followup = MagicMock()
-    interaction.followup.send = AsyncMock()
-
-    with patch.object(type(select), "values", property(lambda self: ["0"])):
-        await select.callback(interaction)
-    assert interaction.followup.send.await_args.kwargs["content"] == "OK"
-
-    interaction.followup.send.reset_mock()
-    with patch.object(type(select), "values", property(lambda self: ["778825985361051660"])):
-        await select.callback(interaction)
-    member.remove_roles.assert_awaited_with(role)
-
-
-async def test_role_select_missing_role(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
-    select = RoleSelect(mock_bot)
-    member = member_factory(roles=[mock_bot.config.linked_role])
-    interaction = MagicMock(spec=discord.Interaction)
-    interaction.user = member
-    interaction.guild = MagicMock(spec=discord.Guild)
-    interaction.guild.get_role = MagicMock(return_value=None)
-    interaction.response = MagicMock()
-    interaction.response.defer = AsyncMock()
-    interaction.followup = MagicMock()
-    interaction.followup.send = AsyncMock()
-    with patch.object(type(select), "values", property(lambda self: ["778825985361051660"])):
-        await select.callback(interaction)
-    assert "Role not found" in interaction.followup.send.await_args.kwargs["content"]
-
-
-async def test_role_select_non_member(mock_bot: MagicMock) -> None:
-    select = RoleSelect(mock_bot)
-    interaction = MagicMock(spec=discord.Interaction)
-    interaction.user = MagicMock(spec=discord.User)
-    interaction.guild = None
-    interaction.response = MagicMock()
-    interaction.response.defer = AsyncMock()
-    interaction.followup = MagicMock()
-    interaction.followup.send = AsyncMock()
-    with patch.object(type(select), "values", property(lambda self: ["0"])):
-        await select.callback(interaction)
-    assert "server" in interaction.followup.send.await_args.kwargs["content"].lower()
 
 
 @respx.mock

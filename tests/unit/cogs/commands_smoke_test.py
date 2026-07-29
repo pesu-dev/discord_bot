@@ -12,7 +12,6 @@ from src.cogs.anon.commands import AnonCommands
 from src.cogs.eng.commands import EngCommands
 from src.cogs.eng.helpers import EngHelpers
 from src.cogs.general.commands import GeneralCommands
-from src.cogs.general.components import RoleSelect
 from src.cogs.general.helpers import GeneralHelpers
 from src.cogs.help.commands import HelpCommands
 from src.cogs.mod.commands import ModCommands
@@ -270,36 +269,3 @@ async def test_general_handle_category_only(mock_bot: MagicMock, interaction_fac
     data = {"Campus": [{"question": "Q", "answer": "https://example.com"}]}
     await helpers._handle_category_only(interaction, data, "Campus")
     interaction.followup.send.assert_awaited()
-
-
-async def test_role_select_requires_linked(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
-    select = RoleSelect(mock_bot)
-    interaction = MagicMock(spec=discord.Interaction)
-    interaction.user = member_factory(roles=[])
-    interaction.guild = MagicMock(spec=discord.Guild)
-    interaction.response = MagicMock()
-    interaction.response.defer = AsyncMock()
-    interaction.followup = MagicMock()
-    interaction.followup.send = AsyncMock()
-    with patch.object(type(select), "values", property(lambda self: ["778825985361051660"])):
-        await select.callback(interaction)
-    content = interaction.followup.send.await_args.kwargs["content"]
-    assert "link" in content.lower()
-
-
-async def test_role_select_add_role(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
-    select = RoleSelect(mock_bot)
-    member = member_factory(roles=[mock_bot.config.linked_role])
-    role = MagicMock(spec=discord.Role)
-    role.mention = "<@&1>"
-    interaction = MagicMock(spec=discord.Interaction)
-    interaction.user = member
-    interaction.guild = MagicMock(spec=discord.Guild)
-    interaction.guild.get_role = MagicMock(return_value=role)
-    interaction.response = MagicMock()
-    interaction.response.defer = AsyncMock()
-    interaction.followup = MagicMock()
-    interaction.followup.send = AsyncMock()
-    with patch.object(type(select), "values", property(lambda self: ["778825985361051660"])):
-        await select.callback(interaction)
-    member.add_roles.assert_awaited_with(role)

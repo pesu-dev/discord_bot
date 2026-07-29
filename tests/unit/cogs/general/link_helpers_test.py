@@ -43,14 +43,12 @@ def _helpers(mock_bot: MagicMock) -> GeneralHelpers:
 def test_get_dm_message_includes_roles_and_channels() -> None:
     lobby = MagicMock()
     lobby.mention = "<#lobby>"
-    additional = MagicMock()
-    additional.mention = "<#roles>"
-    text = _get_dm_message("CSE", "RR", "2021", lobby=lobby, additional_roles=additional)
+    text = _get_dm_message("CSE", "RR", "2021", lobby=lobby)
     assert "CSE" in text
     assert "RR" in text
     assert "2021" in text
     assert "<#lobby>" in text
-    assert "<#roles>" in text
+    assert "`/togglerole`" in text
 
 
 def test_pesu_auth_response_from_dict() -> None:

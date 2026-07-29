@@ -67,7 +67,6 @@ class Config:
         "NQN_LOGS": 927077979383824484,
         "WELCOME": 742946580285620225,
         "LOBBY": 860224115633160203,
-        "ADDITIONAL_ROLES": 778823213345538068,
         "VERIFICATION_LOGS": 1100722146956820510,
         "ERROR_LOGS": 1129317221848596490,
     }
@@ -189,14 +188,6 @@ class Config:
         channel = self.get_channel("LOBBY")
         if not isinstance(channel, discord.TextChannel):
             raise ValueError("LOBBY must be a text channel")
-        return channel
-
-    @property
-    def additional_roles_channel(self) -> discord.TextChannel:
-        """Get additional roles channel."""
-        channel = self.get_channel("ADDITIONAL_ROLES")
-        if not isinstance(channel, discord.TextChannel):
-            raise ValueError("ADDITIONAL_ROLES must be a text channel")
         return channel
 
     @property

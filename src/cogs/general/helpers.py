@@ -177,7 +177,6 @@ def _get_dm_message(
     year: str,
     *,
     lobby: discord.TextChannel,
-    additional_roles: discord.TextChannel,
 ) -> str:
     """Welcome DM text after a successful link (ported from auth-link-portal)."""
     return (
@@ -187,8 +186,8 @@ def _get_dm_message(
         f"or have changed, drop a message in {lobby.mention} and ping the admin or any moderators.**\n\n"
         f"Now, let's get to the good stuff - {lobby.mention} . This is where all the cool kids hang out. "
         "Or at least, that's what we tell ourselves as we cry ourselves to sleep every night. "
-        "But hey, at least we have each other, right? If you're feeling brave, you can also check out "
-        f"{additional_roles.mention} and see if you're worthy of some extra roles and exclusive private channels.\n\n"
+        "But hey, at least we have each other, right? If you're feeling brave, you can also run "
+        "`/togglerole` and see if you're worthy of some extra roles and exclusive private channels.\n\n"
         "And if you ever find yourself hopelessly lost and confused, don't worry. Our online admin or "
         "moderators are here to help... or at least, they'll try to help. No promises on the quality of "
         "their assistance though - they're not exactly successful JEE aspirants.\n\n"
@@ -400,7 +399,6 @@ class GeneralHelpers:
             campus_short,
             year,
             lobby=self.client.config.lobby_channel,
-            additional_roles=self.client.config.additional_roles_channel,
         )
 
         results = await asyncio.gather(

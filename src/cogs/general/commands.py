@@ -8,7 +8,6 @@ import discord
 import httpx
 from discord import app_commands
 
-from src.cogs.general.components import RoleSelectView
 from src.cogs.general.helpers import GeneralHelpers
 from src.data.mongo import Mute
 from src.utils import decorators as bot_decorators
@@ -16,6 +15,19 @@ from src.utils import general as ug
 
 if TYPE_CHECKING:
     from src.bot import DiscordBot
+
+# Self-assignable optional roles
+_TOGGLEABLE_ROLE_CHOICES = [
+    app_commands.Choice(name="🎮 Gamer", value="778825985361051660"),
+    app_commands.Choice(name="⌨️ Coder", value="778875127257104424"),
+    app_commands.Choice(name="🎸 Musician", value="778875199701385216"),
+    app_commands.Choice(name="🎥 Editor", value="782642024071168011"),
+    app_commands.Choice(name="💡 Tech", value="790106229997174786"),
+    app_commands.Choice(name="⚙️ Moto", value="836652197214421012"),
+    app_commands.Choice(name="💸 Investors", value="936886064361144360"),
+    app_commands.Choice(name="🤖 PESU Dev", value="810507351063920671"),
+    app_commands.Choice(name="👀 NSFW", value="778820724424704011"),
+]
 
 
 class GeneralCommands(GeneralHelpers):
@@ -141,40 +153,35 @@ class GeneralCommands(GeneralHelpers):
         await interaction.followup.send(content="No spotify activity detected", ephemeral=True)
 
     @app_commands.command(
-        name="addroles",
-        description="Pick up additional roles to get access to more channels",
+        name="togglerole",
+        description="Toggle an optional role for yourself",
     )
-    @app_commands.describe(channel="The channel to send the role selection in (default: current channel)")
+    @app_commands.describe(role="The role to add or remove")
+    @app_commands.choices(role=_TOGGLEABLE_ROLE_CHOICES)
     @bot_decorators.defer(ephemeral=True)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
-    @bot_decorators.requires_roles(
-        bot_decorators.FunctionalRole.ADMIN,
-        bot_decorators.FunctionalRole.MOD,
-        bot_decorators.FunctionalRole.JUNIOR_MOD,
-    )
+    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.LINKED)
     @bot_decorators.handle_command_errors()
-    async def addroles_command(
-        self,
-        interaction: discord.Interaction,
-        channel: discord.TextChannel | None = None,
-    ) -> None:
-        embed = ug.build_embed(
-            title="Additional Roles",
-            color=discord.Color.blurple(),
-            description="Pick up additional roles for access to more channels",
-        )
+    async def togglerole(self, interaction: discord.Interaction, role: str) -> None:
+        assert isinstance(interaction.user, discord.Member)
+        member = interaction.user
+        discord_role = interaction.guild.get_role(int(role))
+        if discord_role is None:
+            await interaction.followup.send(content="Role not found", ephemeral=True)
+            return
 
-        if channel is None:
-            if not isinstance(interaction.channel, discord.TextChannel):
-                await interaction.followup.send(
-                    content="This command can only be used in a text channel",
-                    ephemeral=True,
-                )
-                return
-            channel = interaction.channel
-        view = RoleSelectView(self.client)
-        await channel.send(embed=embed, view=view)
-        await interaction.followup.send(content=f"Role selection sent in {channel.mention}", ephemeral=True)
+        if discord_role in member.roles:
+            await member.remove_roles(discord_role)
+            await interaction.followup.send(
+                content=f"Removed the {discord_role.mention} role",
+                ephemeral=True,
+            )
+        else:
+            await member.add_roles(discord_role)
+            await interaction.followup.send(
+                content=f"You now have the {discord_role.mention} role",
+                ephemeral=True,
+            )
 
     @app_commands.command(name="pride", description="Flourishes you with the pride of PESU")
     @app_commands.describe(link="The message link to reply with the pride to")

@@ -9,90 +9,56 @@ from src.utils.general import build_embed
 if TYPE_CHECKING:
     from src.bot import DiscordBot
 
-# category -> pages; each page is (description, fields)
-HELP_PAGES: dict[str, list[tuple[str, list[dict]]]] = {
-    "anon": [
-        ("Anon Commands", [{"name": "Send an Anon Message", "value": "`/anon send`"}]),
-    ],
-    "eng": [
-        (
-            "Engineering Commands",
-            [
-                {"name": "Ping", "value": "`/eng ping`"},
-                {"name": "Uptime", "value": "`/eng uptime`"},
-                {"name": "Support", "value": "`/eng support`"},
-                {"name": "Reload Cogs", "value": "`/eng reload`"},
-            ],
-        ),
-    ],
-    "general": [
-        (
-            "General Commands",
-            [
-                {"name": "Link your Account", "value": "`/link <username> <password>`"},
-                {"name": "User Info", "value": "`/info`"},
-            ],
-        ),
-        (
-            "General Commands",
-            [
-                {"name": "Count", "value": "`/count`"},
-                {"name": "Spotify", "value": "`/spotify`"},
-                {"name": "Add Roles", "value": "`/addroles`"},
-                {"name": "Self Mute", "value": "`/selfmute`"},
-            ],
-        ),
-        (
-            "General Commands",
-            [
-                {"name": "Pride", "value": "`/pride`"},
-                {"name": "FAQ", "value": "`/faq`"},
-                {"name": "Ask PESU", "value": "`/ask`"},
-            ],
-        ),
-    ],
-    "mod": [
-        (
-            "Mod Commands",
-            [
-                {"name": "Kick a User", "value": "`/mod kick`"},
-                {"name": "Echo a Message", "value": "`/echo`"},
-                {"name": "Link Info", "value": "`/mod link info`"},
-                {"name": "Disconnect a User's Link", "value": "`/mod link disconnect`"},
-            ],
-        ),
-        (
-            "Mod Commands",
-            [
-                {"name": "Mute a User", "value": "`/mod mute`"},
-                {"name": "Unmute a User", "value": "`/mod unmute`"},
-                {"name": "Purge Messages", "value": "`/mod purge`"},
-            ],
-        ),
-        (
-            "Mod Commands",
-            [
-                {"name": "Lock a Channel", "value": "`/mod lock`"},
-                {"name": "Unlock a Channel", "value": "`/mod unlock`"},
-                {"name": "Timeout a User", "value": "`/mod timeout`"},
-            ],
-        ),
-        (
-            "Mod Commands",
-            [{"name": "De-timeout a User", "value": "`/mod detimeout`"}],
-        ),
-        (
-            "Mod Commands",
-            [
-                {
-                    "name": "Ban a User from Anon",
-                    "value": "`/mod anon ban` — specify either `member` or `link`",
-                },
-                {"name": "Unban a User from Anon", "value": "`/mod anon unban`"},
-                {"name": "Anon Ban Info", "value": "`/mod anon info`"},
-            ],
-        ),
-    ],
+# category -> (description, commands); pages are built by chunking commands
+HELP_PAGES: dict[str, tuple[str, list[dict]]] = {
+    "anon": (
+        "Anon Commands",
+        [{"name": "Send an Anon Message", "value": "`/anon send`"}],
+    ),
+    "eng": (
+        "Engineering Commands",
+        [
+            {"name": "Ping", "value": "`/eng ping`"},
+            {"name": "Uptime", "value": "`/eng uptime`"},
+            {"name": "Support", "value": "`/eng support`"},
+            {"name": "Reload Cogs", "value": "`/eng reload`"},
+        ],
+    ),
+    "general": (
+        "General Commands",
+        [
+            {"name": "User Info", "value": "`/info`"},
+            {"name": "Count", "value": "`/count`"},
+            {"name": "Spotify", "value": "`/spotify`"},
+            {"name": "Toggle Role", "value": "`/togglerole`"},
+            {"name": "Self Mute", "value": "`/selfmute`"},
+            {"name": "Pride", "value": "`/pride`"},
+            {"name": "FAQ", "value": "`/faq`"},
+            {"name": "Ask PESU", "value": "`/ask`"},
+        ],
+    ),
+    "mod": (
+        "Mod Commands",
+        [
+            {"name": "Kick a User", "value": "`/mod kick`"},
+            {"name": "Echo a Message", "value": "`/echo`"},
+            {"name": "Link Info", "value": "`/mod link info`"},
+            {"name": "Disconnect a User's Link", "value": "`/mod link disconnect`"},
+            {"name": "Mute a User", "value": "`/mod mute`"},
+            {"name": "Unmute a User", "value": "`/mod unmute`"},
+            {"name": "Purge Messages", "value": "`/mod purge`"},
+            {"name": "Lock a Channel", "value": "`/mod lock`"},
+            {"name": "Unlock a Channel", "value": "`/mod unlock`"},
+            {"name": "Timeout a User", "value": "`/mod timeout`"},
+            {"name": "De-timeout a User", "value": "`/mod detimeout`"},
+            {
+                "name": "Ban a User from Anon",
+                "value": "`/mod anon ban` — specify either `member` or `link`",
+            },
+            {"name": "Unban a User from Anon", "value": "`/mod anon unban`"},
+            {"name": "Anon Ban Info", "value": "`/mod anon info`"},
+        ],
+    ),
 }
 
 
@@ -112,10 +78,10 @@ class HelpEmbeds:
 
         self.pages: dict[str, list[discord.Embed]] = {
             category: [
-                build_embed(title="PESU Bot", color=purple, description=description, fields=fields)
-                for description, fields in pages
+                build_embed(title="PESU Bot", color=purple, description=description, fields=commands[i : i + 3])
+                for i in range(0, len(commands), 3)
             ]
-            for category, pages in HELP_PAGES.items()
+            for category, (description, commands) in HELP_PAGES.items()
         }
 
 

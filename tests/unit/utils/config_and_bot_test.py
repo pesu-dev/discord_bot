@@ -240,13 +240,12 @@ def test_config_role_channel_properties() -> None:
     assert config.bot_logs_channel is channel
     assert config.mod_logs_channel is channel
     assert config.lobby_channel is channel
-    assert config.additional_roles_channel is channel
     assert config.verification_logs_channel is channel
     assert config.error_logs_channel is channel
     assert Config.PESU_AUTH_URL == "https://pesu-auth.onrender.com/authenticate"
     assert Config.CHANNELS["VERIFICATION_LOGS"] == 1100722146956820510
     assert Config.CHANNELS["ERROR_LOGS"] == 1129317221848596490
-    assert Config.CHANNELS["ADDITIONAL_ROLES"] == 778823213345538068
+    assert "ADDITIONAL_ROLES" not in Config.CHANNELS
 
 
 def test_branch_short_codes_from_portal() -> None:

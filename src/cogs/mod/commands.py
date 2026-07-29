@@ -298,11 +298,10 @@ class ModCommands(ModHelpers):
 
         everyone_role = interaction.guild.default_role
         overwrites = channel.overwrites_for(everyone_role)
-        if overwrites.send_messages is False:
-            await interaction.followup.send(content="This channel is already locked", ephemeral=True)
-            return
-
         overwrites.send_messages = False
+        overwrites.send_messages_in_threads = False
+        overwrites.create_public_threads = False
+        overwrites.create_private_threads = False
         await channel.set_permissions(everyone_role, overwrite=overwrites)
         await interaction.followup.send(content=f"Locked {channel.mention}", ephemeral=False)
 
@@ -354,11 +353,10 @@ class ModCommands(ModHelpers):
         everyone_role = interaction.guild.default_role
 
         overwrites = channel.overwrites_for(everyone_role)
-        if overwrites.send_messages is None or overwrites.send_messages is True:
-            await interaction.followup.send(content="This channel ain't locked bruh whatcha doin", ephemeral=True)
-            return
-
         overwrites.send_messages = None
+        overwrites.send_messages_in_threads = None
+        overwrites.create_public_threads = None
+        overwrites.create_private_threads = None
         await channel.set_permissions(everyone_role, overwrite=overwrites)
         await interaction.followup.send(content=f"Unlocked {channel.mention}", ephemeral=False)
 

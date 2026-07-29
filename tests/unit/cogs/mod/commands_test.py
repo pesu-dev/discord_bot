@@ -145,7 +145,12 @@ async def test_lock_unlock_channel(
     guild.default_role = everyone
     interaction.guild = guild
 
-    overwrites = SimpleNamespace(send_messages=True)
+    overwrites = SimpleNamespace(
+        send_messages=True,
+        send_messages_in_threads=True,
+        create_public_threads=True,
+        create_private_threads=True,
+    )
     channel = MagicMock(spec=discord.TextChannel)
     channel.mention = "<#3>"
     channel.overwrites_for = MagicMock(return_value=overwrites)
@@ -155,19 +160,16 @@ async def test_lock_unlock_channel(
 
     await get_callback(cmd.lock_channel)(cmd, interaction, channel=channel, reason="raid")
     assert overwrites.send_messages is False
+    assert overwrites.send_messages_in_threads is False
+    assert overwrites.create_public_threads is False
+    assert overwrites.create_private_threads is False
     channel.set_permissions.assert_awaited()
 
-    overwrites.send_messages = False
-    await get_callback(cmd.lock_channel)(cmd, interaction, channel=channel)
-    assert "already locked" in interaction.followup.send.await_args.kwargs["content"]
-
-    overwrites.send_messages = False
     await get_callback(cmd.unlock_channel)(cmd, interaction, channel=channel)
     assert overwrites.send_messages is None
-
-    overwrites.send_messages = True
-    await get_callback(cmd.unlock_channel)(cmd, interaction, channel=channel)
-    assert "ain't locked" in interaction.followup.send.await_args.kwargs["content"]
+    assert overwrites.send_messages_in_threads is None
+    assert overwrites.create_public_threads is None
+    assert overwrites.create_private_threads is None
 
 
 async def test_lock_unlock_requires_text_channel(

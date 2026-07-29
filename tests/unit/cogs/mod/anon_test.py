@@ -202,6 +202,16 @@ async def test_ban_anon_via_link(
     mock_bot.stores.anonbans.insert_one.assert_awaited()
 
 
+async def test_ban_anon_link_resolve_fails(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
+    cmd = AnonModCommands()
+    cmd.client = mock_bot
+    mock_bot.stores.anonbans.insert_one = AsyncMock()
+    interaction = interaction_factory()
+    with patch.object(cmd, "_handle_ban_message_link", AsyncMock(return_value=None)):
+        await get_callback(cmd.ban_anon)(cmd, interaction, member=None, link="https://x/1")
+    mock_bot.stores.anonbans.insert_one.assert_not_called()
+
+
 async def test_context_menu_not_anon(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     cmd = AnonModCommands()
     cmd.client = mock_bot

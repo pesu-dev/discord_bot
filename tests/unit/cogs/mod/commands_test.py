@@ -185,6 +185,40 @@ async def test_lock_unlock_requires_text_channel(
     assert "text channel" in interaction.followup.send.await_args.kwargs["content"]
 
 
+async def test_lock_unlock_uses_interaction_channel(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
+    cmd = ModCommands()
+    cmd.client = mock_bot
+    mod = member_factory(roles=[mock_bot.config.mod_role])
+    interaction = interaction_factory(user=mod)
+    guild = MagicMock(spec=discord.Guild)
+    everyone = MagicMock(spec=discord.Role)
+    guild.default_role = everyone
+    interaction.guild = guild
+
+    overwrites = SimpleNamespace(
+        send_messages=True,
+        send_messages_in_threads=True,
+        create_public_threads=True,
+        create_private_threads=True,
+    )
+    channel = MagicMock(spec=discord.TextChannel)
+    channel.mention = "<#9>"
+    channel.overwrites_for = MagicMock(return_value=overwrites)
+    channel.set_permissions = AsyncMock()
+    channel.send = AsyncMock()
+    interaction.channel = channel
+    mock_bot.config.mod_logs_channel.send = AsyncMock()
+
+    await get_callback(cmd.lock_channel)(cmd, interaction, channel=None, reason="raid")
+    assert overwrites.send_messages is False
+    channel.set_permissions.assert_awaited()
+
+    await get_callback(cmd.unlock_channel)(cmd, interaction, channel=None)
+    assert overwrites.send_messages is None
+
+
 async def test_timeout_edge_cases(
     mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
 ) -> None:

@@ -76,6 +76,17 @@ async def test_fetch_faq_data_fallback(tmp_path: Path, monkeypatch: pytest.Monke
     assert "LocalOnly" in data
 
 
+@respx.mock
+async def test_fetch_faq_data_fallback_without_logger(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    faq = {"categories": [{"category": "LocalOnly", "questions": [{"question": "Q", "answer": "A"}]}]}
+    path = tmp_path / "faq.json"
+    path.write_text(json.dumps(faq))
+    monkeypatch.setattr("src.cogs.general.helpers._FAQ_PATH", path)
+    respx.get("https://reddit.com/r/PESU/comments/14c1iym/.json").mock(return_value=Response(503, text="down"))
+    data = await fetch_faq_data()
+    assert "LocalOnly" in data
+
+
 def test_faq_multi_link_and_trailing_newline() -> None:
     from src.cogs.general.helpers import _parse_reddit_data, _process_news_item
 
@@ -101,3 +112,14 @@ async def test_handle_specific_question_strip_url(mock_bot: MagicMock, interacti
     data = {"C": [{"question": "Q", "answer": "https://example.com)\n"}]}
     await helpers._handle_specific_question(interaction, data, "C", "Q")
     assert "https://example.com" in interaction.followup.send.await_args.kwargs["content"]
+
+
+async def test_handle_specific_question_clean_url(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
+    from src.cogs.general.helpers import GeneralHelpers
+
+    helpers = GeneralHelpers()
+    helpers.client = mock_bot
+    interaction = interaction_factory()
+    data = {"C": [{"question": "Q", "answer": "https://example.com/clean"}]}
+    await helpers._handle_specific_question(interaction, data, "C", "Q")
+    assert "https://example.com/clean" in interaction.followup.send.await_args.kwargs["content"]

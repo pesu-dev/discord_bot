@@ -197,6 +197,21 @@ def test_is_guild_and_dm_helpers() -> None:
     with patch("src.utils.decorators.discord.abc.Messageable", type(guild_channel)):
         assert bot_decorators._is_guild_messageable(guild_channel) is True
     assert bot_decorators._is_dm_messageable(None) is False
+    assert bot_decorators._is_guild_messageable(None) is False
+    assert bot_decorators._is_guild_messageable(object()) is False
+
+
+def test_propagate_defer_ephemeral_copies_attr() -> None:
+    def wrapped() -> None:
+        return None
+
+    wrapped._defer_ephemeral = True  # type: ignore[attr-defined]
+
+    def wrapper() -> None:
+        return None
+
+    bot_decorators._propagate_defer_ephemeral(wrapper, wrapped)
+    assert wrapper._defer_ephemeral is True  # type: ignore[attr-defined]
 
 
 async def test_requires_location_dm(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:

@@ -72,6 +72,18 @@ def test_student_round_trip() -> None:
     assert restored.id == oid
 
 
+def test_student_to_document_omits_none_id() -> None:
+    student = Student(
+        prn="PES1UG21CS001",
+        year="2021",
+        branch=Branch(full="CSE Full", short="CSE"),
+        campus=Campus(code=1, short="RR"),
+        created_at=datetime.now(UTC),
+    )
+    doc = student.to_document()
+    assert "_id" not in doc
+
+
 def test_anonban_round_trip() -> None:
     oid = ObjectId()
     banned_at = datetime.now(UTC)
@@ -124,6 +136,22 @@ def test_mute_round_trip() -> None:
     assert restored.user_id == 1
     assert restored.unmuted_by == 3
     assert restored.duration_seconds == 3600
+
+
+def test_mute_to_document_omits_none_id() -> None:
+    now = datetime.now(UTC)
+    mute = Mute(
+        user_id=1,
+        channel_id=2,
+        moderator_id=3,
+        mute_time=now,
+        unmute_time=now,
+        reason="x",
+        active=True,
+        is_self_mute=False,
+    )
+    doc = mute.to_document()
+    assert "_id" not in doc
 
 
 def test_mute_from_document_null_unmuted_by() -> None:

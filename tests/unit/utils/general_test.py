@@ -123,6 +123,18 @@ async def test_handle_command_error_not_found() -> None:
     assert interaction.followup.send.await_args.kwargs["content"] == "gone"
 
 
+async def test_handle_command_error_unwraps_command_invoke_error() -> None:
+    from discord import app_commands
+
+    interaction = MagicMock(spec=discord.Interaction)
+    interaction.followup = MagicMock()
+    interaction.followup.send = AsyncMock()
+    wrapped = app_commands.CommandInvokeError(MagicMock(), discord.NotFound(MagicMock(), "missing"))
+    await handle_command_error(interaction, wrapped, not_found="gone")
+    interaction.followup.send.assert_awaited_once()
+    assert interaction.followup.send.await_args.kwargs["content"] == "gone"
+
+
 async def test_handle_command_error_unknown_uses_embed() -> None:
     interaction = MagicMock(spec=discord.Interaction)
     interaction.followup = MagicMock()
@@ -176,6 +188,17 @@ def test_discover_real_cogs() -> None:
     extensions = discover_cog_extensions()
     assert "src.cogs.mod" in extensions
     assert "src.cogs.events" in extensions
+
+
+def test_configure_logging_skips_when_handlers_exist() -> None:
+    from src import _configure_logging
+
+    first = _configure_logging()
+    handler_count = len(first.handlers)
+    assert handler_count >= 1
+    second = _configure_logging()
+    assert second is first
+    assert len(second.handlers) == handler_count
 
 
 async def test_handle_command_error_via_context() -> None:

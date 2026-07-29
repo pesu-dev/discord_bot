@@ -33,6 +33,25 @@ def test_filter_reply_mentions_strips_replied_author() -> None:
     assert [m.id for m in filtered] == [22]
 
 
+def test_filter_reply_mentions_reply_author_not_in_mentions() -> None:
+    replied = MagicMock(spec=discord.Member)
+    replied.id = 11
+    other = MagicMock(spec=discord.Member)
+    other.id = 22
+
+    resolved = MagicMock(spec=discord.Message)
+    resolved.author = replied
+
+    message = MagicMock(spec=discord.Message)
+    message.type = discord.MessageType.reply
+    message.reference = MagicMock()
+    message.reference.resolved = resolved
+    message.mentions = [other]
+
+    filtered = EventHelpers._filter_reply_mentions(message)
+    assert [m.id for m in filtered] == [22]
+
+
 def test_filter_reply_mentions_non_reply() -> None:
     user = MagicMock(spec=discord.Member)
     user.id = 1
@@ -68,6 +87,21 @@ def test_ghost_ping_field_helpers() -> None:
     bot.bot = True
     EventHelpers._add_member_ping_fields(embed, [human, bot], message)
     assert any(f.name == "Member pings" for f in embed.fields)
+
+
+def test_add_member_ping_fields_skips_bots_only() -> None:
+    embed = discord.Embed(title="t")
+    author = MagicMock()
+    author.mention = "<@1>"
+    channel = MagicMock()
+    channel.mention = "<#2>"
+    message = MagicMock(spec=discord.Message)
+    message.author = author
+    message.channel = channel
+    bot = MagicMock(spec=discord.Member)
+    bot.bot = True
+    EventHelpers._add_member_ping_fields(embed, [bot], message)
+    assert embed.fields == []
 
 
 async def test_on_member_join_assigns_linked_roles(

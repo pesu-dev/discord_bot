@@ -264,3 +264,62 @@ async def test_link_http_error(mock_bot: MagicMock, member_factory: MemberFactor
     mock_bot.config.error_logs_channel.send.assert_awaited()
     error_field = mock_bot.config.error_logs_channel.send.await_args.kwargs["embed"].fields[0]
     assert "offline" in error_field.value
+
+
+@respx.mock
+async def test_link_empty_http_body(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
+    respx.post(AUTH_URL).mock(return_value=httpx.Response(200, content=b""))
+    message, followup = await _helpers(mock_bot).link_account(member_factory(), "PES1UG21CS001", "x")
+    assert message == LinkMessage.AUTH_FAILED
+    assert followup is None
+
+
+@respx.mock
+async def test_link_non_json_body(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
+    respx.post(AUTH_URL).mock(return_value=httpx.Response(200, content=b"not-json"))
+    message, followup = await _helpers(mock_bot).link_account(member_factory(), "PES1UG21CS001", "x")
+    assert message == LinkMessage.AUTH_FAILED
+    assert followup is None
+
+
+@respx.mock
+async def test_link_json_non_dict(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
+    respx.post(AUTH_URL).mock(return_value=httpx.Response(200, json=[1, 2]))
+    message, followup = await _helpers(mock_bot).link_account(member_factory(), "PES1UG21CS001", "x")
+    assert message == LinkMessage.AUTH_FAILED
+    assert followup is None
+
+
+@respx.mock
+async def test_link_profile_null(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
+    respx.post(AUTH_URL).mock(return_value=httpx.Response(200, json={"status": True, "profile": None}))
+    message, followup = await _helpers(mock_bot).link_account(member_factory(), "PES1UG21CS001", "x")
+    assert message == LinkMessage.MISSING_PROFILE_FIELDS
+    assert followup is None
+    await asyncio.sleep(0)
+    mock_bot.config.error_logs_channel.send.assert_awaited()
+
+
+async def test_link_defensive_missing_fields_after_fetch(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
+    helpers = _helpers(mock_bot)
+    profile = MagicMock()
+    profile.has_na_link_field.return_value = False
+    profile.prn = None
+    profile.branch = "CSE"
+    profile.campus = "RR"
+    profile.campus_code = 1
+    with patch.object(helpers, "_fetch_link_profile", AsyncMock(return_value=profile)):
+        message, followup = await helpers.link_account(member_factory(), "PES1UG21CS001", "x")
+    assert message == LinkMessage.MISSING_PROFILE_FIELDS
+    assert followup is None
+
+
+@respx.mock
+async def test_link_error_log_send_failure(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
+    respx.post(AUTH_URL).mock(return_value=httpx.Response(200, json={"status": False, "message": "bad"}))
+    mock_bot.config.error_logs_channel.send = AsyncMock(side_effect=RuntimeError("channel gone"))
+    message, followup = await _helpers(mock_bot).link_account(member_factory(), "PES1UG21CS001", "x")
+    assert message == LinkMessage.AUTH_FAILED
+    assert followup is None
+    await asyncio.sleep(0)
+    mock_bot.logger.exception.assert_called()

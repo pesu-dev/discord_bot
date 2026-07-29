@@ -56,9 +56,6 @@ class AnonModCommands(ModHelpers):
         else:
             user_to_ban = member
 
-        if user_to_ban is None:
-            return
-
         await self._apply_anon_ban(
             interaction,
             user_to_ban,

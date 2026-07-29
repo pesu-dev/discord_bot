@@ -47,6 +47,21 @@ async def test_reload_all_cogs_mixed(mock_bot: MagicMock, interaction_factory: I
     assert "Failed to load" in content
 
 
+async def test_reload_all_cogs_success(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
+    helpers = EngHelpers()
+    helpers.client = mock_bot
+    interaction = interaction_factory()
+    mock_bot.unload_extension = AsyncMock()
+    mock_bot.load_extension = AsyncMock()
+    with patch("src.cogs.eng.helpers.discover_cog_extensions", return_value=["src.cogs.a", "src.cogs.b"]):
+        with patch("src.cogs.eng.helpers.get_cogs_dir"):
+            await helpers._reload_all_cogs(interaction)
+    content = interaction.followup.send.await_args.kwargs["content"]
+    assert "Reloaded 2 cogs successfully" in content
+    assert "Failed to unload" not in content
+    assert "Failed to load" not in content
+
+
 async def test_eng_reload_dispatches_single(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     cmd = EngCommands()
     cmd.client = mock_bot

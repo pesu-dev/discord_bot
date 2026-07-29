@@ -197,6 +197,21 @@ async def test_spotify_not_found_and_no_activity(
     assert "No spotify" in interaction.followup.send.await_args.kwargs["content"]
 
 
+async def test_spotify_skips_non_spotify_activity(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
+    cmd = GeneralCommands()
+    cmd.client = mock_bot
+    member = member_factory()
+    member.activities = [MagicMock()]  # not discord.Spotify
+    guild = MagicMock(spec=discord.Guild)
+    guild.get_member = MagicMock(return_value=member)
+    interaction = interaction_factory(user=member, guild=guild)
+    interaction.guild = guild
+    await get_callback(cmd.spotify)(cmd, interaction, user=None)
+    assert "No spotify" in interaction.followup.send.await_args.kwargs["content"]
+
+
 async def test_togglerole_adds_role(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     cmd = GeneralCommands()
     cmd.client = mock_bot
@@ -355,6 +370,23 @@ async def test_ask_empty_answer_chunk(
     respx.post("https://askpesu.test/api").mock(return_value=Response(200, json={"answer": "\n\n"}))
     await get_callback(cmd.ask)(cmd, interaction, "q")
     interaction.followup.send.assert_awaited()
+
+
+@respx.mock
+async def test_ask_splits_long_answer_into_chunks(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from httpx import Response
+
+    monkeypatch.setenv("ASKPESU_API", "https://askpesu.test/api")
+    cmd = GeneralCommands()
+    cmd.client = mock_bot
+    interaction = interaction_factory()
+    long_answer = "\n".join(["x" * 1500, "y" * 1500])
+    respx.post("https://askpesu.test/api").mock(return_value=Response(200, json={"answer": long_answer}))
+    await get_callback(cmd.ask)(cmd, interaction, "q")
+    embeds = interaction.followup.send.await_args.kwargs["embeds"]
+    assert len(embeds) >= 2
 
 
 async def test_selfmute_default_duration(

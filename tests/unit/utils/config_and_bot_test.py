@@ -151,6 +151,22 @@ async def test_bot_on_ready(monkeypatch: pytest.MonkeyPatch) -> None:
     bot.logger.error.assert_called()
 
 
+async def test_bot_on_ready_without_user(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ENV", "local")
+    from src.bot import DiscordBot
+
+    bot = DiscordBot()
+    bot.logger = MagicMock()
+    type(bot).user = property(lambda self: None)  # type: ignore[method-assign]
+    logs = MagicMock()
+    logs.send = AsyncMock()
+    bot.config = MagicMock()
+    bot.config.bot_logs_channel = logs
+    await bot.on_ready()
+    bot.logger.info.assert_any_call("Bot is ready")
+    logs.send.assert_awaited_with("Bot is online")
+
+
 async def test_bot_command_completion_and_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("APP_ENV", "local")
     from discord.ext import commands
@@ -239,13 +255,27 @@ def test_config_role_channel_properties() -> None:
     assert config.muted_role is role
     assert config.bot_logs_channel is channel
     assert config.mod_logs_channel is channel
+    assert config.error_logs_channel is channel
     assert config.lobby_channel is channel
     assert config.verification_logs_channel is channel
-    assert config.error_logs_channel is channel
     assert Config.PESU_AUTH_URL == "https://pesu-auth.onrender.com/authenticate"
     assert Config.CHANNELS["VERIFICATION_LOGS"] == 1100722146956820510
     assert Config.CHANNELS["ERROR_LOGS"] == 1129317221848596490
     assert "ADDITIONAL_ROLES" not in Config.CHANNELS
+
+
+def test_lobby_channel_rejects_non_text() -> None:
+    import discord
+
+    bot = MagicMock()
+    guild = MagicMock()
+    guild.get_role = MagicMock(return_value=MagicMock(spec=discord.Role))
+    # get_channel allows Thread; lobby_channel requires TextChannel only.
+    guild.get_channel_or_thread = MagicMock(return_value=MagicMock(spec=discord.Thread))
+    bot.get_guild = MagicMock(return_value=guild)
+    config = Config(bot, env="local", db_name="pesu_v2")
+    with pytest.raises(ValueError, match="LOBBY must be a text channel"):
+        _ = config.lobby_channel
 
 
 def test_branch_short_codes_from_portal() -> None:

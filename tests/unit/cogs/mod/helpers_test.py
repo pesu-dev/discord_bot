@@ -206,6 +206,28 @@ async def test_mute_loop_marks_inactive_when_member_left(mock_bot: MagicMock) ->
     assert kwargs["unmute_type"] == "auto_member_left"
 
 
+async def test_mute_loop_skips_missing_id(mock_bot: MagicMock) -> None:
+    from src.cogs.mod import SlashMod
+
+    with patch.object(
+        SlashMod,
+        "__init__",
+        lambda self, client: setattr(self, "client", client) or setattr(self, "tasks", []),
+    ):
+        cog = SlashMod(mock_bot)
+
+    mute = _expired_mute(mute_id=ObjectId(), user_id=99, channel_id=1)
+    mute.id = None
+    mock_bot.stores.mutes.find_expired = AsyncMock(return_value=[mute])
+    mock_bot.stores.mutes.mark_unmuted = AsyncMock()
+    mock_bot.config.guild = MagicMock()
+    mock_bot.config.guild.fetch_member = AsyncMock()
+
+    await SlashMod.check_mutes_loop(cog)
+    mock_bot.stores.mutes.mark_unmuted.assert_not_called()
+    mock_bot.config.guild.fetch_member.assert_not_called()
+
+
 async def test_mute_loop_unmutes_member(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
     from src.cogs.mod import SlashMod
 
@@ -348,3 +370,22 @@ async def test_slash_mod_lifecycle(mock_bot: MagicMock) -> None:
         cog = SlashMod(mock_bot)
         assert cog.ctx_menu is not None
         await cog.cog_unload()
+
+
+async def test_slash_mod_skips_start_when_running(mock_bot: MagicMock) -> None:
+    from discord.ext import tasks
+
+    from src.cogs.mod import SlashMod
+
+    def is_running_skip_start(self: object) -> bool:
+        if not hasattr(self, "_last_iteration"):
+            return False
+        return True
+
+    with (
+        patch.object(tasks.Loop, "is_running", is_running_skip_start),
+        patch.object(tasks.Loop, "start") as start,
+        patch.object(tasks.Loop, "cancel"),
+    ):
+        SlashMod(mock_bot)
+    start.assert_not_called()

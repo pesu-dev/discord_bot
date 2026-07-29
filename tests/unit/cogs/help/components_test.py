@@ -108,3 +108,12 @@ async def test_help_view_on_timeout_message_gone(mock_bot: MagicMock, interactio
     view.message = MagicMock()
     view.message.edit = AsyncMock(side_effect=discord.NotFound(MagicMock(), "gone"))
     await view.on_timeout()
+
+
+async def test_help_view_on_timeout_no_message(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
+    _wire_welcome(mock_bot)
+    interaction = interaction_factory()
+    view = HelpView(interaction, mock_bot, category="eng", page=0)
+    view.message = None
+    view._children.append(object())  # non-Button/Select child for isinstance false branch
+    await view.on_timeout()

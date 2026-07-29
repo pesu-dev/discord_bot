@@ -91,7 +91,7 @@ run_cog_import_checks() {
 run_unit_tests() {
     print_action "Running unit tests..."
 
-    if ! uv run pytest -m unit -q; then
+    if ! uv run pytest -m unit -q --cov=src --cov-report=term:skip-covered; then
         print_error "Unit tests failed"
         return 1
     fi

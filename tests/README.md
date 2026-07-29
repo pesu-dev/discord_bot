@@ -20,7 +20,7 @@ Discord interactions are mocked (`unittest.mock` / fixtures in `tests/conftest.p
 uv sync --extra dev
 
 # Fast local loop (also what pre-commit should prefer)
-uv run pytest -m unit --cov=src --cov-report=term-missing
+uv run pytest -m unit -q --cov=src --cov-report=term:skip-covered
 
 # Needs Docker (Testcontainers). Ryuk is disabled for Colima portability.
 uv run pytest -m integration

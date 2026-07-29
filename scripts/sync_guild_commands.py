@@ -11,239 +11,159 @@ from __future__ import annotations
 import argparse
 import ast
 import asyncio
+import hashlib
 import os
 import subprocess
 import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-COGS_PREFIX = "src/cogs/"
 
 sys.path.insert(0, str(REPO_ROOT))
 
 
-def _decorator_root(decorator: ast.expr) -> ast.expr:
-    node = decorator
-    while isinstance(node, ast.Call):
-        node = node.func
-    return node
-
-
-def _decorator_path(node: ast.expr) -> str | None:
-    root = _decorator_root(node)
-    if isinstance(root, ast.Attribute):
-        parts: list[str] = []
-        current: ast.expr = root
-        while isinstance(current, ast.Attribute):
-            parts.append(current.attr)
-            current = current.value
-        if isinstance(current, ast.Name):
-            parts.append(current.id)
+def _dotted_name(node: ast.expr) -> str | None:
+    """`app_commands.command` / `ModGroups.mod.command` → dotted string."""
+    parts: list[str] = []
+    cur: ast.expr = node
+    while isinstance(cur, ast.Call):
+        cur = cur.func
+    while isinstance(cur, ast.Attribute):
+        parts.append(cur.attr)
+        cur = cur.value
+    if isinstance(cur, ast.Name):
+        parts.append(cur.id)
         return ".".join(reversed(parts))
-    if isinstance(root, ast.Name):
-        return root.id
     return None
 
 
-def _keyword_str(node: ast.Call, key: str) -> str | None:
-    for keyword in node.keywords:
-        if keyword.arg != key:
-            continue
-        if isinstance(keyword.value, ast.Constant) and isinstance(keyword.value.value, str):
-            return keyword.value.value
+def _kw_str(call: ast.Call, key: str) -> str | None:
+    for kw in call.keywords:
+        if kw.arg == key and isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+            return kw.value.value
     return None
 
 
-def _call_root_name(node: ast.Call) -> str | None:
-    root = node.func
-    if isinstance(root, ast.Attribute):
-        return root.attr
-    if isinstance(root, ast.Name):
-        return root.id
-    return None
+def _hash_nodes(*nodes: ast.AST) -> str:
+    payload = "\0".join(ast.dump(n, annotate_fields=True) for n in nodes)
+    return hashlib.sha256(payload.encode()).hexdigest()[:16]
 
 
-_SLASH_DECORATORS = frozenset({"app_commands.command", "commands.hybrid_command"})
+def _is_command_decorator(node: ast.expr) -> bool:
+    name = _dotted_name(node)
+    return bool(name and (name.endswith(".command") or name.endswith("hybrid_command")))
 
 
-def _is_app_commands_group_call(node: ast.Call) -> bool:
-    return _decorator_path(node) == "app_commands.Group"
+def _call_basename(call: ast.Call) -> str | None:
+    name = _dotted_name(call)
+    return name.rsplit(".", 1)[-1] if name else None
 
 
-def _extract_groups_from_class(class_node: ast.ClassDef) -> dict[str, dict[str, str | None]]:
-    groups: dict[str, dict[str, str | None]] = {}
-    for stmt in class_node.body:
-        if not isinstance(stmt, ast.Assign):
-            continue
-        for target in stmt.targets:
-            if not isinstance(target, ast.Name):
-                continue
-            if not isinstance(stmt.value, ast.Call) or not _is_app_commands_group_call(stmt.value):
-                continue
-            parent_var: str | None = None
-            for keyword in stmt.value.keywords:
-                if keyword.arg == "parent" and isinstance(keyword.value, ast.Name):
-                    parent_var = keyword.value.id
-            groups[target.id] = {
-                "name": _keyword_str(stmt.value, "name") or target.id,
-                "parent_var": parent_var,
-            }
-    return groups
-
-
-def _slash_command_key(decorator: ast.Call, func_name: str) -> str | None:
-    if _decorator_path(decorator) not in _SLASH_DECORATORS:
-        return None
-    name = _keyword_str(decorator, "name") or func_name
-    return f"slash:{name}"
-
-
-def _named_groups_command_key(decorator: ast.Call, func_name: str) -> str | None:
-    """Resolve @ModGroups.mod.command, @AnonGroups.anon.command, etc."""
-    root = _decorator_root(decorator)
-    if not isinstance(root, ast.Attribute) or root.attr != "command":
-        return None
-    group_attr = root.value
-    if not isinstance(group_attr, ast.Attribute):
-        return None
-    if not isinstance(group_attr.value, ast.Name) or not group_attr.value.id.endswith("Groups"):
-        return None
-
-    group_paths: dict[tuple[str, str], tuple[str, ...]] = {
-        ("ModGroups", "mod"): ("mod",),
-        ("ModGroups", "mod_link"): ("mod", "link"),
-        ("ModGroups", "mod_anon"): ("mod", "anon"),
-        ("AnonGroups", "anon"): ("anon",),
-        ("EngGroups", "eng"): ("eng",),
-    }
-    path = group_paths.get((group_attr.value.id, group_attr.attr))
-    if path is None:
-        return None
-
-    cmd_name = _keyword_str(decorator, "name") or func_name
-    return f"slash:{' '.join(path)} {cmd_name}"
-
-
-def _group_command_key(
-    decorator: ast.Call,
-    func_name: str,
-    groups: dict[str, dict[str, str | None]],
-) -> str | None:
-    root = _decorator_root(decorator)
-    if not isinstance(root, ast.Attribute) or root.attr != "command":
-        return None
-    if not isinstance(root.value, ast.Name):
-        return None
-    group_var = root.value.id
-    group_info = groups.get(group_var)
-    if group_info is None:
-        return None
-
-    cmd_name = _keyword_str(decorator, "name") or func_name
-    group_name = group_info["name"]
-    parent_var = group_info["parent_var"]
-    if parent_var and parent_var in groups:
-        parent_name = groups[parent_var]["name"]
-        return f"slash:{parent_name} {group_name} {cmd_name}"
-    return f"slash:{group_name} {cmd_name}"
-
-
-def _collect_command_keys(
-    func_node: ast.FunctionDef | ast.AsyncFunctionDef,
-    groups: dict[str, dict[str, str | None]],
-    commands: set[str],
+def _add_command(
+    surfaces: dict[str, str],
+    filename: str,
+    func: ast.FunctionDef | ast.AsyncFunctionDef,
+    qual: str,
 ) -> None:
-    for decorator in func_node.decorator_list:
-        if not isinstance(decorator, ast.Call):
-            continue
-        if key := _slash_command_key(decorator, func_node.name):
-            commands.add(key)
-        elif key := _group_command_key(decorator, func_node.name, groups):
-            commands.add(key)
-        elif key := _named_groups_command_key(decorator, func_node.name):
-            commands.add(key)
+    if any(_is_command_decorator(d) for d in func.decorator_list):
+        surfaces[f"{filename}:{qual}"] = _hash_nodes(*func.decorator_list, func.args)
 
 
-def _context_menu_key(node: ast.Assign) -> str | None:
-    if not isinstance(node.value, ast.Call) or _call_root_name(node.value) != "ContextMenu":
-        return None
-    name = _keyword_str(node.value, "name")
-    return f"context_menu:{name}" if name else None
+def _add_registry_call(surfaces: dict[str, str], filename: str, call: ast.Call) -> None:
+    kind = _call_basename(call)
+    if kind not in {"Group", "ContextMenu"}:
+        return
+    label = _kw_str(call, "name")
+    if not label:
+        return
+    prefix = "group" if kind == "Group" else "context_menu"
+    surfaces[f"{filename}:{prefix}:{label}"] = _hash_nodes(call)
 
 
-def extract_commands_from_source(source: str, *, filename: str = "<unknown>") -> set[str]:
+def _collect_class(surfaces: dict[str, str], filename: str, node: ast.ClassDef) -> None:
+    for item in node.body:
+        if isinstance(item, ast.FunctionDef | ast.AsyncFunctionDef):
+            _add_command(surfaces, filename, item, f"{node.name}.{item.name}")
+        elif isinstance(item, ast.Assign) and isinstance(item.value, ast.Call):
+            _add_registry_call(surfaces, filename, item.value)
+
+
+def extract_surfaces(source: str, *, filename: str = "<unknown>") -> dict[str, str]:
+    """Map stable keys → hashes of Discord-facing AST (decorators + signature, not bodies)."""
     try:
         tree = ast.parse(source, filename=filename)
     except SyntaxError:
-        return set()
+        return {}
 
-    commands: set[str] = set()
+    surfaces: dict[str, str] = {}
     for node in tree.body:
         if isinstance(node, ast.ClassDef):
-            groups = _extract_groups_from_class(node)
-            for item in node.body:
-                if isinstance(item, ast.FunctionDef | ast.AsyncFunctionDef):
-                    _collect_command_keys(item, groups, commands)
+            _collect_class(surfaces, filename, node)
         elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-            _collect_command_keys(node, {}, commands)
+            _add_command(surfaces, filename, node, node.name)
+        elif isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
+            _add_registry_call(surfaces, filename, node.value)
 
+    # ContextMenu constructed inside methods (e.g. self.ctx_menu = ContextMenu(...)).
     for node in ast.walk(tree):
-        if isinstance(node, ast.Assign) and (key := _context_menu_key(node)):
-            commands.add(key)
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
+            if _call_basename(node.value) == "ContextMenu":
+                _add_registry_call(surfaces, filename, node.value)
 
-    return commands
+    return surfaces
 
 
-def list_cog_files_at_ref(ref: str) -> list[str]:
+def cog_files_at_ref(ref: str) -> list[str]:
     output = subprocess.check_output(
         ["git", "ls-tree", "-r", "--name-only", ref, "--", "src/cogs"],
         cwd=REPO_ROOT,
         text=True,
     )
-    return [
-        path
-        for path in output.splitlines()
-        if path.startswith(COGS_PREFIX)
-        and path.endswith(".py")
-        and not Path(path).name.startswith("__")
-        and "/_" not in path.replace("\\", "/")
-    ]
+    files: list[str] = []
+    for path in output.splitlines():
+        if not path.endswith(".py"):
+            continue
+        name = Path(path).name
+        # Keep __init__.py (context menus live there); skip other private modules.
+        if name.startswith("_") and name != "__init__.py":
+            continue
+        files.append(path)
+    return files
 
 
-def extract_commands_at_ref(ref: str) -> frozenset[str]:
-    commands: set[str] = set()
-    for path in list_cog_files_at_ref(ref):
+def surfaces_at_ref(ref: str) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for path in cog_files_at_ref(ref):
         source = subprocess.check_output(["git", "show", f"{ref}:{path}"], cwd=REPO_ROOT, text=True)
-        commands.update(extract_commands_from_source(source, filename=path))
-    return frozenset(commands)
-
-
-def format_command_changes(added: set[str], removed: set[str]) -> str:
-    lines: list[str] = []
-    for key in sorted(added):
-        lines.append(f"  + {key}")
-    for key in sorted(removed):
-        lines.append(f"  - {key}")
-    return "\n".join(lines)
+        out.update(extract_surfaces(source, filename=path))
+    return out
 
 
 def run_changed(base: str, head: str) -> int:
     try:
-        base_commands = extract_commands_at_ref(base)
-        head_commands = extract_commands_at_ref(head)
+        before = surfaces_at_ref(base)
+        after = surfaces_at_ref(head)
     except subprocess.CalledProcessError as exc:
         print(f"Failed to read git refs: {exc}", file=sys.stderr)
         return 2
 
-    added = head_commands - base_commands
-    removed = base_commands - head_commands
-    if not added and not removed:
-        print(f"No command additions or deletions between {base} and {head}.")
-        print(f"Command count unchanged at {len(head_commands)}.")
+    before_keys, after_keys = set(before), set(after)
+    added = sorted(after_keys - before_keys)
+    removed = sorted(before_keys - after_keys)
+    modified = sorted(k for k in before_keys & after_keys if before[k] != after[k])
+
+    if not added and not removed and not modified:
+        print(f"No command surface changes between {base} and {head}.")
+        print(f"Surface count unchanged at {len(after)}.")
         return 0
 
     print(f"Command registry changed between {base} and {head}:")
-    print(format_command_changes(added, removed))
+    for key in added:
+        print(f"  + {key}")
+    for key in removed:
+        print(f"  - {key}")
+    for key in modified:
+        print(f"  ~ {key}")
     return 1
 
 
@@ -253,17 +173,14 @@ async def _sync_guild_commands() -> None:
     from src.bot import DiscordBot
 
     load_dotenv(REPO_ROOT / "src" / ".env")
-
     token = os.getenv("BOT_TOKEN")
     if not token:
-        msg = "BOT_TOKEN is not set"
-        raise RuntimeError(msg)
+        raise RuntimeError("BOT_TOKEN is not set")
 
     bot = DiscordBot()
     await bot.login(token)
     try:
-        guild = bot.config.guild_object
-        await bot.tree.sync(guild=guild)
+        await bot.tree.sync(guild=bot.config.guild_object)
         bot.logger.info("Synced all commands to the guild")
         bot.logger.info("Guild command sync finished")
     finally:
@@ -281,27 +198,21 @@ def run_sync() -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Guild command registry utilities.")
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    sub = parser.add_subparsers(dest="command", required=True)
 
-    changed_parser = subparsers.add_parser(
+    changed = sub.add_parser(
         "changed",
-        help="Exit 1 if slash commands or context menus were added or removed between two git refs.",
+        help="Exit 1 if Discord-facing command surfaces changed between two git refs.",
     )
-    changed_parser.add_argument("--base", required=True, help="Base git ref (previously deployed commit)")
-    changed_parser.add_argument("--head", required=True, help="Head git ref (commit being deployed)")
-
-    subparsers.add_parser(
-        "sync",
-        help="Load cogs and sync guild commands to Discord (requires BOT_TOKEN and APP_ENV).",
-    )
+    changed.add_argument("--base", required=True, help="Base git ref (previously deployed commit)")
+    changed.add_argument("--head", required=True, help="Head git ref (commit being deployed)")
+    sub.add_parser("sync", help="Sync guild commands to Discord (requires BOT_TOKEN and APP_ENV).")
 
     args = parser.parse_args(argv)
-
     if args.command == "changed":
         return run_changed(args.base, args.head)
     if args.command == "sync":
         return run_sync()
-
     return 1
 
 

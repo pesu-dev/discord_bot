@@ -42,6 +42,8 @@ tests/
   integration/          # Testcontainers Mongo; modules named *_test.py
 ```
 
+Unit and integration tests cover **`src/` only**. Do not add pytest suites for `scripts/`, `deploy/`, or other non-`src` trees — those are exercised by CI scripts / manual ops instead. Coverage is already scoped with `--cov=src` / `[tool.coverage.run] source = ["src"]`.
+
 ## Conventions
 
 - Name test modules `*_test.py` (see `python_files` in `pyproject.toml`).

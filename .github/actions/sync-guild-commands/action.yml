@@ -1,5 +1,5 @@
 name: Sync guild commands
-description: Detect command add/remove between git refs and sync to Discord when needed
+description: Detect command surface changes between git refs and sync to Discord when needed
 inputs:
   head_ref:
     description: Git commit being deployed
@@ -38,7 +38,7 @@ runs:
       shell: bash
       run: uv sync --frozen --no-dev
 
-    - name: Detect command additions or deletions
+    - name: Detect command surface changes
       id: detect
       shell: bash
       run: |
@@ -81,7 +81,7 @@ runs:
         APP_ENV: ${{ inputs.app_env }}
       run: uv run scripts/sync_guild_commands.py sync
 
-    - name: Skip sync (no command additions or deletions)
+    - name: Skip sync (no command surface changes)
       if: steps.detect.outputs.changed != 'true'
       shell: bash
-      run: echo "Guild command sync skipped — no commands were added or removed."
+      run: echo "Guild command sync skipped — no command surface changes detected."

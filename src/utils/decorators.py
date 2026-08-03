@@ -29,6 +29,7 @@ class CommandLocation(StrEnum):
 class FunctionalRole(StrEnum):
     ADMIN = "ADMIN"
     MOD = "MOD"
+    JUNIOR_MOD = "JUNIOR_MOD"
     BOT_DEV = "BOT_DEV"
     LINKED = "LINKED"
     JUST_JOINED = "JUST_JOINED"
@@ -48,13 +49,13 @@ _DEFAULT_LOCATION_MESSAGES: dict[CommandLocation, str] = {
 def _is_guild_messageable(channel: discord.abc.MessageableChannel | None) -> bool:
     if channel is None or not isinstance(channel, discord.abc.Messageable):
         return False
-    if isinstance(channel, (discord.DMChannel, discord.GroupChannel)):
+    if isinstance(channel, (discord.DMChannel | discord.GroupChannel)):
         return False
     return getattr(channel, "guild", None) is not None
 
 
 def _is_dm_messageable(channel: discord.abc.MessageableChannel | None) -> bool:
-    return isinstance(channel, (discord.DMChannel, discord.GroupChannel))
+    return isinstance(channel, (discord.DMChannel | discord.GroupChannel))
 
 
 def _resolve_context(args: tuple[Any, ...]) -> discord.Interaction | commands.Context:
@@ -78,7 +79,7 @@ def _get_member(ctx_or_interaction: discord.Interaction | commands.Context) -> d
 
 def _get_channel(ctx_or_interaction: discord.Interaction | commands.Context) -> discord.abc.MessageableChannel | None:
     channel = ctx_or_interaction.channel
-    return channel if isinstance(channel, discord.abc.MessageableChannel) else None
+    return channel if isinstance(channel, discord.abc.Messageable) else None
 
 
 def _get_ephemeral() -> bool:
@@ -166,7 +167,13 @@ def requires_location(
 def requires_roles(
     *roles: FunctionalRole,
     message: str | None = None,
+    forbid: bool = False,
 ) -> Callable[[Callable[P, Awaitable[R]]], Callable[P, Awaitable[R | None]]]:
+    """Require (or forbid) one of the given functional roles.
+
+    When ``forbid`` is False (default), the member must have at least one listed role.
+    When ``forbid`` is True, the member must have none of the listed roles.
+    """
     rejection_message = message or "You are not authorised to run this command."
 
     def decorator(func: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R | None]]:
@@ -181,7 +188,12 @@ def requires_roles(
                 return None
 
             config: Config = args[0].client.config  # type: ignore[attr-defined, union-attr]
-            if not any(_member_has_role(member, role, config) for role in roles):
+            has_role = any(_member_has_role(member, role, config) for role in roles)
+            if forbid:
+                if has_role:
+                    await _send_rejection(ctx_or_interaction, rejection_message, ephemeral=ephemeral)
+                    return None
+            elif not has_role:
                 await _send_rejection(ctx_or_interaction, rejection_message, ephemeral=ephemeral)
                 return None
 

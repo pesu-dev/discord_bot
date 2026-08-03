@@ -9,8 +9,6 @@ def main() -> None:
     if not token:
         bot.logger.error("BOT_TOKEN environment variable not set")
         return
-    # bot.run() configures the discord library logger; our "discord.app" logger is
-    # configured in the package __init__ with propagate disabled (no duplicate lines).
     bot.run(token)
 
 

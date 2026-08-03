@@ -1,15 +1,22 @@
 from __future__ import annotations
 
-import datetime
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import discord
 from discord import app_commands
 
-from src.cogs.anon import AnonGroups
+from src.cogs.anon.groups import AnonGroups
 from src.utils import decorators as bot_decorators
+from src.utils import general as ug
+
+if TYPE_CHECKING:
+    from src.bot import DiscordBot
 
 
-class MessagingCommands:
+class AnonCommands:
+    client: DiscordBot
+
     @AnonGroups.anon.command(
         name="send",
         description="Send messages anonymously to the general lobby channel",
@@ -19,17 +26,13 @@ class MessagingCommands:
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
     @bot_decorators.handle_command_errors()
     async def anon_send(self, interaction: discord.Interaction, message: str, link: str | None = None) -> None:
-        member_link_check = await self.client.link_collection.find_one({"userId": str(interaction.user.id)})
-        if not member_link_check:
+        if not await self.client.stores.links.exists(user_id=str(interaction.user.id)):
             await interaction.followup.send(
                 content="You're not linked, so you can't use anon messaging. If this is a mistake, please contact Han",
                 ephemeral=True,
             )
             return
-        member_anon_ban_check = await self.client.anonban_collection.find_one(
-            {"userId": str(interaction.user.id), "active": True}
-        )
-        if member_anon_ban_check:
+        if await self.client.stores.anonbans.exists(user_id=str(interaction.user.id), active=True):
             await interaction.followup.send(
                 content=":x: You have been banned from using anon messaging", ephemeral=True
             )
@@ -52,9 +55,11 @@ class MessagingCommands:
         else:
             reply_msg = None
 
-        embed = discord.Embed(title="Anon Message", description=message, color=discord.Color.random())
-        embed.timestamp = datetime.datetime.now(datetime.UTC)
-        embed.set_footer(text="PESU Bot")
+        embed = ug.build_embed(
+            title="Anon Message",
+            color=discord.Color.random(),
+            description=message,
+        )
 
         if reply_msg:
             anon_message = await reply_msg.reply(embed=embed, mention_author=True)
@@ -64,9 +69,22 @@ class MessagingCommands:
             content=f":white_check_mark: Your anon message has been sent to {lobby_channel.mention}"
         )
 
-        if str(interaction.user.id) not in self.anon_cache:
-            self.anon_cache[str(interaction.user.id)] = []
+        if str(interaction.user.id) not in self.client.anon_cache:
+            self.client.anon_cache[str(interaction.user.id)] = []
 
-        self.anon_cache[str(interaction.user.id)].append(
-            {"message_id": str(anon_message.id), "timestamp": datetime.datetime.now(datetime.UTC)}
+        self.client.anon_cache[str(interaction.user.id)].append(
+            {"message_id": str(anon_message.id), "timestamp": datetime.now(UTC)}
+        )
+
+    @AnonGroups.anon.command(
+        name="vote",
+        description="Vote for a poll",
+    )
+    @bot_decorators.defer(ephemeral=True)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.handle_command_errors()
+    async def anon_vote(self, interaction: discord.Interaction) -> None:
+        await interaction.followup.send(
+            content="Feature coming soon!",
+            ephemeral=True,
         )

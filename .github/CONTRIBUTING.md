@@ -16,6 +16,7 @@ Thank you for your interest in contributing to the PESU Discord Bot! This docume
   - [Set Up Environment Variables](#set-up-environment-variables)
   - [Database Setup](#database-setup)
 - [Running the Bot](#-running-the-bot)
+- [Running Tests](#-running-tests)
 - [Submitting Changes](#-submitting-changes)
   - [Create a Branch](#-create-a-branch)
   - [Make and Commit Changes](#-make-and-commit-changes)
@@ -151,12 +152,32 @@ To run the bot locally for development:
 1. **Run the bot** (from the repository root):
 
    ```bash
-   uv run python -m src
+   uv run -m src
    ```
 
 The bot will start and connect to Discord. You should see connection logs in your terminal indicating successful startup.
 
 **Note**: Make sure you have set up a test Discord server or have appropriate permissions in the PESU Discord server for development testing.
+
+---
+
+## 🧪 Running Tests
+
+Install the `dev` extra (includes pytest and Testcontainers):
+
+```bash
+uv sync --extra dev
+```
+
+```bash
+# Unit tests (fast; no Docker) — required for PRs
+uv run pytest -m unit --cov=src --cov-report=term-missing
+
+# Integration tests (needs Docker for MongoDB via Testcontainers)
+uv run pytest -m integration
+```
+
+CI runs unit and integration jobs **in parallel**. See [tests/README.md](../tests/README.md) for the test pyramid, fixtures, and conventions.
 
 ---
 
@@ -250,29 +271,34 @@ To keep the codebase clean and maintainable, please follow these conventions:
 
 ### 📦 Cog Package Structure
 
-Each cog lives under `src/cogs/<name>/` as a Python package:
+Each cog lives under `src/cogs/<name>/` as a Python package. Files follow a uniform, role-based scheme:
 
 ```text
 src/cogs/mod/
-  __init__.py      # *Groups classes + setup()
-  cog.py           # Cog shell (tasks, helpers, Slash* class)
-  moderation.py    # Command mixins
-  link.py          # More command mixins
+  __init__.py      # Slash* cog class (tasks, on_ready) + setup()
+  groups.py        # app_commands.Group definitions (*Groups)
+  commands.py      # Root-group command mixin (*Commands)
+  link.py          # Child subgroup command mixin (one file per child group)
+  helpers.py       # Internal helper mixin (optional)
 ```
 
 Conventions:
 
-- **Command groups** (`ModGroups`, `AnonGroups`, etc.) belong in `__init__.py`.
-- **Command mixins** import groups from `src.cogs.<name>`, never from `cog.py`.
-- **`cog.py`** wires mixins into the final `Slash*` cog class and holds shared helpers/tasks.
-- **`setup()`** lazy-imports the cog class to avoid circular imports.
-- Use **absolute imports only** (`from src.cogs.mod import ModGroups`), not relative imports.
-- Cog discovery and reload helpers live in `src/utils/cogs.py`.
+- **`__init__.py`** holds the final `Slash*` cog class (composed via multiple inheritance from groups + commands/listeners mixins) plus lifecycle bits (task loops, `on_ready`) and the `setup()` entrypoint. It is the loadable extension.
+- **`groups.py`** holds the `app_commands.Group` definitions (`ModGroups`, `AnonGroups`, etc.), only when the cog uses groups. It lives in its own module so command files can import the group without a circular import back into `__init__.py`.
+- **`commands.py`** holds the command mixin for the cog's **root** group (or top-level commands). Each **child** subgroup (one with a `parent=`) gets its own file named after it (e.g. `mod_link` -> `link.py`).
+- **`helpers.py`** holds an optional mixin of internal helper methods. When present, `*Commands` / `*Listeners` (and child-group command mixins that need those helpers) **subclass** `*Helpers` so `self._helper_method(...)` type-checks. Do **not** also list `*Helpers` as a separate base in `__init__.py`.
+- **`components.py`** holds Discord UI (views/selects/buttons); **`listeners.py`** holds event listeners (see `events`).
+- **Command/helper mixins** import groups from `src.cogs.<name>.groups`, never from `__init__.py`.
+- Mixins declare `client: DiscordBot` (under `TYPE_CHECKING`) so `self.client` type-checks instead of resolving to `Any`.
+- Import the base class as `from discord.ext.commands import Cog` (not `commands.Cog`) so a `commands.py` submodule cannot shadow the `commands` name in the package namespace.
+- Use **absolute imports only** (`from src.cogs.mod.groups import ModGroups`), not relative imports.
+- Cog discovery and reload helpers live in `src/utils/general.py`.
 
 Special cases:
 
-- **`anon`**: registers a context menu in `setup()` alongside the cog.
-- **`events`**: global listeners, not guild-scoped.
+- **`mod`**: registers the "Ban this anon" context menu in `setup()` alongside the cog; the anon moderation commands live under the `mod anon` subgroup. Both `ModCommands` and `AnonModCommands` subclass `ModHelpers`.
+- **`events`**: global listeners (in `listeners.py`), not guild-scoped; has no slash commands. `EventListeners` subclasses `EventHelpers`.
 
 When adding a new cog package, CI runs `scripts/check_cog_imports.py` to catch import cycles early.
 

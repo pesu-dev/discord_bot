@@ -23,14 +23,13 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     env:
-      DOCKER_IMAGE_NAME: ${{ vars.DOCKER_IMAGE_NAME }}
       KEEP_SHA_TAGS: ${{ inputs.keep_sha_tags }}
     steps:
       - name: Delete stale package versions
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OWNER: ${{ github.repository_owner }}
-          PACKAGE_NAME: ${{ env.DOCKER_IMAGE_NAME }}
+          PACKAGE_NAME: ${{ github.event.repository.name }}
         run: |
           set -euo pipefail
 

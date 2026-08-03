@@ -1,25 +1,57 @@
 from __future__ import annotations
 
-import json
 import os
-import time
-from pathlib import Path
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 
 import discord
 import httpx
 from discord import app_commands
 
-from src.cogs.utils.components import RoleSelectView
+from src.cogs.general.helpers import GeneralHelpers
+from src.data.mongo import Mute
 from src.utils import decorators as bot_decorators
 from src.utils import general as ug
 
+if TYPE_CHECKING:
+    from src.bot import DiscordBot
 
-class UtilsCommands:
+# Self-assignable optional roles
+_TOGGLEABLE_ROLE_CHOICES = [
+    app_commands.Choice(name="🎮 Gamer", value="778825985361051660"),
+    app_commands.Choice(name="⌨️ Coder", value="778875127257104424"),
+    app_commands.Choice(name="🎸 Musician", value="778875199701385216"),
+    app_commands.Choice(name="🎥 Editor", value="782642024071168011"),
+    app_commands.Choice(name="💡 Tech", value="790106229997174786"),
+    app_commands.Choice(name="⚙️ Moto", value="836652197214421012"),
+    app_commands.Choice(name="💸 Investors", value="936886064361144360"),
+    app_commands.Choice(name="🤖 PESU Dev", value="810507351063920671"),
+    app_commands.Choice(name="👀 NSFW", value="778820724424704011"),
+]
+
+
+class GeneralCommands(GeneralHelpers):
+    client: DiscordBot
+    cached_data: dict | None
+
     @app_commands.command(name="link", description="Link your PESU account to Discord")
+    @app_commands.describe(
+        username="PESU Academy username",
+        password="PESU Academy password",
+    )
     @bot_decorators.defer(ephemeral=True)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
-    async def link(self, interaction: discord.Interaction) -> None:
-        await interaction.followup.send("Coming soon", ephemeral=True)
+    @bot_decorators.requires_roles(
+        bot_decorators.FunctionalRole.LINKED,
+        forbid=True,
+        message="This Discord user is already linked to a PESU Academy account",
+    )
+    @bot_decorators.handle_command_errors()
+    async def link(self, interaction: discord.Interaction, username: str, password: str) -> None:
+        message, followup = await self.link_account(interaction.user, username, password)
+        await interaction.followup.send(content=message, ephemeral=True)
+        if followup is not None:
+            await interaction.followup.send(content=followup, ephemeral=True)
 
     @app_commands.command(name="info", description="Get info about a user")
     @app_commands.describe(user="User to fetch info about")
@@ -29,26 +61,26 @@ class UtilsCommands:
         not_found="The specified user does not exist or is not in the server",
     )
     async def info(self, interaction: discord.Interaction, user: discord.Member) -> None:
-        created_at_timestamp = int(time.mktime(user.created_at.timetuple()))
-        joined_at_timestamp = int(time.mktime(user.joined_at.timetuple())) if user.joined_at else None
-
-        embed = discord.Embed(title="User Info", color=discord.Color.greyple())
-        embed.set_thumbnail(url=user.display_avatar.url)
-        embed.add_field(name="Name", value=user.name, inline=True)
-        embed.add_field(name="ID", value=str(user.id), inline=True)
-        embed.add_field(name="Creation", value=f"<t:{created_at_timestamp}:R>", inline=True)
-        if joined_at_timestamp:
-            embed.add_field(name="Join", value=f"<t:{joined_at_timestamp}:R>", inline=True)
+        fields: list[dict] = [
+            {"name": "Name", "value": user.name, "inline": True},
+            {"name": "ID", "value": str(user.id), "inline": True},
+            {"name": "Creation", "value": discord.utils.format_dt(user.created_at, "R"), "inline": True},
+        ]
+        if user.joined_at:
+            fields.append({"name": "Join", "value": discord.utils.format_dt(user.joined_at, "R"), "inline": True})
 
         roles = [role.mention for role in user.roles if role != interaction.guild.default_role]
         roles_value = " ".join(roles) if roles else "None"
         if len(roles_value) > 1024:
             roles_value = f"{roles_value[:1021]}..."
-        embed.add_field(name="Roles", value=roles_value, inline=False)
+        fields.append({"name": "Roles", "value": roles_value})
 
-        embed.set_footer(text="PESU Bot")
-        embed.timestamp = discord.utils.utcnow()
-
+        embed = ug.build_embed(
+            title="User Info",
+            color=discord.Color.greyple(),
+            fields=fields,
+            thumbnail=user.display_avatar.url,
+        )
         await interaction.followup.send(embed=embed)
 
     @app_commands.command(
@@ -62,12 +94,12 @@ class UtilsCommands:
     async def count(self, interaction: discord.Interaction, rolelist: str | None = None) -> None:
         # Server stats
         total_count = interaction.guild.member_count
-        rolec = len(self.client.config.linked_role.members)
+        linked_count = len(self.client.config.linked_role.members)
         channel_count = len(interaction.channel.members)
         bot_count = len([m for m in interaction.channel.members if m.bot])
         server_stats_content = "**Server Stats**"
         server_stats_content += f"\nTotal number of people on the server: `{total_count}`"
-        server_stats_content += f"\nTotal number of linked people: `{rolec}`"
+        server_stats_content += f"\nTotal number of linked people: `{linked_count}`"
         server_stats_content += f"\nNumber of people that can see this channel: `{channel_count}`"
         server_stats_content += f"\nNumber of bots that can see this channel: `{bot_count}`"
 
@@ -105,13 +137,13 @@ class UtilsCommands:
     async def spotify(self, interaction: discord.Interaction, user: discord.User | None = None) -> None:
         # discord.Interaction's user object doesn't receive presence data
         # we will have to fetch it from bot's cache instead
-        realuser = interaction.guild.get_member(user.id if user else interaction.user.id)
+        member = interaction.guild.get_member(user.id if user else interaction.user.id)
 
-        if realuser is None:
+        if member is None:
             await interaction.followup.send(content="User not found in this server.", ephemeral=True)
             return
 
-        for activity in realuser.activities:
+        for activity in member.activities:
             if isinstance(activity, discord.Spotify):
                 await interaction.followup.send(
                     content=f"Listening to `{activity.title}` by `{activity.artist}`\nSong link: {activity.track_url}",
@@ -121,38 +153,35 @@ class UtilsCommands:
         await interaction.followup.send(content="No spotify activity detected", ephemeral=True)
 
     @app_commands.command(
-        name="addroles",
-        description="Pick up additional roles to get access to more channels",
+        name="togglerole",
+        description="Toggle an optional role for yourself",
     )
-    @app_commands.describe(channel="The channel to send the role selection in (default: current channel)")
+    @app_commands.describe(role="The role to add or remove")
+    @app_commands.choices(role=_TOGGLEABLE_ROLE_CHOICES)
     @bot_decorators.defer(ephemeral=True)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
-    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.ADMIN, bot_decorators.FunctionalRole.MOD)
+    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.LINKED)
     @bot_decorators.handle_command_errors()
-    async def addroles_command(
-        self,
-        interaction: discord.Interaction,
-        channel: discord.TextChannel | None = None,
-    ) -> None:
-        embe = discord.Embed(
-            title="Additional Roles",
-            description="Pick up additional roles for access to more channels",
-            color=discord.Color.blurple(),
-            timestamp=discord.utils.utcnow(),
-        )
-        embe.set_footer(text="PESU Bot")
+    async def togglerole(self, interaction: discord.Interaction, role: str) -> None:
+        assert isinstance(interaction.user, discord.Member)
+        member = interaction.user
+        discord_role = interaction.guild.get_role(int(role))
+        if discord_role is None:
+            await interaction.followup.send(content="Role not found", ephemeral=True)
+            return
 
-        if channel is None:
-            if not isinstance(interaction.channel, discord.TextChannel):
-                await interaction.followup.send(
-                    content="This command can only be used in a text channel",
-                    ephemeral=True,
-                )
-                return
-            channel = interaction.channel
-        view = RoleSelectView(self.client)
-        await channel.send(embed=embe, view=view)
-        await interaction.followup.send(content=f"Role selection sent in {channel.mention}", ephemeral=True)
+        if discord_role in member.roles:
+            await member.remove_roles(discord_role)
+            await interaction.followup.send(
+                content=f"Removed the {discord_role.mention} role",
+                ephemeral=True,
+            )
+        else:
+            await member.add_roles(discord_role)
+            await interaction.followup.send(
+                content=f"You now have the {discord_role.mention} role",
+                ephemeral=True,
+            )
 
     @app_commands.command(name="pride", description="Flourishes you with the pride of PESU")
     @app_commands.describe(link="The message link to reply with the pride to")
@@ -208,26 +237,16 @@ class UtilsCommands:
                     if chunk.strip():
                         chunks.append(chunk)
 
-                    embeds_to_send = []
-                    first_embed = discord.Embed(
-                        title=f"{query}".capitalize(),
-                        description=chunks[0].strip(),
-                        color=discord.Color.orange(),
-                        timestamp=discord.utils.utcnow(),
-                    )
-                    first_embed.set_footer(
-                        text=f"1/{len(chunks)} • Powered by AskPESU • I am an AI bot, and can make mistakes."
-                    )
-                    embeds_to_send.append(first_embed)
-
-                    for i, c in enumerate(chunks[1:]):
-                        embed = discord.Embed(
-                            description=c.strip(), color=discord.Color.orange(), timestamp=discord.utils.utcnow()
+                    ask_footer = "• Powered by AskPESU • I am an AI bot, and can make mistakes."
+                    embeds_to_send = [
+                        ug.build_embed(
+                            title=f"{query}".capitalize() if i == 0 else "",
+                            color=discord.Color.orange(),
+                            description=c.strip(),
+                            footer=f"{i + 1}/{len(chunks)} {ask_footer}",
                         )
-                        embed.set_footer(
-                            text=f"{i + 2}/{len(chunks)} • Powered by AskPESU • I am an AI bot, and can make mistakes."
-                        )
-                        embeds_to_send.append(embed)
+                        for i, c in enumerate(chunks)
+                    ]
 
                     await interaction.followup.send(embeds=embeds_to_send)
 
@@ -236,93 +255,90 @@ class UtilsCommands:
         except Exception as e:
             await interaction.followup.send(embed=ug.build_unknown_error_embed(e))
 
-    async def fetch_data(self) -> dict:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",  # noqa: E501
-            "Accept-Encoding": "gzip, deflate, br, zstd",
-            "Accept": "*/*",
-            "Connection": "keep-alive",
-        }
+    @app_commands.command(name="selfmute", description="Mute yourself for a specified duration")
+    @app_commands.describe(
+        time="Duration for mute (e.g., 1h, 2h, 1d). Defaults to 1 hour. Minimum 1 hour.",
+        reason="Reason for the mute (optional)",
+    )
+    @bot_decorators.defer(ephemeral=False)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.handle_command_errors(
+        forbidden="I am unable to mute you at this time",
+    )
+    async def selfmute(
+        self,
+        interaction: discord.Interaction,
+        time: str | None = None,
+        reason: str = "",
+    ) -> None:
+        assert isinstance(interaction.user, discord.Member)
+        member = interaction.user
+        muted_role = self.client.config.muted_role
+        time_display = time if time is not None else "1h"
 
-        url = "https://reddit.com/r/PESU/comments/14c1iym/.json"
-
-        async with httpx.AsyncClient(headers=headers, follow_redirects=True) as client:
-            response = await client.get(url)
-            if response.status_code == 200:
-                data = response.json()
-                return self._parse_reddit_data(data)
-
-            resp = response.text
-            self.client.logger.warning(
-                f"Failed to fetch data: {response.status_code}, falling back to local data. {resp}"
-            )
-            return self._load_local_faq()
-
-    @staticmethod
-    def _load_local_faq() -> dict:
-        faq_path = Path(__file__).resolve().parent.parent / "data" / "faq.json"
-        with open(faq_path) as file:
-            raw = json.load(file)
-
-        data: dict = {}
-        for category in raw.get("categories", []):
-            name = category["category"]
-            entries = data.setdefault(name, [])
-            for item in category.get("questions", []):
-                entries.append({"question": item["question"], "answer": item["answer"]})
-        return data
-
-    def _parse_reddit_data(self, data: dict) -> dict:
-        x = data[0]["data"]["children"][0]["data"]["selftext"]
-        finedata = {}
-        y = x.split("# ")
-
-        for i in y:
-            j = i.split("\n\n")
-            if "This post will be" in j[0]:
-                continue
-
-            s = j[1].split("* ")
-            news = list(filter(None, s))
-
-            for item in news:
-                self._process_news_item(item, j[0], finedata)
-
-        return finedata
-
-    def _process_news_item(self, item: str, category: str, finedata: dict) -> None:
-        if ") or [" in item:
-            self._process_multiple_links(item, category, finedata)
+        if time is None:
+            seconds = 3600
         else:
-            self._process_single_link(item, category, finedata)
+            try:
+                seconds = ug.parse_time(time)
+            except ValueError:
+                await interaction.followup.send(
+                    content="Mention the proper amount of time\nAccepted Time Format: Should end with `d/h/m/s/y`",
+                    ephemeral=True,
+                )
+                return
+            if seconds < 3600:
+                await interaction.followup.send(content="Self-mute is only for 1 hour or more", ephemeral=True)
+                return
 
-    def _process_multiple_links(self, item: str, category: str, finedata: dict) -> None:
-        chakdeh = item.split(") or [")
-        for link_part in chakdeh:
-            link_parts = link_part.split("](")
-            title, url = self._clean_link_parts(link_parts)
-            finedata.setdefault(category, []).append({"question": title, "answer": url})
+        if muted_role in member.roles:
+            await interaction.followup.send(
+                content="Brother, how can you able to mute yourself when you are already muted?",
+                ephemeral=True,
+            )
+            return
 
-    def _process_single_link(self, item: str, category: str, finedata: dict) -> None:
-        chakdeh = item.split("](")
-        title, url = self._clean_link_parts(chakdeh)
-        if url.endswith("\n"):
-            url = url[:-1]
-        finedata.setdefault(category, []).append({"question": title, "answer": url})
+        await member.add_roles(muted_role, reason=reason)
+        mute_time = datetime.now(UTC)
+        unmute_time = mute_time + timedelta(seconds=seconds)
 
-    @staticmethod
-    def _clean_link_parts(parts: list) -> tuple[str, str]:
-        title, url = parts[0], parts[1]
-        if title.startswith("["):
-            title = title[1:]
-        if url.endswith(")"):
-            url = url[:-1]
-        return title, url
+        mute_record = Mute(
+            user_id=member.id,
+            channel_id=interaction.channel.id,
+            moderator_id=member.id,
+            mute_time=mute_time,
+            unmute_time=unmute_time,
+            duration_seconds=seconds,
+            reason=reason,
+            active=True,
+            is_self_mute=True,
+        )
+        await self.client.stores.mutes.insert_one(mute_record)
 
-    async def get_data(self) -> dict:
-        if not self.cached_data:
-            self.cached_data = await self.fetch_data()
-        return self.cached_data
+        unmute_relative = discord.utils.format_dt(unmute_time, "R")
+        mute_embed = ug.build_embed(
+            title="Mute",
+            color=discord.Color.red(),
+            fields=[
+                {
+                    "name": "Muted User",
+                    "value": f"{member.mention} was muted\nUnmute: {unmute_relative}\nReason: {reason}",
+                }
+            ],
+        )
+        await interaction.followup.send(content=member.mention, embed=mute_embed)
+
+        mute_logs_embed = ug.build_embed(
+            title="Mute",
+            color=discord.Color.red(),
+            fields=[
+                {
+                    "name": "Muted User",
+                    "value": f"{member.mention}\nTime: {time_display}\nReason: {reason}\nModerator: Self",
+                }
+            ],
+        )
+        await self.client.config.mod_logs_channel.send(embed=mute_logs_embed)
 
     @app_commands.command(name="faq", description="Read the FAQ for PESU")
     @app_commands.describe(
@@ -363,47 +379,6 @@ class UtilsCommands:
             content="[Read the full FAQ](https://www.reddit.com/r/PESU/comments/14c1iym/faqs/)",
             ephemeral=False,
         )
-
-    async def _handle_category_only(self, interaction: discord.Interaction, data: dict, category: str) -> None:
-        questions = []
-        for entry in data[category]:
-            question = entry["question"]
-            answer = entry["answer"]
-            if answer.endswith(")") or question.endswith("\n"):
-                answer = answer[:-1]
-            questions.append(f"[{question}]({answer})")
-
-        if questions:
-            embed = discord.Embed(
-                title=f"FAQ - {category}",
-                description="\n\n".join(questions),
-                color=discord.Color.blurple(),
-            )
-            await interaction.followup.send(embed=embed)
-        else:
-            embed = discord.Embed(
-                title="FAQ",
-                description="No questions found in this category",
-                color=discord.Color.red(),
-            )
-            await interaction.followup.send(embed=embed, ephemeral=True)
-
-    async def _handle_specific_question(
-        self,
-        interaction: discord.Interaction,
-        data: dict,
-        category: str,
-        question: str,
-    ) -> None:
-        for entry in data[category]:
-            if entry["question"] == question:
-                url = entry["answer"]
-                if url.endswith(")") or url.endswith("\n"):
-                    url = url[:-1]
-                await interaction.followup.send(content=f"[{question}]({url})", ephemeral=False)
-                return
-
-        await interaction.followup.send(content="Question not found in the selected category", ephemeral=True)
 
     @faq.autocomplete("category")
     async def category_autocomplete(

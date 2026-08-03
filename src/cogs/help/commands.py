@@ -4,18 +4,16 @@ from typing import TYPE_CHECKING
 
 import discord
 from discord import app_commands
-from discord.ext import commands
 
-from src.cogs.help.views import HelpEmbeds, HelpView
+from src.cogs.help.components import HelpEmbeds, HelpView
 from src.utils import decorators as bot_decorators
 
 if TYPE_CHECKING:
     from src.bot import DiscordBot
 
 
-class SlashHelp(commands.Cog):
-    def __init__(self, client: DiscordBot) -> None:
-        self.client = client
+class HelpCommands:
+    client: DiscordBot
 
     @app_commands.command(name="help", description="Show the bot's help menu")
     @bot_decorators.defer(ephemeral=False)
@@ -24,7 +22,6 @@ class SlashHelp(commands.Cog):
     async def help_command(self, interaction: discord.Interaction) -> None:
         if self.client.config.linked_role not in interaction.user.roles:
             embed = HelpEmbeds(self.client).unlink[0]
-            embed.set_footer(text="PESU Bot")
             await interaction.followup.send(embed=embed)
             return
 

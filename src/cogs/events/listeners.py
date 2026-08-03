@@ -11,6 +11,7 @@ import discord
 from discord.ext import commands
 
 from src.utils import general as ug
+from src.utils.general import build_embed
 
 if TYPE_CHECKING:
     from src.bot import DiscordBot
@@ -185,21 +186,25 @@ class EventListeners:
         just_joined = self.client.config.just_joined_role
         await bot_logs.send(f"{member.mention} Joined!!")
 
-        link_record = await self.client.link_collection.find_one({"userId": str(member.id)})
+        link_record = await self.client.stores.links.find_one(user_id=str(member.id))
         roles_to_add = [just_joined]
-        should_delete_link = bool(link_record and not link_record.get("linkedAt"))
+        should_delete_link = bool(link_record and not link_record.linked_at)
 
-        if link_record and link_record.get("linkedAt") and link_record.get("prn"):
-            student_record = await self.client.student_collection.find_one({"prn": link_record.get("prn")})
+        if link_record and link_record.linked_at and link_record.prn:
+            student_record = await self.client.stores.students.find_one(prn=link_record.prn)
             if student_record:
                 roles_to_add = []
-                role_configs = [("YEAR", ["year"]), ("BRANCH", ["branch", "short"]), ("CAMPUS", ["campus", "short"])]
-                for role_type, key_path in role_configs:
-                    value = student_record
-                    for key in key_path:
-                        value = value.get(key) if value else None
-                    if value and (role := self.client.config.get_role(role_type, value)):
-                        roles_to_add.append(role)
+                for value in (
+                    student_record.year,
+                    student_record.branch.short,
+                    student_record.campus.short,
+                ):
+                    if not value:
+                        continue
+                    try:
+                        roles_to_add.append(self.client.config.resolve_academic_role(value))
+                    except ValueError:
+                        continue
                 if len(roles_to_add) == 3:
                     roles_to_add.append(self.client.config.linked_role)
                 else:
@@ -209,18 +214,18 @@ class EventListeners:
                 should_delete_link = True
 
         await member.add_roles(*roles_to_add)
-        if should_delete_link and link_record:
-            await self.client.link_collection.delete_one({"_id": link_record["_id"]})
+        if should_delete_link and link_record and link_record.id is not None:
+            await self.client.stores.links.delete_one(id=link_record.id)
 
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member) -> None:
         bot_logs = self.client.config.bot_logs_channel
         await bot_logs.send(f"{member.mention} Left!!")
 
-        link_record = await self.client.link_collection.find_one({"userId": str(member.id)})
+        link_record = await self.client.stores.links.find_one(user_id=str(member.id))
 
-        if link_record and link_record.get("linkedAt") is None:
-            await self.client.link_collection.delete_one({"_id": link_record["_id"]})
+        if link_record and link_record.linked_at is None and link_record.id is not None:
+            await self.client.stores.links.delete_one(id=link_record.id)
             await bot_logs.send(f"Linked record of {member.mention} has been deleted.!")
 
     async def _apply_honeypot_action(self, member: discord.Member, source_message: discord.Message) -> str:
@@ -312,51 +317,18 @@ class EventListeners:
         if message.author.bot:
             return
 
-        mentions = message.mentions
-        role_mentions = message.role_mentions
-
-        ghost_ping_embed = discord.Embed(
-            title="Ghost Ping Alert",
-            timestamp=datetime.now(),
-            color=discord.Color.blue(),
-        )
-
-        if message.mention_everyone:
-            ghost_ping_embed.add_field(
-                name="@everyone/@here pings",
-                value=f"{message.author.mention} ghost pinged `@everyone/@here` in {message.channel.mention}",
-                inline=False,
-            )
-
-        if role_mentions:
-            ping_list = ""
-            for role in role_mentions:
-                ping_list += role.mention + " "
-            ghost_ping_embed.add_field(
-                name="Role pings",
-                value=f"{message.author.mention} ghost pinged {ping_list}in {message.channel.mention}",
-                inline=False,
-            )
-
-        user_mentions = [member for member in mentions if not member.bot]
-        if user_mentions:
-            ping_list = ""
-            for member in user_mentions:
-                ping_list += member.mention + " "
-            ghost_ping_embed.add_field(
-                name="Member pings",
-                value=f"{message.author.mention} ghost pinged {ping_list}in {message.channel.mention}",
-                inline=False,
-            )
+        ghost_ping_embed = build_embed(title="Ghost Ping Alert", color=discord.Color.blue())
+        self._add_everyone_ping_field(ghost_ping_embed, message)
+        self._add_role_ping_fields(ghost_ping_embed, message.role_mentions, message)
+        self._add_member_ping_fields(ghost_ping_embed, message.mentions, message)
 
         if len(ghost_ping_embed.fields) > 0:
-            mod_logs = self.client.config.mod_logs_channel
             ghost_ping_embed.add_field(
                 name="Message content",
                 value=message.content if message.content else "No content",
                 inline=False,
             )
-            ghost_ping_embed.set_footer(text="PESU Bot")
+            mod_logs = self.client.config.mod_logs_channel
             await mod_logs.send(embed=ghost_ping_embed)
 
     @commands.Cog.listener()
@@ -384,7 +356,7 @@ class EventListeners:
         if not has_mention_changes:
             return
 
-        ghost_ping_embed = self._create_ghost_ping_embed("Ghost Ping Alert (Edited Message)")
+        ghost_ping_embed = build_embed(title="Ghost Ping Alert (Edited Message)", color=discord.Color.blue())
 
         self._add_everyone_ping_field(ghost_ping_embed, before)
         self._add_role_ping_fields(ghost_ping_embed, old_role_mentions, before)

@@ -20,6 +20,7 @@ The bot is built with security and privacy in mind, ensuring safe and effective 
 The bot is currently deployed and active in the PESU Discord Server. Use slash commands to interact with the bot:
 
 - Type `/` in any channel to see available commands
+- Use `/link <username> <password>` to link your PESU Academy account (primary linking path)
 - Use `/help` for detailed command documentation
 - Contact moderators for support with bot-related issues
 
@@ -44,6 +45,7 @@ For detailed development setup and contribution instructions, see our [Contribut
 ├── LICENSE                     # Project license
 ├── README.md                   # This file
 ├── scripts/                    # Operational scripts
+│   ├── check_cog_imports.py    # CI check: import every cog package (catches import cycles)
 │   └── sync_guild_commands.py  # Deploy-time guild command sync
 └── src/                        # Discord bot package (run via `python -m src`)
     ├── __init__.py             # Package bootstrap: env loading, logging, version
@@ -52,34 +54,41 @@ For detailed development setup and contribution instructions, see our [Contribut
     ├── .env.example            # Example environment variables
     ├── data/                   # Static data files
     │   └── faq.json            # FAQ responses data
-    ├── cogs/                   # Bot functionality modules (Discord.py cogs)
-    │   ├── events.py           # Event handling (member joins, ghost pings, etc.)
-    │   ├── anon.py             # Anonymous messaging system
-    │   ├── help.py             # Help and command documentation
-    │   ├── link.py             # User linking and verification
-    │   ├── mod.py              # Moderation commands
-    │   └── utils.py            # Utility commands (ping, uptime, etc.)
+    ├── cogs/                   # Bot functionality, one package per cog (Discord.py cogs)
+    │   ├── anon/               # Anonymous messaging (send)
+    │   ├── eng/                # Bot engineering commands (ping, uptime, reload)
+    │   ├── events/             # Event listeners (member joins, ghost pings, etc.)
+    │   ├── general/            # General user commands (info, count, faq, roles, ...)
+    │   ├── help/               # Help menu
+    │   └── mod/                # Moderation + account-link & anon moderation
     └── utils/                  # Shared utilities and configuration helpers
         ├── config.py           # Environment, guild/role/channel IDs and access helpers
-        └── general.py          # General helper functions
+        ├── decorators.py       # Command decorators (defer, permission/location checks, errors)
+        └── general.py          # Shared helpers + cog discovery/reload helpers
 ```
 
 ### Cogs System
 
-The bot uses Discord.py's cogs system to organize functionality into modular components:
+The bot uses Discord.py's cogs system to organize functionality into modular components. **Each cog is a package** under `src/cogs/<name>/`, and every package with an `__init__.py` is auto-discovered and loaded as an extension. Files within a cog package follow a uniform scheme:
 
-- **Events Cogs**: Handle Discord events such as member joins, message events, and server updates
-- **Slash Command Cogs**: Implement modern Discord slash commands for user interactions
-- **Utility Functions**: Shared helper functions used across different cogs
+- **`__init__.py`**: The `commands.Cog` subclass (composed from groups + commands/listeners mixins), lifecycle bits (task loops, `on_ready`), and the `setup()` entrypoint.
+- **`commands.py`**: Command definitions for the cog's root group (or top-level commands), as a `*Commands` mixin. When the cog has helpers, this class **subclasses** `*Helpers` so helper methods type-check on `self`.
+- **`groups.py`**: The `app_commands.Group` definitions (only when the cog uses groups).
+- **child-group file** (e.g. `mod/link.py`): each child subgroup gets its own file; root commands stay in `commands.py`. Child-group command mixins that need helpers also subclass `*Helpers`.
+- **`helpers.py`**: Internal helper methods / shared logic (optional). Inherited by `*Commands` / `*Listeners`, not listed again in `__init__.py`.
+- **`components.py`**: Discord UI such as views, selects, and buttons (optional).
+- **`listeners.py`**: Event listeners (used by the `events` cog, which has no slash commands). Subclasses `*Helpers` when helpers exist.
+
+Shared, cross-cog utilities live in `src/utils/` rather than inside any single cog.
 
 ### Database Collections
 
-The bot maintains several MongoDB collections:
+The bot maintains several MongoDB collections. Document shapes and typed CRUD live together in `src/data/mongo/`; access them via `client.stores` (`links`, `students`, `anonbans`, `mutes`):
 
-- `link`: Stores Discord-PESU account links
-- `student`: Student linking data
-- `anonban`: Anonymous messaging ban records
-- `mute`: Server mute records
+- `link`: Stores Discord-PESU account links (`Link` / `LinkStore`)
+- `student`: Student linking data (`Student` / `StudentStore`)
+- `anonban`: Anonymous messaging ban records (`AnonBan` / `AnonBanStore`)
+- `mute`: Server mute records (`Mute` / `MuteStore`)
 
 ## Configuration
 
@@ -89,7 +98,7 @@ Refer to our Contributing Guide for environment setup and the list of variables:
 
 ### `src/utils/config.py`
 
-Holds guild-specific role and channel ID mappings and exposes helpers like `get_role`/`get_channel`.
+Holds guild-specific functional role and channel ID mappings (`get_role` / `get_channel`). Academic roles (year, branch, campus) are resolved at runtime by Discord role name and color `0x818689` via `resolve_academic_role`. `BRANCH_SHORT_CODES` maps PESU full branch names to Discord short names (from auth-link-portal; Civil Engineering → `CV`). `PESU_AUTH_URL` and verification/error channel IDs support `/link`.
 
 ### `faq.json`
 

@@ -79,7 +79,7 @@ run_quality_checks() {
 run_cog_import_checks() {
     print_action "Verifying cog package imports..."
 
-    if ! uv run python scripts/check_cog_imports.py; then
+    if ! uv run scripts/check_cog_imports.py; then
         print_error "Cog package import check failed"
         return 1
     fi
@@ -88,12 +88,25 @@ run_cog_import_checks() {
     return 0
 }
 
-# Install dependencies from pyproject.toml
+run_unit_tests() {
+    print_action "Running unit tests..."
+
+    if ! uv run pytest -m unit -q --cov=src --cov-report=term:skip-covered; then
+        print_error "Unit tests failed"
+        return 1
+    fi
+
+    print_success "Unit tests passed"
+    return 0
+}
+
+# Install dependencies from pyproject.toml (includes dev extra for pytest/ruff/etc.)
 maybe_install_packages() {
-    if uv sync; then
+    if uv sync --extra dev; then
         print_success "Dependencies installed successfully"
     else
         print_error "Failed to install dependencies"
+        print_info "Try: uv sync --extra dev"
         return 1
     fi
     return 0

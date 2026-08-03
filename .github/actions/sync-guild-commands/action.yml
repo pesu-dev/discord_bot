@@ -1,5 +1,5 @@
 name: Sync guild commands
-description: Detect command add/remove between git refs and sync to Discord when needed
+description: Detect command surface changes between git refs and sync to Discord when needed
 inputs:
   head_ref:
     description: Git commit being deployed
@@ -29,15 +29,16 @@ runs:
       run: git fetch --depth=1 origin "${{ inputs.base_ref }}" || true
 
     - name: Install uv
-      uses: astral-sh/setup-uv@v8.2.0
+      uses: astral-sh/setup-uv@v9.0.0
       with:
+        python-version: "3.13"
         enable-cache: true
 
     - name: Install dependencies
       shell: bash
       run: uv sync --frozen --no-dev
 
-    - name: Detect command additions or deletions
+    - name: Detect command surface changes
       id: detect
       shell: bash
       run: |
@@ -58,7 +59,7 @@ runs:
         fi
 
         set +e
-        uv run python scripts/sync_guild_commands.py changed \
+        uv run scripts/sync_guild_commands.py changed \
           --base "${BASE_REF}" \
           --head "${HEAD_REF}"
         exit_code=$?
@@ -78,9 +79,9 @@ runs:
       env:
         BOT_TOKEN: ${{ inputs.bot_token }}
         APP_ENV: ${{ inputs.app_env }}
-      run: uv run python scripts/sync_guild_commands.py sync
+      run: uv run scripts/sync_guild_commands.py sync
 
-    - name: Skip sync (no command additions or deletions)
+    - name: Skip sync (no command surface changes)
       if: steps.detect.outputs.changed != 'true'
       shell: bash
-      run: echo "Guild command sync skipped — no commands were added or removed."
+      run: echo "Guild command sync skipped — no command surface changes detected."

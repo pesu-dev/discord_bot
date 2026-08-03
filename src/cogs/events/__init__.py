@@ -2,11 +2,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from discord.ext.commands import Cog
+
+from src.cogs.events.listeners import EventListeners
+
 if TYPE_CHECKING:
     from src.bot import DiscordBot
 
 
-async def setup(client: DiscordBot) -> None:
-    from src.cogs.events.cog import Events
+class Events(EventListeners, Cog):
+    def __init__(self, client: DiscordBot) -> None:
+        self.client = client
 
+
+async def setup(client: DiscordBot) -> None:
     await client.add_cog(Events(client))

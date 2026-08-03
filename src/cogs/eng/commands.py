@@ -1,14 +1,22 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
+
 import discord
 from discord import app_commands
 
-from src.cogs.eng import EngGroups
+from src.cogs.eng.groups import EngGroups
+from src.cogs.eng.helpers import EngHelpers
 from src.utils import decorators as bot_decorators
-from src.utils.cogs import COGS_PACKAGE, discover_cog_extensions, get_cogs_dir, resolve_cog_extension
+
+if TYPE_CHECKING:
+    from src.bot import DiscordBot
 
 
-class EngCommands:
+class EngCommands(EngHelpers):
+    client: DiscordBot
+
     @EngGroups.eng.command(name="ping", description="Get the bot's latency")
     @bot_decorators.defer(ephemeral=False)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
@@ -21,8 +29,13 @@ class EngCommands:
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
     @bot_decorators.handle_command_errors()
     async def eng_uptime(self, interaction: discord.Interaction) -> None:
-        unixtmstmp = int(self.client.startTime)
-        await interaction.followup.send(content=f"Bot was started <t:{unixtmstmp}:R> \ni.e., on <t:{unixtmstmp}:f>")
+        started_at = datetime.fromtimestamp(self.client.start_time, tz=UTC)
+        await interaction.followup.send(
+            content=(
+                f"Bot was started {discord.utils.format_dt(started_at, 'R')} "
+                f"\ni.e., on {discord.utils.format_dt(started_at, 'f')}"
+            )
+        )
 
     @EngGroups.eng.command(name="support", description="Contribute to bot development")
     @bot_decorators.defer(ephemeral=False)
@@ -44,52 +57,3 @@ class EngCommands:
             await self._reload_single_cog(interaction, cog)
         else:
             await self._reload_all_cogs(interaction)
-
-    async def _reload_single_cog(self, interaction: discord.Interaction, cog: str) -> None:
-        try:
-            extension = resolve_cog_extension(cog)
-        except ValueError as e:
-            await interaction.followup.send(content=str(e), ephemeral=True)
-            return
-
-        try:
-            await self.client.reload_extension(extension)
-            self.client.logger.info(f"Reloaded cog: {extension}")
-            await interaction.followup.send(
-                content=f"Successfully reloaded cog: `{extension}`",
-                ephemeral=True,
-            )
-        except Exception as e:
-            await interaction.followup.send(
-                content=f"Failed to reload cog `{extension}`: {str(e)}",
-                ephemeral=True,
-            )
-
-    async def _reload_all_cogs(self, interaction: discord.Interaction) -> None:
-        success = []
-        failed = []
-
-        extensions = discover_cog_extensions(get_cogs_dir(), COGS_PACKAGE)
-
-        for cog_name in extensions:
-            try:
-                await self.client.unload_extension(cog_name)
-                self.client.logger.info(f"Unloaded cog: {cog_name}")
-            except Exception:
-                pass
-
-        for cog_name in extensions:
-            try:
-                await self.client.load_extension(cog_name)
-                self.client.logger.info(f"Reloaded cog: {cog_name}")
-                success.append(cog_name)
-            except Exception as e:
-                failed.append((cog_name, str(e)))
-
-        response = f"Reloaded {len(success)} cogs successfully."
-        if failed:
-            response += f"\nFailed to reload {len(failed)} cogs:"
-            for cog_name, error in failed:
-                response += f"\n- `{cog_name}`: {error[:100]}{'...' if len(error) > 100 else ''}"
-
-        await interaction.followup.send(content=response, ephemeral=True)

@@ -17,8 +17,7 @@ if TYPE_CHECKING:
 
 
 async def test_on_member_join_unlinked_record_deleted(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
-    listeners = EventListeners()
-    listeners.client = mock_bot
+    listeners = EventListeners(mock_bot)
     member = member_factory(user_id=7)
     link = Link(id=ObjectId(), user_id="7", prn="PES1UG21CS001", linked_at=None)
     mock_bot.stores.links.find_one = AsyncMock(return_value=link)
@@ -31,8 +30,7 @@ async def test_on_member_join_unlinked_record_deleted(mock_bot: MagicMock, membe
 async def test_on_member_join_missing_student(
     mock_bot: MagicMock, sample_link: Link, member_factory: MemberFactory
 ) -> None:
-    listeners = EventListeners()
-    listeners.client = mock_bot
+    listeners = EventListeners(mock_bot)
     member = member_factory(user_id=1001)
     mock_bot.stores.links.find_one = AsyncMock(return_value=sample_link)
     mock_bot.stores.students.find_one = AsyncMock(return_value=None)
@@ -44,8 +42,7 @@ async def test_on_member_join_missing_student(
 async def test_on_member_join_academic_role_value_error(
     mock_bot: MagicMock, sample_link: Link, sample_student: Student, member_factory: MemberFactory
 ) -> None:
-    listeners = EventListeners()
-    listeners.client = mock_bot
+    listeners = EventListeners(mock_bot)
     member = member_factory(user_id=1001)
     mock_bot.stores.links.find_one = AsyncMock(return_value=sample_link)
     mock_bot.stores.students.find_one = AsyncMock(return_value=sample_student)
@@ -57,8 +54,8 @@ async def test_on_member_join_academic_role_value_error(
 
 
 async def test_on_member_remove_keeps_complete_link(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
-    listeners = EventListeners()
-    listeners.client = mock_bot
+    listeners = EventListeners(mock_bot)
+
     member = member_factory(user_id=55)
     mock_bot.stores.links.find_one = AsyncMock(
         return_value=Link(
@@ -74,16 +71,16 @@ async def test_on_member_remove_keeps_complete_link(mock_bot: MagicMock, member_
 
 
 async def test_on_message_ignores_bots(mock_bot: MagicMock) -> None:
-    listeners = EventListeners()
-    listeners.client = mock_bot
+    listeners = EventListeners(mock_bot)
+
     message = MagicMock(spec=discord.Message)
     message.author.bot = True
     await listeners.on_message(message)
 
 
 async def test_on_message_ec_campus_reply(mock_bot: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
-    listeners = EventListeners()
-    listeners.client = mock_bot
+    listeners = EventListeners(mock_bot)
+
     monkeypatch.setenv("APP_ENV", "prod")
     message = MagicMock(spec=discord.Message)
     message.author.bot = False
@@ -103,8 +100,8 @@ async def test_on_message_ec_campus_reply(mock_bot: MagicMock, monkeypatch: pyte
 
 
 async def test_on_message_skips_non_prod(mock_bot: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
-    listeners = EventListeners()
-    listeners.client = mock_bot
+    listeners = EventListeners(mock_bot)
+
     monkeypatch.setenv("APP_ENV", "local")
     message = MagicMock(spec=discord.Message)
     message.author.bot = False
@@ -115,8 +112,8 @@ async def test_on_message_skips_non_prod(mock_bot: MagicMock, monkeypatch: pytes
 
 
 async def test_on_message_skips_when_random_misses(mock_bot: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
-    listeners = EventListeners()
-    listeners.client = mock_bot
+    listeners = EventListeners(mock_bot)
+
     monkeypatch.setenv("APP_ENV", "prod")
     message = MagicMock(spec=discord.Message)
     message.author.bot = False
@@ -128,8 +125,8 @@ async def test_on_message_skips_when_random_misses(mock_bot: MagicMock, monkeypa
 
 
 async def test_on_message_skips_without_ec_pattern(mock_bot: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
-    listeners = EventListeners()
-    listeners.client = mock_bot
+    listeners = EventListeners(mock_bot)
+
     monkeypatch.setenv("APP_ENV", "prod")
     message = MagicMock(spec=discord.Message)
     message.author.bot = False
@@ -141,8 +138,8 @@ async def test_on_message_skips_without_ec_pattern(mock_bot: MagicMock, monkeypa
 
 
 async def test_on_message_delete_ignores_bot(mock_bot: MagicMock) -> None:
-    listeners = EventListeners()
-    listeners.client = mock_bot
+    listeners = EventListeners(mock_bot)
+
     message = MagicMock(spec=discord.Message)
     message.author.bot = True
     await listeners.on_message_delete(message)
@@ -150,8 +147,8 @@ async def test_on_message_delete_ignores_bot(mock_bot: MagicMock) -> None:
 
 
 async def test_on_message_delete_no_pings(mock_bot: MagicMock) -> None:
-    listeners = EventListeners()
-    listeners.client = mock_bot
+    listeners = EventListeners(mock_bot)
+
     message = MagicMock(spec=discord.Message)
     message.author.bot = False
     message.mention_everyone = False
@@ -163,8 +160,8 @@ async def test_on_message_delete_no_pings(mock_bot: MagicMock) -> None:
 
 
 async def test_on_message_edit_ghost_ping(mock_bot: MagicMock) -> None:
-    listeners = EventListeners()
-    listeners.client = mock_bot
+    listeners = EventListeners(mock_bot)
+
 
     author = MagicMock()
     author.bot = False
@@ -197,8 +194,8 @@ async def test_on_message_edit_ghost_ping(mock_bot: MagicMock) -> None:
 
 
 async def test_on_message_edit_no_mention_change(mock_bot: MagicMock) -> None:
-    listeners = EventListeners()
-    listeners.client = mock_bot
+    listeners = EventListeners(mock_bot)
+
     author = MagicMock()
     author.bot = False
     before = MagicMock(spec=discord.Message)
@@ -216,8 +213,8 @@ async def test_on_message_edit_no_mention_change(mock_bot: MagicMock) -> None:
 
 
 async def test_on_message_edit_mention_change_bots_only(mock_bot: MagicMock) -> None:
-    listeners = EventListeners()
-    listeners.client = mock_bot
+    listeners = EventListeners(mock_bot)
+
     author = MagicMock()
     author.bot = False
     bot_user = MagicMock(spec=discord.Member)
@@ -239,8 +236,8 @@ async def test_on_message_edit_mention_change_bots_only(mock_bot: MagicMock) -> 
 
 
 async def test_on_message_edit_ignores_bot(mock_bot: MagicMock) -> None:
-    listeners = EventListeners()
-    listeners.client = mock_bot
+    listeners = EventListeners(mock_bot)
+
     before = MagicMock(spec=discord.Message)
     before.author.bot = True
     await listeners.on_message_edit(before, MagicMock())

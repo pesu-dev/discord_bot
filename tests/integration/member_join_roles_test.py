@@ -29,8 +29,7 @@ async def test_member_join_linked_roles_with_mongo(
         )
     )
 
-    listeners = EventListeners()
-    listeners.client = wired_bot
+    listeners = EventListeners(wired_bot)
     member = member_factory(user_id=1001)
 
     await listeners.on_member_join(member)
@@ -59,8 +58,7 @@ async def test_member_join_incomplete_student_deletes_link(wired_bot: MagicMock,
     )
     await wired_bot.stores.links.insert_one(link)
 
-    listeners = EventListeners()
-    listeners.client = wired_bot
+    listeners = EventListeners(wired_bot)
     member = member_factory(user_id=2002)
 
     await listeners.on_member_join(member)
@@ -71,8 +69,7 @@ async def test_member_join_incomplete_student_deletes_link(wired_bot: MagicMock,
 
 async def test_member_remove_deletes_unlinked_record(wired_bot: MagicMock, member_factory: MemberFactory) -> None:
     await wired_bot.stores.links.insert_one(Link(id=ObjectId(), user_id="3003", prn="PES1UG21CS001", linked_at=None))
-    listeners = EventListeners()
-    listeners.client = wired_bot
+    listeners = EventListeners(wired_bot)
     member = member_factory(user_id=3003)
 
     await listeners.on_member_remove(member)

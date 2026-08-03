@@ -19,7 +19,6 @@ if TYPE_CHECKING:
 
 class EventListeners:
     HONEYPOT_ACTION = "kick"  # allowed: kick | ban | timeout
-    HONEYPOT_TIMEOUT_MINUTES = 60
 
     def __init__(self, client: DiscordBot) -> None:
         self.client = client
@@ -30,8 +29,7 @@ class EventListeners:
         embed = discord.Embed(
             title="DO NOT SEND MESSAGES IN THIS CHANNEL",
             description=(
-                "This channel is used to catch spam bots. "
-                f"Any messages sent here will result in a **{self.HONEYPOT_ACTION}**."
+                "This channel is used to catch spam bots. Any messages sent here will result in a **timeout and kick**."
             ),
             color=discord.Color.red(),
         )
@@ -44,31 +42,15 @@ class EventListeners:
         view.add_item(
             discord.ui.Button(
                 style=discord.ButtonStyle.secondary,
-                label=f"🍯 Kicks: {count}",
+                label=f"🍯 Timeouts & Kicks: {count}",
                 disabled=True,
             )
         )
         return view
 
-    async def _load_fafo_message_id(self) -> int | None:
-        record = await self.client.db["bot_state"].find_one({"_id": "honeypot_fafo"})
-        if record:
-            return record.get("message_id")
-        return None
-
-    async def _save_fafo_message_id(self, message_id: int) -> None:
-        await self.client.db["bot_state"].update_one(
-            {"_id": "honeypot_fafo"},
-            {"$set": {"message_id": message_id}},
-            upsert=True,
-        )
-
     async def _ensure_fafo_banner(self) -> discord.Message:
         async with self._fafo_lock:
             channel = self.client.config.honeypot_channel
-
-            if self._fafo_message_id is None:
-                self._fafo_message_id = await self._load_fafo_message_id()
 
             if self._fafo_message_id is not None:
                 try:
@@ -76,12 +58,24 @@ class EventListeners:
                 except discord.NotFound:
                     self._fafo_message_id = None
 
+            # Find the existing banner after a bot restart.
+            async for message in channel.pins(limit=None):
+                if (
+                    message.author.id == self.client.user.id
+                    and message.embeds
+                    and message.embeds[0].title == "DO NOT SEND MESSAGES IN THIS CHANNEL"
+                ):
+                    self._fafo_message_id = message.id
+                    return message
+
+            # Create the banner only when it does not already exist.
             count = 0
-            view = self._build_fafo_view(count)
-            banner = await channel.send(embed=self._build_fafo_banner(), view=view)
+            banner = await channel.send(
+                embed=self._build_fafo_banner(),
+                view=self._build_fafo_view(count),
+            )
             await banner.pin(reason="FAFO honeypot banner")
             self._fafo_message_id = banner.id
-            await self._save_fafo_message_id(banner.id)
             return banner
 
     async def _update_fafo_banner(self) -> None:

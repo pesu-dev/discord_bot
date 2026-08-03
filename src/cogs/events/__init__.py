@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
 from discord.ext.commands import Cog
@@ -13,6 +14,8 @@ if TYPE_CHECKING:
 class Events(EventListeners, Cog):
     def __init__(self, client: DiscordBot) -> None:
         self.client = client
+        self._fafo_lock = asyncio.Lock()
+        self._fafo_message_id: int | None = None
 
 
 async def setup(client: DiscordBot) -> None:

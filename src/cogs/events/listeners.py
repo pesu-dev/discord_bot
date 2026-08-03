@@ -26,23 +26,29 @@ class EventListeners:
         self._fafo_lock = asyncio.Lock()
         self._fafo_message_id: int | None = None
 
-    def _build_fafo_banner(self, count: int = 0) -> discord.Embed:
-        # Determine warning text based on configuration dynamically
-        action_desc = "a kick"
-        if self.HONEYPOT_ACTION == "ban":
-            action_desc = "a ban"
-        elif self.HONEYPOT_ACTION == "timeout":
-            action_desc = f"a timeout ({self.HONEYPOT_TIMEOUT_MINUTES}m)"
-
+    def _build_fafo_banner(self) -> discord.Embed:
         embed = discord.Embed(
             title="DO NOT SEND MESSAGES IN THIS CHANNEL",
             description=(
-                f"This channel is used to catch spam bots. Any messages sent here will result in **{action_desc}**."
+                "This channel is used to catch spam bots. "
+                f"Any messages sent here will result in a **{self.HONEYPOT_ACTION}**."
             ),
             color=discord.Color.red(),
         )
         embed.set_thumbnail(url="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f36f.png")
         return embed
+
+    @staticmethod
+    def _build_fafo_view(count: int) -> discord.ui.View:
+        view = discord.ui.View(timeout=None)
+        view.add_item(
+            discord.ui.Button(
+                style=discord.ButtonStyle.secondary,
+                label=f"🍯 Kicks: {count}",
+                disabled=True,
+            )
+        )
+        return view
 
     async def _load_fafo_message_id(self) -> int | None:
         record = await self.client.db["bot_state"].find_one({"_id": "honeypot_fafo"})
@@ -70,17 +76,9 @@ class EventListeners:
                 except discord.NotFound:
                     self._fafo_message_id = None
 
-            # Create button badge with initial 0 kicks
-            view = discord.ui.View(timeout=None)
-            view.add_item(
-                discord.ui.Button(
-                    style=discord.ButtonStyle.secondary,
-                    label="🍯 Kicks: 0",
-                    disabled=True,
-                )
-            )
-
-            banner = await channel.send(embed=self._build_fafo_banner(0), view=view)
+            count = 0
+            view = self._build_fafo_view(count)
+            banner = await channel.send(embed=self._build_fafo_banner(), view=view)
             await banner.pin(reason="FAFO honeypot banner")
             self._fafo_message_id = banner.id
             await self._save_fafo_message_id(banner.id)
@@ -100,18 +98,9 @@ class EventListeners:
                     if match:
                         count = int(match.group(0))
 
-        new_count = count + 1
-        new_view = discord.ui.View(timeout=None)
-        new_view.add_item(
-            discord.ui.Button(
-                style=discord.ButtonStyle.secondary,
-                label=f"🍯 Kicks: {new_count}",
-                disabled=True,
-            )
-        )
-
-        new_embed = self._build_fafo_banner(new_count)
-        await banner.edit(embed=new_embed, view=new_view)
+        count += 1
+        view = self._build_fafo_view(count)
+        await banner.edit(embed=self._build_fafo_banner(), view=view)
 
     @staticmethod
     def _filter_reply_mentions(message: discord.Message) -> list[discord.User | discord.Member]:

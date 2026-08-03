@@ -17,7 +17,7 @@ class Config:
     """Configuration class."""
 
     # The bot only ever runs on a single guild, so this is a constant.
-    GUILD_ID = 742797665301168220
+    GUILD_ID = 1368604371323064421
 
     # Per-environment settings keyed by APP_ENV. All share one cluster for now.
     ENVIRONMENTS = {
@@ -27,13 +27,13 @@ class Config:
     }
 
     ROLES = {
-        "ADMIN": 742800061280550923,
-        "MOD": 742798158966292640,
-        "JUNIOR_MOD": 1518781529600295113,
-        "BOT_DEV": 750556082371559485,
+        "ADMIN": 1387103854381760553,
+        "MOD": 1387103950099972268,
+        "JUNIOR_MOD": 1386828569099112629,
+        "BOT_DEV": 1386724072074772610,
         "LINKED": 749683320941445250,
-        "JUST_JOINED": 798765678739062804,
-        "MUTED": 775981947079491614,
+        "JUST_JOINED": 1389256789513470042,
+        "MUTED": 1386947661084495913,
     }
 
     # Guild academic roles use this color (#818689).
@@ -62,13 +62,14 @@ class Config:
 
     # Channel IDs
     CHANNELS = {
-        "BOT_LOGS": 786084620944146504,
-        "MOD_LOGS": 778678059879890944,
+        "BOT_LOGS": 1393255742802231479,
+        "MOD_LOGS": 1386770381733630012,
         "NQN_LOGS": 927077979383824484,
         "WELCOME": 742946580285620225,
         "LOBBY": 860224115633160203,
         "VERIFICATION_LOGS": 1100722146956820510,
         "ERROR_LOGS": 1129317221848596490,
+        "HONEYPOT": 1527378274328776864,
     }
 
     @staticmethod
@@ -199,3 +200,8 @@ class Config:
     def error_logs_channel(self) -> discord.TextChannel | discord.Thread:
         """Get error logs thread/channel."""
         return self.get_channel("ERROR_LOGS")
+
+    @property
+    def honeypot_channel(self) -> discord.TextChannel | discord.Thread:
+        """Get honeypot channel."""
+        return self.get_channel("HONEYPOT")

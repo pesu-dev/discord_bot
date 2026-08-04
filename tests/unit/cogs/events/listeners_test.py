@@ -20,7 +20,7 @@ async def test_on_member_join_unlinked_record_deleted(mock_bot: MagicMock, membe
     listeners = EventListeners()
     listeners.client = mock_bot
     member = member_factory(user_id=7)
-    link = Link(id=ObjectId(), user_id="7", prn="PES1UG21CS001", linked_at=None)
+    link = Link(id=ObjectId(), discord_user_id="7", prn="PES1UG21CS001", linked_at=None)
     mock_bot.stores.links.find_one = AsyncMock(return_value=link)
     mock_bot.stores.links.delete_one = AsyncMock()
     await listeners.on_member_join(member)
@@ -63,7 +63,7 @@ async def test_on_member_remove_keeps_complete_link(mock_bot: MagicMock, member_
     mock_bot.stores.links.find_one = AsyncMock(
         return_value=Link(
             id=ObjectId(),
-            user_id="55",
+            discord_user_id="55",
             prn="PES1UG21CS001",
             linked_at=datetime(2024, 1, 1, tzinfo=UTC),
         )

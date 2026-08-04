@@ -50,7 +50,7 @@ class DiscordBot(commands.Bot):
         try:
             self.mongo_client = AsyncMongoClient(os.environ["MONGO_URI"], tz_aware=True)
             self.db = self.mongo_client[self.config.db_name]
-            self.stores = Stores(self.db)
+            self.stores = await Stores.create(self.db)
             self.logger.info(f"Connected to MongoDB ({self.config.db_name})")
         except Exception as e:
             self.logger.info(f"Failed to connect to MongoDB: {e}")

@@ -26,7 +26,7 @@ class SlashMod(ModGroups, ModCommands, LinkCommands, AnonModCommands, Cog):
             callback=self.anon_ban_from_context_menu,
         )
 
-        self.tasks = [self.check_mutes_loop]
+        self.tasks = [self.check_mutes_loop, self.cleanup_stale_records_loop]
         for task in self.tasks:
             if not task.is_running():
                 task.start()
@@ -45,13 +45,9 @@ class SlashMod(ModGroups, ModCommands, LinkCommands, AnonModCommands, Cog):
             if mute.id is None:
                 continue
             try:
-                member = await guild.fetch_member(mute.user_id)
+                member = await guild.fetch_member(int(mute.discord_user_id))
             except discord.NotFound:
-                await self.client.stores.mutes.mark_unmuted(
-                    mute.id,
-                    unmute_time=now,
-                    unmute_type="auto_member_left",
-                )
+                await self.client.stores.mutes.mark_unmuted(mute.id, unmuted_at=now)
                 continue
 
             muted_role = self.client.config.muted_role
@@ -63,13 +59,9 @@ class SlashMod(ModGroups, ModCommands, LinkCommands, AnonModCommands, Cog):
                     bot_logs = self.client.config.bot_logs_channel
                     await bot_logs.send(embed=embed)
 
-            await self.client.stores.mutes.mark_unmuted(
-                mute.id,
-                unmute_time=now,
-                unmute_type="loop_auto",
-            )
+            await self.client.stores.mutes.mark_unmuted(mute.id, unmuted_at=now)
 
-            channel = guild.get_channel(mute.channel_id)
+            channel = guild.get_channel(mute.discord_channel_id)
             if not isinstance(channel, discord.TextChannel | discord.Thread):
                 continue
 
@@ -86,8 +78,8 @@ class SlashMod(ModGroups, ModCommands, LinkCommands, AnonModCommands, Cog):
                 pass
 
             try:
-                await self._send_mod_log(
-                    ug.build_embed(
+                await self.client.config.mod_logs_channel.send(
+                    embed=ug.build_embed(
                         title="Unmute",
                         color=discord.Color.green(),
                         fields=[{"name": "Unmuted user", "value": f"{member.mention}\nModerator: Auto"}],
@@ -98,6 +90,17 @@ class SlashMod(ModGroups, ModCommands, LinkCommands, AnonModCommands, Cog):
 
     @check_mutes_loop.before_loop
     async def before_check_mutes_loop(self) -> None:
+        await self.client.wait_until_ready()
+
+    @tasks.loop(hours=1)
+    async def cleanup_stale_records_loop(self) -> None:
+        now = datetime.now(UTC)
+        await self.client.stores.mutes.delete_stale(now)
+        await self.client.stores.anon_mutes.delete_stale(now)
+        await self.client.stores.anon_bans.delete_stale(now)
+
+    @cleanup_stale_records_loop.before_loop
+    async def before_cleanup_stale_records_loop(self) -> None:
         await self.client.wait_until_ready()
 
 

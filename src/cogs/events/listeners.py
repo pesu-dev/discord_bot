@@ -25,7 +25,7 @@ class EventListeners(EventHelpers):
         just_joined = self.client.config.just_joined_role
         await bot_logs.send(f"{member.mention} Joined!!")
 
-        link_record = await self.client.stores.links.find_one(user_id=str(member.id))
+        link_record = await self.client.stores.links.find_one(discord_user_id=str(member.id))
         roles_to_add = [just_joined]
         should_delete_link = bool(link_record and not link_record.linked_at)
 
@@ -35,8 +35,8 @@ class EventListeners(EventHelpers):
                 roles_to_add = []
                 for value in (
                     student_record.year,
-                    student_record.branch.short,
-                    student_record.campus.short,
+                    student_record.branch_short,
+                    student_record.campus,
                 ):
                     if not value:
                         continue
@@ -61,7 +61,7 @@ class EventListeners(EventHelpers):
         bot_logs = self.client.config.bot_logs_channel
         await bot_logs.send(f"{member.mention} Left!!")
 
-        link_record = await self.client.stores.links.find_one(user_id=str(member.id))
+        link_record = await self.client.stores.links.find_one(discord_user_id=str(member.id))
 
         if link_record and link_record.linked_at is None and link_record.id is not None:
             await self.client.stores.links.delete_one(id=link_record.id)

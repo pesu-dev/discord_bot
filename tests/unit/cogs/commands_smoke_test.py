@@ -40,7 +40,8 @@ async def test_anon_send_blocked_when_banned(
     cmd = AnonCommands()
     cmd.client = mock_bot
     mock_bot.stores.links.exists = AsyncMock(return_value=True)
-    mock_bot.stores.anonbans.exists = AsyncMock(return_value=True)
+    mock_bot.stores.anon_bans.has_active = AsyncMock(return_value=True)
+    mock_bot.stores.anon_mutes.find_active = AsyncMock(return_value=None)
     interaction = interaction_factory(user=member_factory())
     await get_callback(cmd.anon_send)(cmd, interaction, "hello")
     assert "banned" in interaction.followup.send.await_args.kwargs["content"].lower()
@@ -52,7 +53,8 @@ async def test_anon_send_success_caches_message(
     cmd = AnonCommands()
     cmd.client = mock_bot
     mock_bot.stores.links.exists = AsyncMock(return_value=True)
-    mock_bot.stores.anonbans.exists = AsyncMock(return_value=False)
+    mock_bot.stores.anon_bans.has_active = AsyncMock(return_value=False)
+    mock_bot.stores.anon_mutes.find_active = AsyncMock(return_value=None)
     member = member_factory(user_id=1001)
     interaction = interaction_factory(user=member)
     mock_bot.config.lobby_channel.permissions_for = MagicMock(return_value=SimpleNamespace(send_messages=True))
@@ -172,12 +174,12 @@ async def test_mod_unmute(
     mod = member_factory(roles=[mock_bot.config.mod_role])
     target = member_factory(roles=[mock_bot.config.muted_role])
     interaction = interaction_factory(user=mod)
-    mock_bot.stores.mutes.deactivate_active = AsyncMock()
+    mock_bot.stores.mutes.unmute_user = AsyncMock()
     mock_bot.config.mod_logs_channel.send = AsyncMock()
 
     await get_callback(cmd.unmute)(cmd, interaction, target)
     target.remove_roles.assert_awaited_with(mock_bot.config.muted_role)
-    mock_bot.stores.mutes.deactivate_active.assert_awaited()
+    mock_bot.stores.mutes.unmute_user.assert_awaited()
 
 
 async def test_mod_kick(

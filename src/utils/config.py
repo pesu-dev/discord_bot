@@ -21,9 +21,9 @@ class Config:
 
     # Per-environment settings keyed by APP_ENV. All share one cluster for now.
     ENVIRONMENTS = {
-        "prod": {"prefix": "!", "db_name": "pesu_v2"},
-        "dev": {"prefix": "$", "db_name": "pesu_v2"},
-        "local": {"prefix": "?", "db_name": "pesu_v2"},
+        "prod": {"prefix": "!", "db_name": "discord"},
+        "dev": {"prefix": "$", "db_name": "discord"},
+        "local": {"prefix": "?", "db_name": "discord"},
     }
 
     ROLES = {

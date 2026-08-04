@@ -17,7 +17,7 @@ from src.cogs.general.helpers import (
     PesuAuthResponse,
     _get_dm_message,
 )
-from src.data.mongo.student import Branch, Campus, Student
+from src.data.mongo import Student
 from src.utils import general as ug
 from src.utils.config import Config
 
@@ -156,7 +156,8 @@ async def test_link_branch_short_code_fallback_uses_role_name(
 
     assert message == LinkMessage.SUCCESS
     student_arg = mock_bot.stores.students.upsert_by_prn.await_args.args[0]
-    assert student_arg.branch == Branch(full="Psychology", short="Psychology")
+    assert student_arg.branch_long == "Psychology"
+    assert student_arg.branch_short == "Psychology"
     assert followup is not None
     assert "Psychology" in followup
 
@@ -208,9 +209,10 @@ async def test_link_success_runs_parallel_side_effects(mock_bot: MagicMock, memb
     student_arg = mock_bot.stores.students.upsert_by_prn.await_args.args[0]
     assert isinstance(student_arg, Student)
     assert student_arg.prn == "PES1202100001"
-    assert student_arg.branch == Branch(full="Computer Science and Engineering", short="CSE")
+    assert student_arg.branch_long == "Computer Science and Engineering"
+    assert student_arg.branch_short == "CSE"
     assert student_arg.year == "2021"
-    assert student_arg.campus == Campus(code=1, short="RR")
+    assert student_arg.campus == "RR"
 
 
 @respx.mock

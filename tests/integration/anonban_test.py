@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -19,26 +19,22 @@ async def test_anonban_insert_and_lookup(wired_bot: MagicMock) -> None:
     helpers = _Helpers()
     helpers.client = wired_bot
 
-    expiry = await helpers._create_and_store_ban("9001", "spam", "1h")
-    assert expiry != "Permanent"
+    await helpers._create_and_store_ban("9001", "spam")
+    assert await wired_bot.stores.anon_bans.has_active("9001") is True
 
-    assert await helpers._check_user_anon_ban("9001") is True
-
-    # Expire it the way the anon loop would
-    ban = await wired_bot.stores.anonbans.find_one(user_id="9001", active=True)
+    ban = await wired_bot.stores.anon_bans.find_active("9001")
     assert ban is not None and ban.id is not None
-    await wired_bot.stores.anonbans.update_one(id=ban.id, set_fields={"active": False})
-    assert await helpers._check_user_anon_ban("9001") is False
+    await wired_bot.stores.anon_bans.unban("9001", unbanned_at=datetime.now(UTC))
+    assert await wired_bot.stores.anon_bans.has_active("9001") is False
 
 
 async def test_anonban_permanent(wired_bot: MagicMock) -> None:
     helpers = _Helpers()
     helpers.client = wired_bot
-    assert await helpers._create_and_store_ban("9002", "perm") == "Permanent"
-    ban = await wired_bot.stores.anonbans.find_one(user_id="9002")
+    await helpers._create_and_store_ban("9002", "perm")
+    ban = await wired_bot.stores.anon_bans.find_one(discord_user_id="9002")
     assert ban is not None
-    assert ban.expires_at is None
-    assert ban.active is True
+    assert ban.unbanned_at is None
 
 
 async def test_apply_anon_ban_persists(
@@ -50,11 +46,10 @@ async def test_apply_anon_ban_persists(
     interaction = interaction_factory()
 
     with patch("src.utils.general.send_dm_safely", AsyncMock(return_value=True)):
-        await helpers._apply_anon_ban(interaction, member, time="2h", reason="trolling")
+        await helpers._apply_anon_ban(interaction, member, reason="trolling")
 
-    ban = await wired_bot.stores.anonbans.find_one(user_id="9003", active=True)
+    ban = await wired_bot.stores.anon_bans.find_active("9003")
     assert isinstance(ban, AnonBan)
     assert ban.reason == "trolling"
     assert isinstance(ban.banned_at, datetime)
-    assert ban.expires_at is not None
-    assert ban.expires_at > datetime.now(UTC) - timedelta(seconds=1)
+    assert ban.unbanned_at is None

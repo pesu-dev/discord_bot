@@ -26,15 +26,23 @@ class AnonCommands:
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
     @bot_decorators.handle_command_errors()
     async def anon_send(self, interaction: discord.Interaction, message: str, link: str | None = None) -> None:
-        if not await self.client.stores.links.exists(user_id=str(interaction.user.id)):
+        if not await self.client.stores.links.exists(discord_user_id=str(interaction.user.id)):
             await interaction.followup.send(
                 content="You're not linked, so you can't use anon messaging. If this is a mistake, please contact Han",
                 ephemeral=True,
             )
             return
-        if await self.client.stores.anonbans.exists(user_id=str(interaction.user.id), active=True):
+        if await self.client.stores.anon_bans.has_active(str(interaction.user.id)):
             await interaction.followup.send(
                 content=":x: You have been banned from using anon messaging", ephemeral=True
+            )
+            return
+        anon_mute = await self.client.stores.anon_mutes.find_active(str(interaction.user.id))
+        if anon_mute is not None:
+            unmute_relative = discord.utils.format_dt(anon_mute.original_unmute_time, "R")
+            await interaction.followup.send(
+                content=f":x: You have been muted from using anon messaging until {unmute_relative}",
+                ephemeral=True,
             )
             return
 

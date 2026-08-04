@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from bson import ObjectId
@@ -11,6 +12,9 @@ if TYPE_CHECKING:
 
     from pymongo.asynchronous.collection import AsyncCollection
     from pymongo.results import DeleteResult, InsertOneResult, UpdateResult
+
+IndexKeys = Sequence[tuple[str, int]]
+IndexSpec = tuple[IndexKeys, dict[str, Any]]
 
 
 def omit_none(doc: dict[str, Any]) -> dict[str, Any]:
@@ -33,6 +37,7 @@ class TypedCollection[ModelT]:
 
     model: type[ModelT]
     field_map: ClassVar[dict[str, str]]
+    indexes: ClassVar[list[IndexSpec]] = []
 
     def __init__(self, collection: AsyncCollection) -> None:
         self._collection = collection
@@ -52,6 +57,11 @@ class TypedCollection[ModelT]:
             msg = "At least one equality filter field is required"
             raise TypeError(msg)
         return self._to_mongo(eq)
+
+    async def ensure_indexes(self) -> None:
+        """Create declared indexes (idempotent when name/keys match)."""
+        for keys, options in self.indexes:
+            await self._collection.create_index(list(keys), **options)
 
     async def find(self, **eq: object) -> AsyncIterator[ModelT]:
         query = self._to_mongo(eq) if eq else {}

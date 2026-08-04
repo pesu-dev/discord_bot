@@ -16,44 +16,34 @@ if TYPE_CHECKING:
 async def test_mute_document_round_trip(wired_bot: MagicMock) -> None:
     now = datetime.now(UTC)
     mute = Mute(
-        user_id=12345,
-        channel_id=2001,
-        moderator_id=1,
+        discord_user_id="12345",
+        discord_channel_id=2001,
+        moderator_discord_user_id="1",
         mute_time=now,
-        unmute_time=now + timedelta(hours=1),
+        original_unmute_time=now + timedelta(hours=1),
         reason="test",
-        active=True,
-        is_self_mute=False,
     )
     result = await wired_bot.stores.mutes.insert_one(mute)
     found = await wired_bot.stores.mutes.find_one(id=result.inserted_id)
     assert found is not None
-    assert found.active is True
-    assert found.user_id == 12345
+    assert found.unmuted_at is None
+    assert found.discord_user_id == "12345"
 
-    await wired_bot.stores.mutes.deactivate_active(
-        12345,
-        unmute_time=now,
-        unmute_type="manual",
-        unmuted_by=1,
-    )
+    await wired_bot.stores.mutes.unmute_user("12345", unmuted_at=now)
     updated = await wired_bot.stores.mutes.find_one(id=result.inserted_id)
     assert updated is not None
-    assert updated.active is False
-    assert updated.unmute_type == "manual"
+    assert updated.unmuted_at is not None
 
 
 async def test_mute_loop_expires_with_real_mongo(wired_bot: MagicMock, member_factory: MemberFactory) -> None:
     now = datetime.now(UTC)
     mute = Mute(
-        user_id=50,
-        channel_id=2001,
-        moderator_id=1,
+        discord_user_id="50",
+        discord_channel_id=2001,
+        moderator_discord_user_id="1",
         mute_time=now - timedelta(hours=2),
-        unmute_time=now - timedelta(seconds=5),
+        original_unmute_time=now - timedelta(seconds=5),
         reason="expired",
-        active=True,
-        is_self_mute=False,
     )
     inserted = await wired_bot.stores.mutes.insert_one(mute)
 
@@ -76,6 +66,5 @@ async def test_mute_loop_expires_with_real_mongo(wired_bot: MagicMock, member_fa
 
     doc = await wired_bot.stores.mutes.find_one(id=inserted.inserted_id)
     assert doc is not None
-    assert doc.active is False
-    assert doc.unmute_type == "loop_auto"
+    assert doc.unmuted_at is not None
     member.remove_roles.assert_awaited()

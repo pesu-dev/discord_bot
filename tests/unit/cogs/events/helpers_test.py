@@ -8,7 +8,7 @@ from bson import ObjectId
 
 from src.cogs.events.helpers import EventHelpers
 from src.cogs.events.listeners import EventListeners
-from src.data.mongo import Branch, Campus, Link, Student
+from src.data.mongo import Link, Student
 
 if TYPE_CHECKING:
     from tests.conftest import MemberFactory
@@ -139,8 +139,9 @@ async def test_on_member_join_incomplete_student_deletes_link(
     incomplete = Student(
         prn="PES1UG21CS001",
         year="2021",
-        branch=Branch(full="Computer Science", short=""),
-        campus=Campus(code=1, short="RR"),
+        branch_long="Computer Science",
+        branch_short="",
+        campus="RR",
     )
     mock_bot.stores.links.find_one = AsyncMock(return_value=sample_link)
     mock_bot.stores.students.find_one = AsyncMock(return_value=incomplete)
@@ -166,7 +167,7 @@ async def test_on_member_remove_deletes_incomplete_link(mock_bot: MagicMock, mem
     listeners = EventListeners()
     listeners.client = mock_bot
     member = member_factory(user_id=55)
-    link = Link(id=ObjectId(), user_id="55", prn="PES1UG21CS001", linked_at=None)
+    link = Link(id=ObjectId(), discord_user_id="55", prn="PES1UG21CS001", linked_at=None)
     mock_bot.stores.links.find_one = AsyncMock(return_value=link)
     mock_bot.stores.links.delete_one = AsyncMock()
 

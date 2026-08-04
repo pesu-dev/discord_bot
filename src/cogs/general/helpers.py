@@ -12,8 +12,7 @@ from typing import TYPE_CHECKING, Any, Self
 import discord
 import httpx
 
-from src.data.mongo.link import Link
-from src.data.mongo.student import Branch, Campus, Student
+from src.data.mongo import Link, Student
 from src.utils import general as ug
 from src.utils.config import Config
 
@@ -389,9 +388,10 @@ class GeneralHelpers:
 
         student = Student(
             prn=prn,
-            branch=Branch(full=branch_full, short=branch_short),
+            branch_long=branch_full,
+            branch_short=branch_short,
             year=year,
-            campus=Campus(code=campus_code, short=campus_short),
+            campus=campus_short,
         )
         verification_logs = self.client.config.verification_logs_channel
         welcome = _get_dm_message(
@@ -407,7 +407,7 @@ class GeneralHelpers:
             # Insert Discord↔PESU link record
             self.client.stores.links.insert_one(
                 Link(
-                    user_id=str(member.id),
+                    discord_user_id=str(member.id),
                     prn=student.prn,
                     linked_at=datetime.now(UTC),
                 )

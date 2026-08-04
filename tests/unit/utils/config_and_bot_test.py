@@ -13,7 +13,7 @@ def test_resolve_env_local(monkeypatch: pytest.MonkeyPatch) -> None:
     env, prefix, db = Config.resolve_env()
     assert env == "local"
     assert prefix == "?"
-    assert db == "pesu_v2"
+    assert db == "discord"
 
 
 def test_resolve_env_invalid(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -24,7 +24,7 @@ def test_resolve_env_invalid(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_config_guild_object() -> None:
     bot = MagicMock()
-    config = Config(bot, env="local", db_name="pesu_v2")
+    config = Config(bot, env="local", db_name="discord")
     assert config.guild_object.id == Config.GUILD_ID
 
 
@@ -39,7 +39,7 @@ def test_config_get_role_and_channel() -> None:
     guild.get_channel_or_thread = MagicMock(return_value=channel)
     bot.get_guild = MagicMock(return_value=guild)
 
-    config = Config(bot, env="local", db_name="pesu_v2")
+    config = Config(bot, env="local", db_name="discord")
     assert config.admin_role is role
     assert config.bot_logs_channel is channel
 
@@ -47,7 +47,7 @@ def test_config_get_role_and_channel() -> None:
 def test_config_guild_missing() -> None:
     bot = MagicMock()
     bot.get_guild = MagicMock(return_value=None)
-    config = Config(bot, env="local", db_name="pesu_v2")
+    config = Config(bot, env="local", db_name="discord")
     with pytest.raises(ValueError, match="Guild"):
         _ = config.guild
 
@@ -56,8 +56,13 @@ async def test_bot_init_db_success(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("APP_ENV", "local")
     monkeypatch.setenv("MONGO_URI", "mongodb://example")
 
+    def _fake_collection(_name: str) -> MagicMock:
+        coll = MagicMock()
+        coll.create_index = AsyncMock(return_value="idx")
+        return coll
+
     fake_db = MagicMock()
-    fake_db.__getitem__ = MagicMock(side_effect=lambda name: MagicMock(name=name))
+    fake_db.__getitem__ = MagicMock(side_effect=_fake_collection)
     fake_client = MagicMock()
     fake_client.__getitem__ = MagicMock(return_value=fake_db)
 
@@ -69,6 +74,8 @@ async def test_bot_init_db_success(monkeypatch: pytest.MonkeyPatch) -> None:
         assert bot.stores is not None
         assert bot.stores.links is not None
         assert bot.stores.mutes is not None
+        assert bot.stores.anon_bans is not None
+        assert bot.stores.anon_mutes is not None
 
 
 async def test_bot_init_db_failure(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -224,7 +231,7 @@ def test_config_errors() -> None:
     guild.get_role = MagicMock(return_value=None)
     guild.get_channel_or_thread = MagicMock(return_value=None)
     bot.get_guild = MagicMock(return_value=guild)
-    config = Config(bot, env="local", db_name="pesu_v2")
+    config = Config(bot, env="local", db_name="discord")
     with pytest.raises(ValueError, match="Role 'NOPE'"):
         config.get_role("NOPE")
     with pytest.raises(ValueError, match="Role with ID"):
@@ -245,7 +252,7 @@ def test_config_role_channel_properties() -> None:
     guild.get_role = MagicMock(return_value=role)
     guild.get_channel_or_thread = MagicMock(return_value=channel)
     bot.get_guild = MagicMock(return_value=guild)
-    config = Config(bot, env="local", db_name="pesu_v2")
+    config = Config(bot, env="local", db_name="discord")
     assert config.admin_role is role
     assert config.mod_role is role
     assert config.junior_mod_role is role
@@ -273,7 +280,7 @@ def test_lobby_channel_rejects_non_text() -> None:
     # get_channel allows Thread; lobby_channel requires TextChannel only.
     guild.get_channel_or_thread = MagicMock(return_value=MagicMock(spec=discord.Thread))
     bot.get_guild = MagicMock(return_value=guild)
-    config = Config(bot, env="local", db_name="pesu_v2")
+    config = Config(bot, env="local", db_name="discord")
     with pytest.raises(ValueError, match="LOBBY must be a text channel"):
         _ = config.lobby_channel
 
@@ -295,7 +302,7 @@ def test_resolve_academic_role_match() -> None:
     role.color.value = Config.ACADEMIC_ROLE_COLOR
     guild.roles = [role]
     bot.get_guild = MagicMock(return_value=guild)
-    config = Config(bot, env="local", db_name="pesu_v2")
+    config = Config(bot, env="local", db_name="discord")
     assert config.resolve_academic_role("CSE") is role
 
 
@@ -310,7 +317,7 @@ def test_resolve_academic_role_wrong_color() -> None:
     role.color.value = 0xFF0000
     guild.roles = [role]
     bot.get_guild = MagicMock(return_value=guild)
-    config = Config(bot, env="local", db_name="pesu_v2")
+    config = Config(bot, env="local", db_name="discord")
     with pytest.raises(ValueError, match="color"):
         config.resolve_academic_role("CSE")
 
@@ -320,6 +327,6 @@ def test_resolve_academic_role_missing() -> None:
     guild = MagicMock()
     guild.roles = []
     bot.get_guild = MagicMock(return_value=guild)
-    config = Config(bot, env="local", db_name="pesu_v2")
+    config = Config(bot, env="local", db_name="discord")
     with pytest.raises(ValueError, match="not found"):
         config.resolve_academic_role("NOPE")

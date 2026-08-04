@@ -403,8 +403,9 @@ async def test_selfmute_default_duration(
     await get_callback(cmd.selfmute)(cmd, interaction, None)
     member.add_roles.assert_awaited_with(mock_bot.config.muted_role, reason="")
     mute_record = mock_bot.stores.mutes.insert_one.await_args.args[0]
-    assert mute_record.duration_seconds == 3600
-    assert mute_record.is_self_mute is True
+    assert mute_record.discord_user_id == "5"
+    assert mute_record.moderator_discord_user_id == "5"
+    assert (mute_record.original_unmute_time - mute_record.mute_time).total_seconds() == 3600
     assert mute_record.reason == ""
     mock_bot.config.mod_logs_channel.send.assert_awaited()
 
@@ -422,8 +423,9 @@ async def test_selfmute_custom_duration(
 
     await get_callback(cmd.selfmute)(cmd, interaction, "2h", "studying")
     mute_record = mock_bot.stores.mutes.insert_one.await_args.args[0]
-    assert mute_record.duration_seconds == 7200
-    assert mute_record.is_self_mute is True
+    assert mute_record.discord_user_id == "5"
+    assert mute_record.moderator_discord_user_id == "5"
+    assert (mute_record.original_unmute_time - mute_record.mute_time).total_seconds() == 7200
     assert mute_record.reason == "studying"
 
 

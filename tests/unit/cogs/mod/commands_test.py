@@ -259,7 +259,7 @@ async def test_detimeout(
     assert "Timeout removed" in target.timeout.await_args.kwargs["reason"]
 
 
-async def test_handle_ban_message_link(
+async def test_handle_anon_message_link(
     mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
 ) -> None:
     helpers = _Helpers()
@@ -276,15 +276,15 @@ async def test_handle_ban_message_link(
     interaction.channel = channel
     mock_bot.anon_cache = {"42": [{"message_id": "999", "timestamp": MagicMock()}]}
 
-    found = await helpers._handle_ban_message_link(interaction, "https://discord.com/channels/1/2/999")
+    found = await helpers._handle_anon_message_link(interaction, "https://discord.com/channels/1/2/999")
     assert found is member
 
     channel.fetch_message = AsyncMock(side_effect=discord.NotFound(MagicMock(), "x"))
-    assert await helpers._handle_ban_message_link(interaction, "x/1") is None
+    assert await helpers._handle_anon_message_link(interaction, "x/1") is None
 
     channel.fetch_message = AsyncMock(return_value=msg)
     mock_bot.anon_cache = {}
-    assert await helpers._handle_ban_message_link(interaction, "x/999") is None
+    assert await helpers._handle_anon_message_link(interaction, "x/999") is None
 
 
 async def test_apply_anon_ban_dm_closed(
@@ -292,11 +292,11 @@ async def test_apply_anon_ban_dm_closed(
 ) -> None:
     helpers = _Helpers()
     helpers.client = mock_bot
-    mock_bot.stores.anonbans.exists = AsyncMock(return_value=False)
-    mock_bot.stores.anonbans.insert_one = AsyncMock()
+    mock_bot.stores.anon_bans.has_active = AsyncMock(return_value=False)
+    mock_bot.stores.anon_bans.insert_one = AsyncMock()
     interaction = interaction_factory()
     with patch("src.utils.general.send_dm_safely", AsyncMock(return_value=False)):
-        await helpers._apply_anon_ban(interaction, member_factory(), time=None, reason="x", message_link="https://x")
+        await helpers._apply_anon_ban(interaction, member_factory(), reason="x", message_link="https://x")
     assert any("DMs were closed" in (c.kwargs.get("content") or "") for c in interaction.followup.send.await_args_list)
 
 

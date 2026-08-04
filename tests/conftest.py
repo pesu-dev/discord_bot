@@ -206,7 +206,8 @@ def mock_bot(fake_config: MagicMock) -> MagicMock:
     stores = MagicMock()
     stores.links = AsyncMock()
     stores.students = AsyncMock()
-    stores.anonbans = AsyncMock()
+    stores.anon_bans = AsyncMock()
+    stores.anon_mutes = AsyncMock()
     stores.mutes = AsyncMock()
     bot.stores = stores
     bot.wait_until_ready = AsyncMock()
@@ -221,8 +222,9 @@ def sample_student_doc() -> dict[str, Any]:
     return {
         "prn": "PES1UG21CS001",
         "year": "2021",
-        "branch": {"full": "Computer Science and Engineering", "short": "CSE"},
-        "campus": {"code": 1, "short": "RR"},
+        "branch_long": "Computer Science and Engineering",
+        "branch_short": "CSE",
+        "campus": "RR",
     }
 
 
@@ -232,9 +234,9 @@ def sample_link_doc() -> dict[str, Any]:
 
     return {
         "_id": ObjectId(),
-        "userId": "1001",
+        "discord_user_id": "1001",
         "prn": "PES1UG21CS001",
-        "linkedAt": "2024-01-01T00:00:00Z",
+        "linked_at": "2024-01-01T00:00:00Z",
     }
 
 

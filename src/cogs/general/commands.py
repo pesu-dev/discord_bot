@@ -303,15 +303,12 @@ class GeneralCommands(GeneralHelpers):
         unmute_time = mute_time + timedelta(seconds=seconds)
 
         mute_record = Mute(
-            user_id=member.id,
-            channel_id=interaction.channel.id,
-            moderator_id=member.id,
+            discord_user_id=str(member.id),
+            discord_channel_id=interaction.channel.id,
+            moderator_discord_user_id=str(member.id),
             mute_time=mute_time,
-            unmute_time=unmute_time,
-            duration_seconds=seconds,
+            original_unmute_time=unmute_time,
             reason=reason,
-            active=True,
-            is_self_mute=True,
         )
         await self.client.stores.mutes.insert_one(mute_record)
 

@@ -56,7 +56,12 @@ HELP_PAGES: dict[str, tuple[str, list[dict]]] = {
                 "value": "`/mod anon ban` — specify either `member` or `link`",
             },
             {"name": "Unban a User from Anon", "value": "`/mod anon unban`"},
-            {"name": "Anon Ban Info", "value": "`/mod anon info`"},
+            {
+                "name": "Mute a User from Anon",
+                "value": "`/mod anon mute` — specify either `member` or `link`",
+            },
+            {"name": "Unmute a User from Anon", "value": "`/mod anon unmute`"},
+            {"name": "Anon Restriction Info", "value": "`/mod anon info`"},
         ],
     ),
 }

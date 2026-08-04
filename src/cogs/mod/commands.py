@@ -56,7 +56,7 @@ class ModCommands(ModHelpers):
             description=f"{member.mention} was kicked by {interaction.user.mention}\n**Reason:** {reason}",
         )
         await interaction.followup.send(embed=embed)
-        await self._send_mod_log(embed)
+        await self.client.config.mod_logs_channel.send(embed=embed)
 
     @commands.hybrid_command(name="echo", aliases=["e"], description="Echoes a message to the target channel")
     @app_commands.guilds(discord.Object(id=Config.GUILD_ID))
@@ -101,7 +101,7 @@ class ModCommands(ModHelpers):
                 {"name": "Author", "value": ctx.author.mention},
             ],
         )
-        await self._send_mod_log(echo_embed)
+        await self.client.config.mod_logs_channel.send(embed=echo_embed)
 
     @ModGroups.mod.command(name="mute", description="Mute a member for a specified duration")
     @app_commands.describe(
@@ -154,15 +154,12 @@ class ModCommands(ModHelpers):
         unmute_time = mute_time + timedelta(seconds=seconds)
 
         mute_record = Mute(
-            user_id=member.id,
-            channel_id=interaction.channel.id,
-            moderator_id=interaction.user.id,
+            discord_user_id=str(member.id),
+            discord_channel_id=interaction.channel.id,
+            moderator_discord_user_id=str(interaction.user.id),
             mute_time=mute_time,
-            unmute_time=unmute_time,
-            duration_seconds=seconds,
+            original_unmute_time=unmute_time,
             reason=reason,
-            active=True,
-            is_self_mute=False,
         )
         await self.client.stores.mutes.insert_one(mute_record)
 
@@ -191,7 +188,7 @@ class ModCommands(ModHelpers):
                 }
             ],
         )
-        await self._send_mod_log(mute_logs_embed)
+        await self.client.config.mod_logs_channel.send(embed=mute_logs_embed)
 
     @ModGroups.mod.command(name="unmute", description="Unmute a member")
     @app_commands.describe(member="The member to unmute")
@@ -215,11 +212,9 @@ class ModCommands(ModHelpers):
 
         await member.remove_roles(muted_role)
 
-        await self.client.stores.mutes.deactivate_active(
-            member.id,
-            unmute_time=datetime.now(UTC),
-            unmute_type="manual",
-            unmuted_by=interaction.user.id,
+        await self.client.stores.mutes.unmute_user(
+            str(member.id),
+            unmuted_at=datetime.now(UTC),
         )
 
         await interaction.followup.send(
@@ -230,8 +225,8 @@ class ModCommands(ModHelpers):
                 fields=[{"name": "Unmuted user", "value": f"{member.mention} welcome back"}],
             ),
         )
-        await self._send_mod_log(
-            ug.build_embed(
+        await self.client.config.mod_logs_channel.send(
+            embed=ug.build_embed(
                 title="Unmute",
                 color=discord.Color.green(),
                 fields=[{"name": "Unmuted user", "value": f"{member.mention}\nModerator: {interaction.user.mention}"}],
@@ -263,7 +258,7 @@ class ModCommands(ModHelpers):
             color=discord.Color.green(),
             description=f"{interaction.user.mention} deleted {len(deleted)} messages in {interaction.channel.mention}",
         )
-        await self._send_mod_log(embed)
+        await self.client.config.mod_logs_channel.send(embed=embed)
 
     @ModGroups.mod.command(name="lock", description="lock a channel")
     @app_commands.describe(
@@ -321,7 +316,7 @@ class ModCommands(ModHelpers):
                 {"name": "Reason", "value": reason},
             ],
         )
-        await self._send_mod_log(lock_logs_embed)
+        await self.client.config.mod_logs_channel.send(embed=lock_logs_embed)
 
     @ModGroups.mod.command(name="unlock", description="Unlock a channel")
     @app_commands.describe(channel="The channel to unlock (defaults to current channel)")
@@ -374,7 +369,7 @@ class ModCommands(ModHelpers):
                 {"name": "Moderator", "value": interaction.user.mention, "inline": True},
             ],
         )
-        await self._send_mod_log(unlock_logs_embed)
+        await self.client.config.mod_logs_channel.send(embed=unlock_logs_embed)
 
     @ModGroups.mod.command(name="timeout", description="Timeout a member for a specified duration")
     @app_commands.describe(
@@ -450,7 +445,7 @@ class ModCommands(ModHelpers):
                 }
             ],
         )
-        await self._send_mod_log(timeout_logs_embed)
+        await self.client.config.mod_logs_channel.send(embed=timeout_logs_embed)
 
     @ModGroups.mod.command(name="detimeout", description="Remove timeout from a member")
     @app_commands.describe(member="The member to remove timeout from")
@@ -484,4 +479,4 @@ class ModCommands(ModHelpers):
             color=discord.Color(0x00FF00),
             fields=[{"name": "De-timed-out User", "value": f"{member.mention}\nModerator: {interaction.user.mention}"}],
         )
-        await self._send_mod_log(detimeout_logs_embed)
+        await self.client.config.mod_logs_channel.send(embed=detimeout_logs_embed)

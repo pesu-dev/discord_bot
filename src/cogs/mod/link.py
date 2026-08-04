@@ -32,7 +32,7 @@ class LinkCommands:
             thumbnail=user.display_avatar.url,
         )
 
-        link_record = await self.client.stores.links.find_one(user_id=str(user.id))
+        link_record = await self.client.stores.links.find_one(discord_user_id=str(user.id))
         if not link_record:
             embed.add_field(name="Status", value="This user is not linked yet", inline=False)
             await interaction.followup.send(embed=embed)
@@ -55,7 +55,7 @@ class LinkCommands:
         not_found="The specified user does not exist or is not in the server",
     )
     async def mod_link_disconnect(self, interaction: discord.Interaction, user: discord.Member) -> None:
-        result = await self.client.stores.links.delete_one(user_id=str(user.id))
+        result = await self.client.stores.links.delete_one(discord_user_id=str(user.id))
         if result.deleted_count == 0:
             await interaction.followup.send(content="This user was not linked in the first place", ephemeral=True)
             return

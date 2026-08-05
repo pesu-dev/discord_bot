@@ -177,6 +177,7 @@ async def test_on_member_remove_deletes_incomplete_link(mock_bot: MagicMock, mem
 async def test_on_message_delete_sends_ghost_ping(mock_bot: MagicMock) -> None:
     listeners = EventListeners()
     listeners.client = mock_bot
+
     author = MagicMock()
     author.bot = False
     author.mention = "<@9>"

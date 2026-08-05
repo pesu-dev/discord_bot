@@ -165,6 +165,7 @@ async def test_on_message_delete_no_pings(mock_bot: MagicMock) -> None:
 async def test_on_message_edit_ghost_ping(mock_bot: MagicMock) -> None:
     listeners = EventListeners()
     listeners.client = mock_bot
+
     author = MagicMock()
     author.bot = False
     author.mention = "<@1>"

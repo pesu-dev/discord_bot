@@ -18,13 +18,9 @@ if TYPE_CHECKING:
     from src.bot import DiscordBot
 
 
-class EventListeners:
+class EventListeners(EventHelpers):
+    client: DiscordBot
     HONEYPOT_ACTION = "kick"  # allowed: kick | ban | timeout
-
-    def __init__(self, client: DiscordBot) -> None:
-        self.client = client
-        self._fafo_lock = asyncio.Lock()
-        self._fafo_message_id: int | None = None
 
     def _build_fafo_banner(self) -> discord.Embed:
         embed = discord.Embed(

@@ -110,7 +110,8 @@ async def test_on_member_join_assigns_linked_roles(
     sample_student: Student,
     member_factory: MemberFactory,
 ) -> None:
-    listeners = EventListeners(mock_bot)
+    listeners = EventListeners()
+    listeners.client = mock_bot
     member = member_factory(user_id=1001)
 
     mock_bot.stores.links.find_one = AsyncMock(return_value=sample_link)
@@ -130,7 +131,8 @@ async def test_on_member_join_incomplete_student_deletes_link(
     sample_link: Link,
     member_factory: MemberFactory,
 ) -> None:
-    listeners = EventListeners(mock_bot)
+    listeners = EventListeners()
+    listeners.client = mock_bot
     member = member_factory(user_id=1001)
 
     # Empty branch short skips that role → fewer than 3 academic roles → delete link
@@ -151,7 +153,8 @@ async def test_on_member_join_incomplete_student_deletes_link(
 
 
 async def test_on_member_join_no_link(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
-    listeners = EventListeners(mock_bot)
+    listeners = EventListeners()
+    listeners.client = mock_bot
     member = member_factory()
     mock_bot.stores.links.find_one = AsyncMock(return_value=None)
 
@@ -160,7 +163,8 @@ async def test_on_member_join_no_link(mock_bot: MagicMock, member_factory: Membe
 
 
 async def test_on_member_remove_deletes_incomplete_link(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
-    listeners = EventListeners(mock_bot)
+    listeners = EventListeners()
+    listeners.client = mock_bot
     member = member_factory(user_id=55)
     link = Link(id=ObjectId(), user_id="55", prn="PES1UG21CS001", linked_at=None)
     mock_bot.stores.links.find_one = AsyncMock(return_value=link)
@@ -171,8 +175,8 @@ async def test_on_member_remove_deletes_incomplete_link(mock_bot: MagicMock, mem
 
 
 async def test_on_message_delete_sends_ghost_ping(mock_bot: MagicMock) -> None:
-    listeners = EventListeners(mock_bot)
-
+    listeners = EventListeners()
+    listeners.client = mock_bot
     author = MagicMock()
     author.bot = False
     author.mention = "<@9>"
@@ -195,7 +199,8 @@ async def test_on_message_delete_sends_ghost_ping(mock_bot: MagicMock) -> None:
 
 
 async def test_on_thread_create_joins(mock_bot: MagicMock) -> None:
-    listeners = EventListeners(mock_bot)
+    listeners = EventListeners()
+    listeners.client = mock_bot
     thread = MagicMock(spec=discord.Thread)
     thread.join = AsyncMock()
     await listeners.on_thread_create(thread)

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 import discord
 from discord.ext import commands
 
+from src.cogs.events.helpers import EventHelpers
 from src.utils import general as ug
 from src.utils.general import build_embed
 
@@ -81,7 +82,7 @@ class EventListeners:
     async def _update_fafo_banner(self) -> None:
         banner = await self._ensure_fafo_banner()
 
-        # Safely extract existing count from button label (fall back to 0 if not found)
+        # pre compute the count from the button label
         count = 0
         if banner.components:
             row = banner.components[0]
@@ -97,27 +98,6 @@ class EventListeners:
         await banner.edit(embed=self._build_fafo_banner(), view=view)
 
     @staticmethod
-    def _filter_reply_mentions(message: discord.Message) -> list[discord.User | discord.Member]:
-        """Filter out reply mentions from the mentions list."""
-        mentions = message.mentions
-
-        if (
-            message.type == discord.MessageType.reply
-            and message.reference is not None
-            and message.reference.resolved is not None
-        ):
-            try:
-                resolved = message.reference.resolved
-                if isinstance(resolved, discord.Message):
-                    replied_user = resolved.author
-                    if replied_user in mentions:
-                        mentions = [m for m in mentions if m.id != replied_user.id]
-            except Exception:
-                pass
-
-        return mentions
-
-    @staticmethod
     def _create_ghost_ping_embed(title: str) -> discord.Embed:
         """Create a ghost ping embed with common properties."""
         embed = discord.Embed(
@@ -127,41 +107,6 @@ class EventListeners:
         )
         embed.set_footer(text="PESU Bot")
         return embed
-
-    @staticmethod
-    def _add_everyone_ping_field(embed: discord.Embed, message: discord.Message) -> None:
-        """Add everyone/here ping field if applicable."""
-        if message.mention_everyone:
-            embed.add_field(
-                name="@everyone/@here pings",
-                value=f"{message.author.mention} ghost pinged `@everyone/@here` in {message.channel.mention}",
-                inline=False,
-            )
-
-    @staticmethod
-    def _add_role_ping_fields(embed: discord.Embed, role_mentions: list, message: discord.Message) -> None:
-        """Add role ping fields if applicable."""
-        if role_mentions:
-            ping_list = " ".join(role.mention for role in role_mentions)
-            embed.add_field(
-                name="Role pings",
-                value=f"{message.author.mention} ghost pinged {ping_list} in {message.channel.mention}",
-                inline=False,
-            )
-
-    @staticmethod
-    def _add_member_ping_fields(
-        embed: discord.Embed, mentions: list[discord.User | discord.Member], message: discord.Message
-    ) -> None:
-        """Add member ping fields if applicable."""
-        user_mentions = [member for member in mentions if not member.bot]
-        if user_mentions:
-            ping_list = " ".join(member.mention for member in user_mentions)
-            embed.add_field(
-                name="Member pings",
-                value=f"{message.author.mention} ghost pinged {ping_list} in {message.channel.mention}",
-                inline=False,
-            )
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:
@@ -301,9 +246,9 @@ class EventListeners:
             return
 
         ghost_ping_embed = build_embed(title="Ghost Ping Alert", color=discord.Color.blue())
-        self._add_everyone_ping_field(ghost_ping_embed, message)
-        self._add_role_ping_fields(ghost_ping_embed, message.role_mentions, message)
-        self._add_member_ping_fields(ghost_ping_embed, message.mentions, message)
+        EventHelpers._add_everyone_ping_field(ghost_ping_embed, message)
+        EventHelpers._add_role_ping_fields(ghost_ping_embed, message.role_mentions, message)
+        EventHelpers._add_member_ping_fields(ghost_ping_embed, message.mentions, message)
 
         if len(ghost_ping_embed.fields) > 0:
             ghost_ping_embed.add_field(
@@ -319,7 +264,7 @@ class EventListeners:
         if before.author.bot:
             return
 
-        old_mentions = self._filter_reply_mentions(before)
+        old_mentions = EventHelpers._filter_reply_mentions(before)
         new_mentions = after.mentions
         old_role_mentions = before.role_mentions
         new_role_mentions = after.role_mentions
@@ -341,9 +286,9 @@ class EventListeners:
 
         ghost_ping_embed = build_embed(title="Ghost Ping Alert (Edited Message)", color=discord.Color.blue())
 
-        self._add_everyone_ping_field(ghost_ping_embed, before)
-        self._add_role_ping_fields(ghost_ping_embed, old_role_mentions, before)
-        self._add_member_ping_fields(ghost_ping_embed, old_mentions, before)
+        EventHelpers._add_everyone_ping_field(ghost_ping_embed, before)
+        EventHelpers._add_role_ping_fields(ghost_ping_embed, old_role_mentions, before)
+        EventHelpers._add_member_ping_fields(ghost_ping_embed, old_mentions, before)
 
         if len(ghost_ping_embed.fields) > 0:
             ghost_ping_embed.add_field(name="Jump URL", value=before.jump_url, inline=False)

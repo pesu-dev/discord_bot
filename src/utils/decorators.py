@@ -49,13 +49,13 @@ _DEFAULT_LOCATION_MESSAGES: dict[CommandLocation, str] = {
 def _is_guild_messageable(channel: discord.abc.MessageableChannel | None) -> bool:
     if channel is None or not isinstance(channel, discord.abc.Messageable):
         return False
-    if isinstance(channel, (discord.DMChannel | discord.GroupChannel)):
+    if isinstance(channel, (discord.DMChannel , discord.GroupChannel)):
         return False
     return getattr(channel, "guild", None) is not None
 
 
 def _is_dm_messageable(channel: discord.abc.MessageableChannel | None) -> bool:
-    return isinstance(channel, (discord.DMChannel | discord.GroupChannel))
+    return isinstance(channel, (discord.DMChannel , discord.GroupChannel))
 
 
 def _resolve_context(args: tuple[Any, ...]) -> discord.Interaction | commands.Context:

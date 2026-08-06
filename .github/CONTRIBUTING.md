@@ -117,14 +117,12 @@ This section provides instructions for setting up your development environment t
 
    ```env
    MONGO_URI=""
-   ASKPESU_API=""
    BOT_TOKEN=""
    APP_ENV=""
    ```
 
    Replace the placeholder values with your actual credentials:
    - `MONGO_URI`: MongoDB connection string
-   - `ASKPESU_API`: Base URL for AskPESU API
    - `BOT_TOKEN`: Discord bot token
    - `APP_ENV`: Environment name (must be one of `prod`, `dev`, or `local`)
 

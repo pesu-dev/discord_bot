@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
@@ -12,6 +11,7 @@ from src.cogs.general.helpers import GeneralHelpers
 from src.data.mongo import Mute
 from src.utils import decorators as bot_decorators
 from src.utils import general as ug
+from src.utils.config import Config
 
 if TYPE_CHECKING:
     from src.bot import DiscordBot
@@ -216,7 +216,7 @@ class GeneralCommands(GeneralHelpers):
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
     @bot_decorators.handle_command_errors()
     async def ask(self, interaction: discord.Interaction, query: str) -> None:
-        url = os.getenv("ASKPESU_API")
+        url = Config.ASKPESU_API
         payload = {"query": query}
         try:
             async with httpx.AsyncClient(timeout=500) as client:

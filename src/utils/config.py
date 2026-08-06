@@ -63,6 +63,9 @@ class Config:
     # PESU Academy auth service (used by /link).
     PESU_AUTH_URL = "https://pesu-auth.onrender.com/authenticate"
 
+    # AskPESU API (used by /ask).
+    ASKPESU_API = "https://pesu-dev-askpesu.hf.space/ask"
+
     # Channel IDs
     CHANNELS = {
         "BOT_LOGS": 786084620944146504,

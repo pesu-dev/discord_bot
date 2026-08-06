@@ -10,12 +10,13 @@ import respx
 
 from src.cogs.general.commands import GeneralCommands
 from src.cogs.general.helpers import ONBOARDING_CHECKLIST, GeneralHelpers, LinkMessage
+from src.utils.config import Config
 from tests.helpers import get_callback
 
 if TYPE_CHECKING:
-    import pytest
-
     from tests.conftest import InteractionFactory, MemberFactory
+
+ASKPESU_API = Config.ASKPESU_API
 
 
 async def test_link_invokes_orchestration(
@@ -276,10 +277,7 @@ async def test_pride_no_link(mock_bot: MagicMock, interaction_factory: Interacti
     assert any("tenor.com" in (c.kwargs.get("content") or "") for c in interaction.followup.send.await_args_list)
 
 
-async def test_ask_exception(
-    mock_bot: MagicMock, interaction_factory: InteractionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("ASKPESU_API", "https://askpesu.test/api")
+async def test_ask_exception(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     cmd = GeneralCommands()
     cmd.client = mock_bot
     interaction = interaction_factory()
@@ -358,32 +356,26 @@ async def test_get_data_caches(mock_bot: MagicMock) -> None:
 
 
 @respx.mock
-async def test_ask_empty_answer_chunk(
-    mock_bot: MagicMock, interaction_factory: InteractionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_ask_empty_answer_chunk(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     from httpx import Response
 
-    monkeypatch.setenv("ASKPESU_API", "https://askpesu.test/api")
     cmd = GeneralCommands()
     cmd.client = mock_bot
     interaction = interaction_factory()
-    respx.post("https://askpesu.test/api").mock(return_value=Response(200, json={"answer": "\n\n"}))
+    respx.post(ASKPESU_API).mock(return_value=Response(200, json={"answer": "\n\n"}))
     await get_callback(cmd.ask)(cmd, interaction, "q")
     interaction.followup.send.assert_awaited()
 
 
 @respx.mock
-async def test_ask_splits_long_answer_into_chunks(
-    mock_bot: MagicMock, interaction_factory: InteractionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_ask_splits_long_answer_into_chunks(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     from httpx import Response
 
-    monkeypatch.setenv("ASKPESU_API", "https://askpesu.test/api")
     cmd = GeneralCommands()
     cmd.client = mock_bot
     interaction = interaction_factory()
     long_answer = "\n".join(["x" * 1500, "y" * 1500])
-    respx.post("https://askpesu.test/api").mock(return_value=Response(200, json={"answer": long_answer}))
+    respx.post(ASKPESU_API).mock(return_value=Response(200, json={"answer": long_answer}))
     await get_callback(cmd.ask)(cmd, interaction, "q")
     embeds = interaction.followup.send.await_args.kwargs["embeds"]
     assert len(embeds) >= 2

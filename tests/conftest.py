@@ -17,7 +17,6 @@ from src.data.mongo import Link, Student
 os.environ.setdefault("APP_ENV", "local")
 os.environ.setdefault("MONGO_URI", "mongodb://localhost:27017")
 os.environ.setdefault("BOT_TOKEN", "test-token-not-real")
-os.environ.setdefault("ASKPESU_API", "https://askpesu.test/api")
 
 type RoleFactory = Callable[..., MagicMock]
 type MemberFactory = Callable[..., MagicMock]

@@ -15,12 +15,13 @@ from src.cogs.general.commands import GeneralCommands
 from src.cogs.general.helpers import GeneralHelpers
 from src.cogs.help.commands import HelpCommands
 from src.cogs.mod.commands import ModCommands
+from src.utils.config import Config
 from tests.helpers import get_callback
 
 if TYPE_CHECKING:
-    import pytest
-
     from tests.conftest import InteractionFactory, MemberFactory
+
+ASKPESU_API = Config.ASKPESU_API
 
 
 async def test_anon_send_requires_link(
@@ -225,15 +226,12 @@ async def test_mod_timeout(
 
 
 @respx.mock
-async def test_ask_success_chunks(
-    mock_bot: MagicMock, interaction_factory: InteractionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("ASKPESU_API", "https://askpesu.test/api")
+async def test_ask_success_chunks(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     cmd = GeneralCommands()
     cmd.client = mock_bot
     cmd.cached_data = None
     long_answer = "\n".join(["line"] * 300)
-    respx.post("https://askpesu.test/api").mock(return_value=Response(200, json={"answer": long_answer}))
+    respx.post(ASKPESU_API).mock(return_value=Response(200, json={"answer": long_answer}))
     interaction = interaction_factory()
     await get_callback(cmd.ask)(cmd, interaction, "what is pesu?")
     interaction.followup.send.assert_awaited()
@@ -242,13 +240,10 @@ async def test_ask_success_chunks(
 
 
 @respx.mock
-async def test_ask_http_error(
-    mock_bot: MagicMock, interaction_factory: InteractionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("ASKPESU_API", "https://askpesu.test/api")
+async def test_ask_http_error(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:
     cmd = GeneralCommands()
     cmd.client = mock_bot
-    respx.post("https://askpesu.test/api").mock(return_value=Response(500, text="err"))
+    respx.post(ASKPESU_API).mock(return_value=Response(500, text="err"))
     interaction = interaction_factory()
     await get_callback(cmd.ask)(cmd, interaction, "q")
     assert "500" in interaction.followup.send.await_args.kwargs["content"]

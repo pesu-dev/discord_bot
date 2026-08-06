@@ -339,6 +339,7 @@ def test_config_role_channel_properties() -> None:
     assert config.lobby_channel is channel
     assert config.verification_logs_channel is channel
     assert Config.PESU_AUTH_URL == "https://pesu-auth.onrender.com/authenticate"
+    assert Config.ASKPESU_API == "https://pesu-dev-askpesu.hf.space/ask"
     assert Config.CHANNELS["VERIFICATION_LOGS"] == 1100722146956820510
     assert Config.CHANNELS["ERROR_LOGS"] == 1129317221848596490
     assert "ADDITIONAL_ROLES" not in Config.CHANNELS

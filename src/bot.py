@@ -3,7 +3,6 @@ import os
 import platform
 import random
 import time
-from typing import TYPE_CHECKING
 
 import discord
 from discord import Intents
@@ -16,9 +15,6 @@ from src.data.mongo import Stores
 from src.utils.config import Config
 from src.utils.general import COGS_PACKAGE, discover_cog_extensions, get_cogs_dir
 
-if TYPE_CHECKING:
-    from pymongo.asynchronous.database import AsyncDatabase
-
 
 class DiscordBot(commands.Bot):
     # Rotating presence shown by the status task.
@@ -29,7 +25,7 @@ class DiscordBot(commands.Bot):
     )
 
     def __init__(self) -> None:
-        env, prefix, db_name = Config.resolve_env()
+        env, prefix = Config.resolve_env()
         super().__init__(
             command_prefix=prefix,
             help_command=None,
@@ -37,10 +33,9 @@ class DiscordBot(commands.Bot):
             tree_cls=CommandTree,
         )
         self.logger = logging.getLogger("discord.app")
-        self.config = Config(self, env=env, db_name=db_name)
+        self.config = Config(self, env=env)
 
-        self.mongo_client: AsyncMongoClient
-        self.db: AsyncDatabase
+        self.mongo: AsyncMongoClient | None = None
         self.stores: Stores
         self.anon_cache: dict[str, list[dict]] = {}
         self.start_time: float = time.time()
@@ -48,9 +43,9 @@ class DiscordBot(commands.Bot):
     async def init_db(self) -> None:
         """Connect to MongoDB and wire up typed collection stores."""
         try:
-            self.mongo_client = AsyncMongoClient(os.environ["MONGO_URI"], tz_aware=True)
-            self.db = self.mongo_client[self.config.db_name]
-            self.stores = await Stores.create(self.db)
+            self.mongo = AsyncMongoClient(os.environ["MONGO_URI"], tz_aware=True)
+            db = self.mongo[self.config.db_name]
+            self.stores = await Stores.create(db)
             self.logger.info(f"Connected to MongoDB ({self.config.db_name})")
         except Exception as e:
             self.logger.info(f"Failed to connect to MongoDB: {e}")
@@ -72,6 +67,18 @@ class DiscordBot(commands.Bot):
     async def before_status_task(self) -> None:
         await self.wait_until_ready()
 
+    @tasks.loop(minutes=30)
+    async def sync_archives_loop(self) -> None:
+        counts = await self.stores.sync_archives()
+        self.logger.info(
+            "Synced archive collections: %s",
+            ", ".join(f"{name}={count}" for name, count in counts.items()),
+        )
+
+    @sync_archives_loop.before_loop
+    async def before_sync_archives_loop(self) -> None:
+        await self.wait_until_ready()
+
     async def setup_hook(self) -> None:
         """Runs once at startup, before the bot is ready."""
         self.logger.info(f"Running in '{self.config.env}' environment")
@@ -82,6 +89,7 @@ class DiscordBot(commands.Bot):
         await self.init_db()
         await self.load_cogs()
         self.status_task.start()
+        self.sync_archives_loop.start()
 
     async def on_ready(self) -> None:
         if self.user:
@@ -91,6 +99,25 @@ class DiscordBot(commands.Bot):
             await self.config.bot_logs_channel.send("Bot is online")
         except Exception as e:
             self.logger.error(f"Failed to send online message: {e}")
+
+    async def close(self) -> None:
+        """Graceful shutdown: announce, stop loops, disconnect Discord, close Mongo."""
+        self.logger.info("Shutting down...")
+        try:
+            await self.config.bot_logs_channel.send("Bot is offline")
+        except Exception as e:
+            self.logger.error(f"Failed to send offline message: {e}")
+
+        for loop in (self.status_task, self.sync_archives_loop):
+            if loop.is_running():
+                loop.cancel()
+
+        await super().close()
+
+        if self.mongo is not None:
+            await self.mongo.close()
+            self.mongo = None
+            self.logger.info("Closed MongoDB connection")
 
     async def on_command_completion(self, context: Context) -> None:
         if context.command is None:

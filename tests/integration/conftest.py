@@ -46,7 +46,6 @@ async def wired_bot(
     """mock_bot wired to real typed stores from Testcontainers Mongo."""
     mock_bot.config = fake_config
     mock_bot.config.db_name = "pesu_test"
-    mock_bot.db = mongo_db
     mock_bot.stores = Stores(mongo_db)
     mock_bot.anon_cache = {}
     yield mock_bot

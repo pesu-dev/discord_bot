@@ -401,6 +401,11 @@ async def test_student_store_and_stores_container() -> None:
     assert isinstance(stores.anon_bans, AnonBanStore)
     assert isinstance(stores.anon_mutes, AnonMuteStore)
     assert isinstance(stores.mutes, MuteStore)
+    # 5 hot collections + 3 archive twins
+    assert len(stores._stores) == 8
+    assert isinstance(stores.mutes.archive, MuteStore)
+    assert stores.mutes.archive.has_archive is False
+    assert stores.links.archive is None
 
 
 async def test_store_index_specs() -> None:
@@ -408,6 +413,11 @@ async def test_store_index_specs() -> None:
     assert StudentStore.indexes[0][1]["name"] == "students_prn_key"
     assert any(spec[1]["name"].startswith("mutes_") for spec in MuteStore.indexes)
     assert any(spec[1]["name"].startswith("anon_mutes_") for spec in AnonMuteStore.indexes)
+    assert MuteStore.has_archive is True
+    assert AnonMuteStore.has_archive is True
+    assert AnonBanStore.has_archive is True
+    assert LinkStore.has_archive is False
+    assert StudentStore.has_archive is False
 
 
 async def test_typed_collection_unknown_field_on_set() -> None:
@@ -418,3 +428,84 @@ async def test_typed_collection_unknown_field_on_set() -> None:
     store = _Bad(_collection())
     with pytest.raises(TypeError, match="Unknown field"):
         await store.update_one(discord_user_id="1", set_fields={"prn": "x"})
+
+
+def _link_store(docs: list[dict[str, Any]] | None = None) -> tuple[LinkStore, MagicMock]:
+    coll = _collection(docs)
+    coll.name = "links"
+    return LinkStore(coll), coll
+
+
+async def test_replace_upsert_into_by_id() -> None:
+    from pymongo import ReplaceOne
+
+    oid = ObjectId()
+    docs = [{"_id": oid, "discord_user_id": "1", "prn": "x"}]
+    source, _src_coll = _link_store(docs)
+    dest, dest_coll = _link_store()
+    dest_coll.bulk_write = AsyncMock()
+
+    written = await source.replace_upsert_into(dest)
+    assert written == 1
+    dest_coll.bulk_write.assert_awaited_once()
+    ops = dest_coll.bulk_write.await_args.args[0]
+    assert len(ops) == 1
+    assert isinstance(ops[0], ReplaceOne)
+    assert ops[0]._filter == {"_id": oid}
+    assert ops[0]._doc == docs[0]
+    assert ops[0]._upsert is True
+
+
+async def test_replace_upsert_into_empty_skips_bulk_write() -> None:
+    source, _ = _link_store([])
+    dest, dest_coll = _link_store()
+    dest_coll.bulk_write = AsyncMock()
+
+    written = await source.replace_upsert_into(dest)
+    assert written == 0
+    dest_coll.bulk_write.assert_not_called()
+
+
+async def test_replace_upsert_into_batches() -> None:
+    docs = [{"_id": ObjectId(), "discord_user_id": str(i), "prn": "x"} for i in range(3)]
+    source, _ = _link_store(docs)
+    dest, dest_coll = _link_store()
+    dest_coll.bulk_write = AsyncMock()
+
+    written = await source.replace_upsert_into(dest, batch_size=2)
+    assert written == 3
+    assert dest_coll.bulk_write.await_count == 2
+    assert len(dest_coll.bulk_write.await_args_list[0].args[0]) == 2
+    assert len(dest_coll.bulk_write.await_args_list[1].args[0]) == 1
+
+
+async def test_stores_sync_archives() -> None:
+    db = MagicMock()
+
+    def _named_collection(name: str) -> MagicMock:
+        docs = [{"_id": ObjectId(), "x": 1}] if not name.startswith("archive.") else []
+        coll = _collection(docs)
+        coll.name = name
+        coll.bulk_write = AsyncMock()
+        return coll
+
+    db.__getitem__ = MagicMock(side_effect=_named_collection)
+    stores = Stores(db)
+
+    assert stores.mutes.archive is not None
+    assert stores.anon_mutes.archive is not None
+    assert stores.anon_bans.archive is not None
+    assert stores.mutes.archive.name == "archive.mutes"
+    assert isinstance(stores.mutes.archive, MuteStore)
+    assert isinstance(stores.anon_mutes.archive, AnonMuteStore)
+    assert isinstance(stores.anon_bans.archive, AnonBanStore)
+
+    counts = await stores.sync_archives()
+    assert counts == {
+        "archive.mutes": 1,
+        "archive.anon_mutes": 1,
+        "archive.anon_bans": 1,
+    }
+    stores.mutes.archive._collection.bulk_write.assert_awaited()
+    stores.anon_mutes.archive._collection.bulk_write.assert_awaited()
+    stores.anon_bans.archive._collection.bulk_write.assert_awaited()

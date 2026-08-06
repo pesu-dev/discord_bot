@@ -10,10 +10,9 @@ from src.utils.config import Config
 
 def test_resolve_env_local(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("APP_ENV", "local")
-    env, prefix, db = Config.resolve_env()
+    env, prefix = Config.resolve_env()
     assert env == "local"
     assert prefix == "?"
-    assert db == "discord"
 
 
 def test_resolve_env_invalid(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -24,8 +23,10 @@ def test_resolve_env_invalid(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_config_guild_object() -> None:
     bot = MagicMock()
-    config = Config(bot, env="local", db_name="discord")
+    config = Config(bot, env="local")
     assert config.guild_object.id == Config.GUILD_ID
+    assert config.db_name == Config.DB_NAME
+    assert Config.DB_NAME == "discord"
 
 
 def test_config_get_role_and_channel() -> None:
@@ -39,7 +40,7 @@ def test_config_get_role_and_channel() -> None:
     guild.get_channel_or_thread = MagicMock(return_value=channel)
     bot.get_guild = MagicMock(return_value=guild)
 
-    config = Config(bot, env="local", db_name="discord")
+    config = Config(bot, env="local")
     assert config.admin_role is role
     assert config.bot_logs_channel is channel
 
@@ -47,7 +48,7 @@ def test_config_get_role_and_channel() -> None:
 def test_config_guild_missing() -> None:
     bot = MagicMock()
     bot.get_guild = MagicMock(return_value=None)
-    config = Config(bot, env="local", db_name="discord")
+    config = Config(bot, env="local")
     with pytest.raises(ValueError, match="Guild"):
         _ = config.guild
 
@@ -71,6 +72,7 @@ async def test_bot_init_db_success(monkeypatch: pytest.MonkeyPatch) -> None:
 
         bot = DiscordBot()
         await bot.init_db()
+        assert bot.mongo is fake_client
         assert bot.stores is not None
         assert bot.stores.links is not None
         assert bot.stores.mutes is not None
@@ -87,6 +89,57 @@ async def test_bot_init_db_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     bot = DiscordBot()
     # Missing MONGO_URI raises KeyError caught by broad except
     await bot.init_db()
+    assert bot.mongo is None
+
+
+async def test_bot_close(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ENV", "local")
+    from src.bot import DiscordBot
+
+    bot = DiscordBot()
+    bot.logger = MagicMock()
+    logs = MagicMock()
+    logs.send = AsyncMock()
+    bot.config = MagicMock()
+    bot.config.bot_logs_channel = logs
+    bot.status_task.is_running = MagicMock(return_value=True)
+    bot.status_task.cancel = MagicMock()
+    bot.sync_archives_loop.is_running = MagicMock(return_value=False)
+    bot.sync_archives_loop.cancel = MagicMock()
+    mongo = MagicMock()
+    mongo.close = AsyncMock()
+    bot.mongo = mongo
+
+    with patch("discord.ext.commands.Bot.close", new_callable=AsyncMock) as super_close:
+        await bot.close()
+
+    logs.send.assert_awaited_with("Bot is offline")
+    bot.status_task.cancel.assert_called_once()
+    bot.sync_archives_loop.cancel.assert_not_called()
+    super_close.assert_awaited_once()
+    mongo.close.assert_awaited_once()
+    assert bot.mongo is None
+    bot.logger.info.assert_any_call("Closed MongoDB connection")
+
+
+async def test_bot_close_offline_message_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ENV", "local")
+    from src.bot import DiscordBot
+
+    bot = DiscordBot()
+    bot.logger = MagicMock()
+    logs = MagicMock()
+    logs.send = AsyncMock(side_effect=RuntimeError("fail"))
+    bot.config = MagicMock()
+    bot.config.bot_logs_channel = logs
+    bot.status_task.is_running = MagicMock(return_value=False)
+    bot.sync_archives_loop.is_running = MagicMock(return_value=False)
+
+    with patch("discord.ext.commands.Bot.close", new_callable=AsyncMock):
+        await bot.close()
+
+    bot.logger.error.assert_called()
+    assert bot.mongo is None
 
 
 async def test_bot_load_cogs(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -133,10 +186,30 @@ async def test_bot_setup_hook(monkeypatch: pytest.MonkeyPatch) -> None:
     bot.init_db = AsyncMock()
     bot.load_cogs = AsyncMock()
     bot.status_task.start = MagicMock()
+    bot.sync_archives_loop.start = MagicMock()
     await bot.setup_hook()
     bot.init_db.assert_awaited()
     bot.load_cogs.assert_awaited()
     bot.status_task.start.assert_called_once()
+    bot.sync_archives_loop.start.assert_called_once()
+
+
+async def test_bot_sync_archives_loop(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ENV", "local")
+    from src.bot import DiscordBot
+
+    bot = DiscordBot()
+    bot.logger = MagicMock()
+    bot.stores = MagicMock()
+    bot.stores.sync_archives = AsyncMock(
+        return_value={"archive.mutes": 2, "archive.anon_mutes": 0, "archive.anon_bans": 1},
+    )
+    bot.wait_until_ready = AsyncMock()
+    await DiscordBot.sync_archives_loop.coro(bot)
+    bot.stores.sync_archives.assert_awaited_once()
+    bot.logger.info.assert_called_once()
+    await DiscordBot.before_sync_archives_loop(bot)
+    bot.wait_until_ready.assert_awaited()
 
 
 async def test_bot_on_ready(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -231,7 +304,7 @@ def test_config_errors() -> None:
     guild.get_role = MagicMock(return_value=None)
     guild.get_channel_or_thread = MagicMock(return_value=None)
     bot.get_guild = MagicMock(return_value=guild)
-    config = Config(bot, env="local", db_name="discord")
+    config = Config(bot, env="local")
     with pytest.raises(ValueError, match="Role 'NOPE'"):
         config.get_role("NOPE")
     with pytest.raises(ValueError, match="Role with ID"):
@@ -252,7 +325,7 @@ def test_config_role_channel_properties() -> None:
     guild.get_role = MagicMock(return_value=role)
     guild.get_channel_or_thread = MagicMock(return_value=channel)
     bot.get_guild = MagicMock(return_value=guild)
-    config = Config(bot, env="local", db_name="discord")
+    config = Config(bot, env="local")
     assert config.admin_role is role
     assert config.mod_role is role
     assert config.junior_mod_role is role
@@ -280,7 +353,7 @@ def test_lobby_channel_rejects_non_text() -> None:
     # get_channel allows Thread; lobby_channel requires TextChannel only.
     guild.get_channel_or_thread = MagicMock(return_value=MagicMock(spec=discord.Thread))
     bot.get_guild = MagicMock(return_value=guild)
-    config = Config(bot, env="local", db_name="discord")
+    config = Config(bot, env="local")
     with pytest.raises(ValueError, match="LOBBY must be a text channel"):
         _ = config.lobby_channel
 
@@ -302,7 +375,7 @@ def test_resolve_academic_role_match() -> None:
     role.color.value = Config.ACADEMIC_ROLE_COLOR
     guild.roles = [role]
     bot.get_guild = MagicMock(return_value=guild)
-    config = Config(bot, env="local", db_name="discord")
+    config = Config(bot, env="local")
     assert config.resolve_academic_role("CSE") is role
 
 
@@ -317,7 +390,7 @@ def test_resolve_academic_role_wrong_color() -> None:
     role.color.value = 0xFF0000
     guild.roles = [role]
     bot.get_guild = MagicMock(return_value=guild)
-    config = Config(bot, env="local", db_name="discord")
+    config = Config(bot, env="local")
     with pytest.raises(ValueError, match="color"):
         config.resolve_academic_role("CSE")
 
@@ -327,6 +400,6 @@ def test_resolve_academic_role_missing() -> None:
     guild = MagicMock()
     guild.roles = []
     bot.get_guild = MagicMock(return_value=guild)
-    config = Config(bot, env="local", db_name="discord")
+    config = Config(bot, env="local")
     with pytest.raises(ValueError, match="not found"):
         config.resolve_academic_role("NOPE")

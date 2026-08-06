@@ -49,6 +49,7 @@ class AnonBanStore(TypedCollection[AnonBan]):
     """Store for the `anon_bans` collection."""
 
     model = AnonBan
+    has_archive = True
     field_map: ClassVar[dict[str, str]] = {
         "id": "_id",
         "discord_user_id": "discord_user_id",

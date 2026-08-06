@@ -55,6 +55,7 @@ class AnonMuteStore(TypedCollection[AnonMute]):
     """Store for the `anon_mutes` collection."""
 
     model = AnonMute
+    has_archive = True
     field_map: ClassVar[dict[str, str]] = {
         "id": "_id",
         "discord_user_id": "discord_user_id",

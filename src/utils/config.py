@@ -19,11 +19,14 @@ class Config:
     # The bot only ever runs on a single guild, so this is a constant.
     GUILD_ID = 742797665301168220
 
-    # Per-environment settings keyed by APP_ENV. All share one cluster for now.
+    # Different clusters, same DB name.
+    DB_NAME = "discord"
+
+    # Command prefix keyed by APP_ENV.
     ENVIRONMENTS = {
-        "prod": {"prefix": "!", "db_name": "discord"},
-        "dev": {"prefix": "$", "db_name": "discord"},
-        "local": {"prefix": "?", "db_name": "discord"},
+        "prod": "!",
+        "dev": "$",
+        "local": "?",
     }
 
     ROLES = {
@@ -72,21 +75,20 @@ class Config:
     }
 
     @staticmethod
-    def resolve_env() -> tuple[str, str, str]:
-        """Resolve (env, prefix, db_name) from APP_ENV. Fails fast on invalid values."""
+    def resolve_env() -> tuple[str, str]:
+        """Resolve (env, prefix) from APP_ENV. Fails fast on invalid values."""
         env = os.getenv("APP_ENV")
         if env not in Config.ENVIRONMENTS:
             valid = ", ".join(Config.ENVIRONMENTS)
             raise ValueError(f"APP_ENV must be one of [{valid}], got {env!r}")
-        settings = Config.ENVIRONMENTS[env]
-        return env, settings["prefix"], settings["db_name"]
+        return env, Config.ENVIRONMENTS[env]
 
-    def __init__(self, bot: DiscordBot, *, env: str, db_name: str) -> None:
+    def __init__(self, bot: DiscordBot, *, env: str) -> None:
         """Initialize with bot instance and resolved environment settings."""
         self.bot = bot
         self.guild_id = self.GUILD_ID
         self.env = env
-        self.db_name = db_name
+        self.db_name = self.DB_NAME
 
     @property
     def guild(self) -> discord.Guild:

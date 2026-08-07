@@ -4,7 +4,7 @@ import asyncio
 import os
 import random
 import re
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import discord
@@ -92,7 +92,6 @@ class EventListeners(EventHelpers):
         count += 1
         view = self._build_fafo_view(count)
         await banner.edit(embed=self._build_fafo_banner(), view=view)
-
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:

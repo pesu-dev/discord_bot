@@ -93,16 +93,6 @@ class EventListeners(EventHelpers):
         view = self._build_fafo_view(count)
         await banner.edit(embed=self._build_fafo_banner(), view=view)
 
-    @staticmethod
-    def _create_ghost_ping_embed(title: str) -> discord.Embed:
-        """Create a ghost ping embed with common properties."""
-        embed = discord.Embed(
-            title=title,
-            timestamp=datetime.now(),
-            color=discord.Color.blue(),
-        )
-        embed.set_footer(text="PESU Bot")
-        return embed
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:
@@ -242,9 +232,9 @@ class EventListeners(EventHelpers):
             return
 
         ghost_ping_embed = build_embed(title="Ghost Ping Alert", color=discord.Color.blue())
-        EventHelpers._add_everyone_ping_field(ghost_ping_embed, message)
-        EventHelpers._add_role_ping_fields(ghost_ping_embed, message.role_mentions, message)
-        EventHelpers._add_member_ping_fields(ghost_ping_embed, message.mentions, message)
+        self._add_everyone_ping_field(ghost_ping_embed, message)
+        self._add_role_ping_fields(ghost_ping_embed, message.role_mentions, message)
+        self._add_member_ping_fields(ghost_ping_embed, message.mentions, message)
 
         if len(ghost_ping_embed.fields) > 0:
             ghost_ping_embed.add_field(
@@ -260,7 +250,7 @@ class EventListeners(EventHelpers):
         if before.author.bot:
             return
 
-        old_mentions = EventHelpers._filter_reply_mentions(before)
+        old_mentions = self._filter_reply_mentions(before)
         new_mentions = after.mentions
         old_role_mentions = before.role_mentions
         new_role_mentions = after.role_mentions
@@ -282,9 +272,9 @@ class EventListeners(EventHelpers):
 
         ghost_ping_embed = build_embed(title="Ghost Ping Alert (Edited Message)", color=discord.Color.blue())
 
-        EventHelpers._add_everyone_ping_field(ghost_ping_embed, before)
-        EventHelpers._add_role_ping_fields(ghost_ping_embed, old_role_mentions, before)
-        EventHelpers._add_member_ping_fields(ghost_ping_embed, old_mentions, before)
+        self._add_everyone_ping_field(ghost_ping_embed, before)
+        self._add_role_ping_fields(ghost_ping_embed, old_role_mentions, before)
+        self._add_member_ping_fields(ghost_ping_embed, old_mentions, before)
 
         if len(ghost_ping_embed.fields) > 0:
             ghost_ping_embed.add_field(name="Jump URL", value=before.jump_url, inline=False)

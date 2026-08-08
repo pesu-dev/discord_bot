@@ -122,3 +122,52 @@ jobs:
     with:
       image_tag: ${{ github.event.pull_request.head.sha }}
       push: false
+
+  greenlight:
+    name: Greenlight - CI checks
+    needs:
+      - pr_source_checker
+      - package_checks
+      - unit_tests
+      - integration_tests
+      - pr_image_build
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Collect CI check statuses
+        env:
+          CHECK_RESULTS: >-
+            pr_source_checker=${{ needs.pr_source_checker.result }}
+            package_checks=${{ needs.package_checks.result }}
+            unit_tests=${{ needs.unit_tests.result }}
+            integration_tests=${{ needs.integration_tests.result }}
+            pr_image_build=${{ needs.pr_image_build.result }}
+        run: |
+          set -euo pipefail
+
+          failed=0
+          echo "CI check statuses:"
+          for entry in $CHECK_RESULTS; do
+            name="${entry%%=*}"
+            result="${entry#*=}"
+            echo "  - ${name}: ${result}"
+
+            case "${result}" in
+              success|skipped)
+                ;;
+              failure|cancelled)
+                failed=1
+                ;;
+              *)
+                echo "Unexpected result for ${name}: ${result}"
+                failed=1
+                ;;
+            esac
+          done
+
+          if [ "${failed}" -ne 0 ]; then
+            echo "greenlight failed: one or more CI checks did not pass."
+            exit 1
+          fi
+
+          echo "greenlight passed: all CI checks are clear."

@@ -23,15 +23,14 @@ class EventListeners(EventHelpers):
     HONEYPOT_ACTION = "kick"  # allowed: kick | ban | timeout
 
     def _build_fafo_banner(self) -> discord.Embed:
-        embed = discord.Embed(
+        return build_embed(
             title="DO NOT SEND MESSAGES IN THIS CHANNEL",
             description=(
                 "This channel is used to catch spam bots. Any messages sent here will result in a **timeout and kick**."
             ),
             color=discord.Color.red(),
+            thumbnail="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f36f.png",
         )
-        embed.set_thumbnail(url="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f36f.png")
-        return embed
 
     @staticmethod
     def _build_fafo_view(count: int) -> discord.ui.View:
@@ -143,6 +142,12 @@ class EventListeners(EventHelpers):
 
     async def _apply_honeypot_action(self, member: discord.Member, source_message: discord.Message) -> str:
         reason = f"Honeypot trap in #{source_message.channel} ({source_message.channel.id})"
+        dm_embed = build_embed(
+            title="You have been removed",
+            color=discord.Color.red(),
+            description=f"You were removed from **{member.guild.name}** for triggering the honeypot channel.",
+        )
+        await ug.send_dm_safely(member, embed=dm_embed)
 
         if self.HONEYPOT_ACTION == "ban":
             await member.ban(delete_message_days=0, reason=reason)
@@ -160,12 +165,7 @@ class EventListeners(EventHelpers):
             return
 
         # Honeypot detection and action
-        if (
-            isinstance(message.channel, discord.TextChannel)
-            and message.guild is not None
-            and message.channel.id == self.client.config.honeypot_channel.id
-            and isinstance(message.author, discord.Member)
-        ):
+        if message.channel.id == self.client.config.honeypot_channel.id and isinstance(message.author, discord.Member):
             try:
                 await message.delete()
             except (discord.Forbidden, discord.NotFound):
@@ -184,19 +184,20 @@ class EventListeners(EventHelpers):
                 action_text = await self._apply_honeypot_action(message.author, message)
                 await self._update_fafo_banner()
 
-                trap_embed = discord.Embed(
+                trap_embed = build_embed(
                     title="Honeypot Triggered",
                     color=discord.Color.red(),
                     timestamp=discord.utils.utcnow(),
                     description=f"{message.author.mention} got trapped in {message.channel.mention}",
+                    fields=[
+                        {"name": "Action", "value": action_text, "inline": True},
+                        {
+                            "name": "Message",
+                            "value": message.content if message.content else "*No content*",
+                            "inline": False,
+                        },
+                    ],
                 )
-                trap_embed.add_field(name="Action", value=action_text, inline=True)
-                trap_embed.add_field(
-                    name="Message",
-                    value=message.content if message.content else "*No content*",
-                    inline=False,
-                )
-                trap_embed.set_footer(text="PESU Bot")
                 await self.client.config.mod_logs_channel.send(embed=trap_embed)
 
             except discord.Forbidden:

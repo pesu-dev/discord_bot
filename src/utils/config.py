@@ -75,6 +75,7 @@ class Config:
         "LOBBY": 860224115633160203,
         "VERIFICATION_LOGS": 1100722146956820510,
         "ERROR_LOGS": 1129317221848596490,
+        "HONEYPOT": 1525332571674902738,
     }
 
     @staticmethod
@@ -204,3 +205,8 @@ class Config:
     def error_logs_channel(self) -> discord.TextChannel | discord.Thread:
         """Get error logs thread/channel."""
         return self.get_channel("ERROR_LOGS")
+
+    @property
+    def honeypot_channel(self) -> discord.TextChannel | discord.Thread:
+        """Get honeypot channel."""
+        return self.get_channel("HONEYPOT")

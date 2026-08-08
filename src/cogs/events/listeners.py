@@ -4,12 +4,14 @@ import asyncio
 import os
 import random
 import re
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import discord
 from discord.ext import commands
 
 from src.cogs.events.helpers import EventHelpers
+from src.utils import general as ug
 from src.utils.general import build_embed
 
 if TYPE_CHECKING:
@@ -18,6 +20,77 @@ if TYPE_CHECKING:
 
 class EventListeners(EventHelpers):
     client: DiscordBot
+    HONEYPOT_ACTION = "kick"  # allowed: kick | ban | timeout
+
+    def _build_fafo_banner(self) -> discord.Embed:
+        return build_embed(
+            title="DO NOT SEND MESSAGES IN THIS CHANNEL",
+            description=(
+                "This channel is used to catch spam bots. Any messages sent here will result in a **timeout and kick**."
+            ),
+            color=discord.Color.red(),
+            thumbnail="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f36f.png",
+        )
+
+    @staticmethod
+    def _build_fafo_view(count: int) -> discord.ui.View:
+        view = discord.ui.View(timeout=None)
+        view.add_item(
+            discord.ui.Button(
+                style=discord.ButtonStyle.secondary,
+                label=f"🍯 Timeouts & Kicks: {count}",
+                disabled=True,
+            )
+        )
+        return view
+
+    async def _ensure_fafo_banner(self) -> discord.Message:
+        async with self._fafo_lock:
+            channel = self.client.config.honeypot_channel
+
+            if self._fafo_message_id is not None:
+                try:
+                    return await channel.fetch_message(self._fafo_message_id)
+                except discord.NotFound:
+                    self._fafo_message_id = None
+
+            # Find the existing banner after a bot restart.
+            async for message in channel.pins(limit=None):
+                if (
+                    message.author.id == self.client.user.id
+                    and message.embeds
+                    and message.embeds[0].title == "DO NOT SEND MESSAGES IN THIS CHANNEL"
+                ):
+                    self._fafo_message_id = message.id
+                    return message
+
+            # Create the banner only when it does not already exist.
+            count = 0
+            banner = await channel.send(
+                embed=self._build_fafo_banner(),
+                view=self._build_fafo_view(count),
+            )
+            await banner.pin(reason="FAFO honeypot banner")
+            self._fafo_message_id = banner.id
+            return banner
+
+    async def _update_fafo_banner(self) -> None:
+        banner = await self._ensure_fafo_banner()
+
+        # pre compute the count from the button label
+        count = 0
+        if banner.components:
+            row = banner.components[0]
+            if hasattr(row, "children") and row.children:
+                button = row.children[0]
+                if hasattr(button, "label") and button.label:
+                    match = re.search(r"\d+", button.label)
+                    if match:
+                        count = int(match.group(0))
+
+        count += 1
+        view = self._build_fafo_view(count)
+        await banner.edit(embed=self._build_fafo_banner(), view=view)
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:
@@ -67,9 +140,76 @@ class EventListeners(EventHelpers):
             await self.client.stores.links.delete_one(id=link_record.id)
             await bot_logs.send(f"Linked record of {member.mention} has been deleted.!")
 
+    async def _apply_honeypot_action(self, member: discord.Member, source_message: discord.Message) -> str:
+        reason = f"Honeypot trap in #{source_message.channel} ({source_message.channel.id})"
+        dm_embed = build_embed(
+            title="You have been removed",
+            color=discord.Color.red(),
+            description=f"You were removed from **{member.guild.name}** for triggering the honeypot channel.",
+        )
+        await ug.send_dm_safely(member, embed=dm_embed)
+
+        if self.HONEYPOT_ACTION == "ban":
+            await member.ban(delete_message_days=0, reason=reason)
+            return "Banned"
+
+        until = discord.utils.utcnow() + timedelta(hours=24)
+        await member.timeout(until, reason=reason)
+
+        await member.kick(reason=reason)
+        return "Timed out & Kicked"
+
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
         if message.author.bot:
+            return
+
+        # Honeypot detection and action
+        if message.channel.id == self.client.config.honeypot_channel.id and isinstance(message.author, discord.Member):
+            try:
+                await message.delete()
+            except (discord.Forbidden, discord.NotFound):
+                pass
+
+            # Keep existing moderation guardrails (admin/mod/bots protected)
+            target_error = ug.mod_target_error(message.author, self.client.config)
+            if target_error is not None:
+                await self.client.config.mod_logs_channel.send(
+                    f"Honeypot triggered by protected user {message.author.mention}; skipped auto-action. "
+                    f"Reason: {target_error}"
+                )
+                return
+
+            try:
+                action_text = await self._apply_honeypot_action(message.author, message)
+                await self._update_fafo_banner()
+
+                trap_embed = build_embed(
+                    title="Honeypot Triggered",
+                    color=discord.Color.red(),
+                    timestamp=discord.utils.utcnow(),
+                    description=f"{message.author.mention} got trapped in {message.channel.mention}",
+                    fields=[
+                        {"name": "Action", "value": action_text, "inline": True},
+                        {
+                            "name": "Message",
+                            "value": message.content if message.content else "*No content*",
+                            "inline": False,
+                        },
+                    ],
+                )
+                await self.client.config.mod_logs_channel.send(embed=trap_embed)
+
+            except discord.Forbidden:
+                await self.client.config.mod_logs_channel.send(
+                    f"Failed honeypot action for {message.author.mention}: "
+                    "missing permissions/role hierarchy "
+                    "(kick/ban/timeout and/or FAFO banner update)."
+                )
+            except discord.HTTPException as exc:
+                await self.client.config.mod_logs_channel.send(
+                    f"Failed honeypot action for {message.author.mention}: {exc}"
+                )
             return
 
         if os.getenv("APP_ENV") == "prod" and random.random() <= 0.2:  # 20% chance and prod deployment

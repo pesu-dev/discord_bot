@@ -44,7 +44,8 @@ deploy leaves the dev environment untouched.
 
 ## Host layout
 
-- `/srv/discord_bot/docker-compose.yml` — compose file
+- `/srv/discord_bot/docker-compose.yml` — compose file (`APP_ENV` comes from
+  `TARGET_ENV` passed to `deploy_runner.sh`)
 - `/srv/discord_bot/.env.<env>` — runtime secrets per environment (`.env.dev`, `.env.prod`)
 - `/etc/discord_bot/deploy.env` — non-secret config (`REPO_OWNER`, `DOCKER_IMAGE_NAME`)
 - `/usr/local/bin/deploy_runner.sh` — the runner, executed as root

@@ -5,3 +5,5 @@ services:
     restart: always
     env_file:
       - ${ENV_FILE:-.env}
+    environment:
+      APP_ENV: ${TARGET_ENV:-local}

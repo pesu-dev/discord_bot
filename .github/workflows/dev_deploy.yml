@@ -75,7 +75,7 @@ jobs:
           head_ref: ${{ github.event.workflow_run.head_sha }}
           base_ref: ${{ steps.previous.outputs.base_ref }}
           bot_token: ${{ secrets.BOT_TOKEN }}
-          app_env: ${{ secrets.APP_ENV }}
+          app_env: dev
 
   deploy_dev:
     name: Deploy commit image to dev

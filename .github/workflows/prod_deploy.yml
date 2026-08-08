@@ -77,7 +77,7 @@ jobs:
           head_ref: ${{ needs.resolve_target.outputs.target_sha }}
           base_ref: ${{ needs.resolve_target.outputs.main_sha }}
           bot_token: ${{ secrets.BOT_TOKEN }}
-          app_env: ${{ secrets.APP_ENV }}
+          app_env: prod
 
   promote_and_deploy:
     name: Fast-forward main and deploy promoted SHA

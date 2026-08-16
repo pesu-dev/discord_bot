@@ -67,6 +67,7 @@ class Config:
         "Master of Business Administration": "MBA",
         "Master of Computer Applications": "MCA",
         "Bachelor of Design": "B.DES",
+        "Bachelor of Medicine Bachelor of Surgery": "MBBS",
     }
 
     # PESU Academy auth service (used by /link).

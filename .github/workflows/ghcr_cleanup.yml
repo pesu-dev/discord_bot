@@ -39,7 +39,7 @@ jobs:
 
           cleanup_plan="$(echo "${versions_json}" | jq --argjson keep_sha "${KEEP_SHA_TAGS}" '
             def tags: (.metadata.container.tags // []);
-            def has_stable: any(tags[]?; . == "dev" or . == "prod" or . == "latest");
+            def has_stable: any(tags[]?; . == "dev" or . == "prod" or . == "latest" or test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"));
             def has_commit_sha_tag: any(tags[]?; test("^[0-9a-f]{40}$"));
             def is_untagged: ((tags | length) == 0);
 

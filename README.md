@@ -1,6 +1,6 @@
 # PESU Discord Bot
 
-[![License](https://img.shields.io/github/license/pesu-dev/discord_bot)](https://github.com/pesu-dev/discord_bot/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/pesu-dev/discord_bot)](https://github.com/pesu-dev/discord_bot/blob/dev/LICENSE)
 [![Contributors](https://img.shields.io/github/contributors/pesu-dev/discord_bot)](https://github.com/pesu-dev/discord_bot/graphs/contributors)
 [![Issues](https://img.shields.io/github/issues/pesu-dev/discord_bot)](https://github.com/pesu-dev/discord_bot/issues)
 [![Project Board](https://img.shields.io/badge/project-board-blue)](https://github.com/orgs/pesu-dev/projects/4/views/8)
@@ -120,10 +120,11 @@ We welcome contributions from the PESU community! Whether you're fixing bugs, ad
 
 The project uses an immutable-image promotion flow designed for free-tier hosting:
 
-- PR to `dev`: lint + source checks + Docker image build validation (no push)
+- PR / push to `dev`: lint + source checks + Docker image build validation (image push only after merge/push success path)
 - Merge to `dev`: checks run again, image is pushed to GHCR as `<commit_sha>`, then deployed to dev
 - Post-dev health success: deployed SHA is retagged as `dev`
-- Manual prod promotion: `dev -> main` fast-forward, deploy the same immutable SHA, and retag as `prod` only on success
+- Manual prod promotion: choose `patch` / `minor` / `major`. The approval job name includes the SHA and `vX.Y.Z` tag. After approval the SHA is deployed, guild commands sync, then the git tag/Release is created and GHCR is retagged as `vX.Y.Z` **then** `:prod` (bumped from the latest release tag reachable from that SHA, or reused if the SHA is already tagged).
+- Retry: re-dispatch the workflow. `:prod` is pushed last, so an incomplete run still looks like there are changes; a git tag already on that SHA is reused. The same SHA is deployed again (idempotent). Prefer **Re-run failed jobs** on an in-progress run to skip a successful deploy.
 - Prod failure path: automatic rollback deploy to the previous `prod` tag
 
 Key deployment files:
@@ -132,7 +133,7 @@ Key deployment files:
 - [`.github/workflows/prod_deploy.yml`](.github/workflows/prod_deploy.yml)
 - [`.github/workflows/build_and_push_image.yml`](.github/workflows/build_and_push_image.yml)
 - [`.github/workflows/ghcr_cleanup.yml`](.github/workflows/ghcr_cleanup.yml)
-- [`ops/deploy/README.md`](ops/deploy/README.md)
+- [`deploy/README.md`](deploy/README.md)
 
 ## 🔐 Security and Privacy
 

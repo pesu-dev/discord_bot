@@ -33,16 +33,17 @@
 - [ ] CI
 
 > **Test Environment:**
+>
 > - OS: (e.g., `Linux`)
-> - Python: (e.g., `3.12`)
-> - Discord.py version: (e.g., `2.6.3`)
+> - Python: (e.g., `3.13`)
+> - Discord.py version: (e.g., `2.7.x`)
 > - [ ] Docker build tested
 
 ---
 
 ## ✅ Checklist
 
-- [ ] My code follows repo [CONTRIBUTING.md](https://github.com/pesu-dev/discord_bot/blob/main/.github/CONTRIBUTING.md) guidelines
+- [ ] My code follows repo [CONTRIBUTING.md](https://github.com/pesu-dev/discord_bot/blob/dev/.github/CONTRIBUTING.md) guidelines
 - [ ] Self-review completed
 - [ ] Added/updated comments and docstrings
 - [ ] Updated relevant docs (README, help text, etc.)

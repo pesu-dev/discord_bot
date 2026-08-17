@@ -44,12 +44,12 @@ The standard workflow for contributing is as follows:
 2. Create a new branch with the format `(discord-username)/feature-description` for your feature or bug fix.
 3. Make your changes and commit them with clear, descriptive messages.
 4. Push your branch to the repository (or your fork).
-5. Create a Pull Request (PR) against the repository's `dev` branch (not `main`).
+5. Create a Pull Request (PR) against the repository's `dev` branch.
 6. Follow the PR template when creating your pull request.
 7. Wait for review and feedback from the maintainers, address any comments or suggestions.
 8. Once approved, your changes will be merged into the `dev` branch.
 
-**⚠️ Important**: Direct PRs to `main` will be closed. All contributions must target the `dev` branch.
+**⚠️ Important**: Pull requests must target the `dev` branch.
 
 ---
 

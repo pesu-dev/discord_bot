@@ -2,6 +2,16 @@ name: Promote Dev to Production
 
 on:
   workflow_dispatch:
+    inputs:
+      bump:
+        description: Semver bump from the latest v* git tag
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
 
 permissions:
   contents: write
@@ -15,121 +25,124 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  resolve_target:
-    name: Resolve promotion target
+  prepare:
+    name: Resolve SHA and version
     runs-on: ubuntu-latest
     outputs:
-      target_sha: ${{ steps.resolve_sha.outputs.target_sha }}
-      main_sha: ${{ steps.resolve_sha.outputs.main_sha }}
-      image_tag: ${{ steps.resolve_sha.outputs.image_tag }}
-      has_changes: ${{ steps.resolve_sha.outputs.has_changes }}
+      target_sha: ${{ steps.prepare.outputs.target_sha }}
+      prod_sha: ${{ steps.prepare.outputs.prod_sha }}
+      tag: ${{ steps.prepare.outputs.tag }}
+      has_changes: ${{ steps.prepare.outputs.has_changes }}
     steps:
-      - name: Checkout repository
+      - name: Checkout workflow ref
         uses: actions/checkout@v6
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
-      - name: Resolve target SHA from dev
-        id: resolve_sha
+      - name: GHCR login
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve origin/dev vs :prod and pick the release tag
+        id: prepare
         run: |
           set -euo pipefail
 
-          git fetch origin dev main --prune
+          git fetch origin dev --prune
+          git fetch --tags --force
 
           TARGET_SHA="$(git rev-parse origin/dev)"
+          docker pull "${IMAGE}:prod"
+          PROD_SHA="$(docker inspect --format='{{ index .Config.Labels "org.opencontainers.image.revision"}}' "${IMAGE}:prod")"
 
-          MAIN_SHA="$(git rev-parse origin/main)"
-          if ! git merge-base --is-ancestor "${MAIN_SHA}" "${TARGET_SHA}"; then
-            echo "main cannot be fast-forwarded to ${TARGET_SHA}. Manual intervention required."
+          if [ -z "${PROD_SHA}" ] || [ "${PROD_SHA}" = "unknown" ] || [ "${PROD_SHA}" = "<no value>" ]; then
+            echo "No usable org.opencontainers.image.revision on ${IMAGE}:prod (got ${PROD_SHA:-empty})"
+            exit 1
+          fi
+          if ! git cat-file -e "${PROD_SHA}^{commit}"; then
+            echo "Prod SHA ${PROD_SHA} is not in this repository history."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "${PROD_SHA}" "${TARGET_SHA}"; then
+            echo "prod SHA ${PROD_SHA} is not an ancestor of ${TARGET_SHA}. Retag :prod onto origin/dev, then re-run."
             exit 1
           fi
 
-          HAS_CHANGES="true"
-          if [[ "${TARGET_SHA}" == "${MAIN_SHA}" ]]; then
-            HAS_CHANGES="false"
-            echo "No new commits between main and target SHA. Skipping production deployment."
-          else
-            echo "Promoting commit ${TARGET_SHA}"
+          echo "target_sha=${TARGET_SHA}" >> "$GITHUB_OUTPUT"
+          echo "prod_sha=${PROD_SHA}" >> "$GITHUB_OUTPUT"
+
+          if [ "${TARGET_SHA}" = "${PROD_SHA}" ]; then
+            echo "No new commits between :prod and origin/dev."
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
-          echo "target_sha=${TARGET_SHA}" >> "$GITHUB_OUTPUT"
-          echo "main_sha=${MAIN_SHA}" >> "$GITHUB_OUTPUT"
-          echo "image_tag=${TARGET_SHA}" >> "$GITHUB_OUTPUT"
-          echo "has_changes=${HAS_CHANGES}" >> "$GITHUB_OUTPUT"
+          docker pull "${IMAGE}:${TARGET_SHA}"
+          SHA_LABEL="$(docker inspect --format='{{ index .Config.Labels "org.opencontainers.image.revision"}}' "${IMAGE}:${TARGET_SHA}")"
+          if [ "${SHA_LABEL}" != "${TARGET_SHA}" ]; then
+            echo "Target image revision ${SHA_LABEL} does not match ${TARGET_SHA}."
+            exit 1
+          fi
+
+          TAG="$(git tag --points-at "${TARGET_SHA}" 'v*' --sort=-v:refname | while read -r tag; do
+            if [[ "${tag}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "${tag}"
+              break
+            fi
+          done)"
+          if [ -z "${TAG}" ]; then
+            TAG="v$(python3 scripts/next_semver.py --bump "${{ inputs.bump }}" --merged "${TARGET_SHA}")"
+            if git rev-parse -q --verify "refs/tags/${TAG}"; then
+              echo "Git tag ${TAG} already exists on another commit."
+              exit 1
+            fi
+          fi
+
+          echo "Promoting ${TARGET_SHA} as ${TAG}"
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
   await_approval:
-    name: Await production approval
-    needs: [resolve_target]
-    if: needs.resolve_target.outputs.has_changes == 'true'
+    name: Approve ${{ needs.prepare.outputs.tag }} at ${{ needs.prepare.outputs.target_sha }}
+    needs: [prepare]
+    if: needs.prepare.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     environment: prod-promote
     steps:
       - name: Production promotion approved
-        run: |
-          echo "Approved promotion of ${{ needs.resolve_target.outputs.target_sha }} to production."
+        run: echo "Approved ${{ needs.prepare.outputs.tag }} at ${{ needs.prepare.outputs.target_sha }}"
 
-  sync_guild_commands:
-    name: Sync guild commands (prod)
-    needs: [resolve_target, await_approval]
-    if: needs.resolve_target.outputs.has_changes == 'true'
+  promote:
+    name: Deploy, sync, tag, and retag
+    needs: [prepare, await_approval]
+    if: needs.prepare.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     environment: prod
+    env:
+      TARGET_SHA: ${{ needs.prepare.outputs.target_sha }}
+      PROD_SHA: ${{ needs.prepare.outputs.prod_sha }}
+      TAG: ${{ needs.prepare.outputs.tag }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Checkout repository
+      - name: Checkout target SHA
         uses: actions/checkout@v6
         with:
-          ref: ${{ needs.resolve_target.outputs.target_sha }}
+          ref: ${{ env.TARGET_SHA }}
           fetch-depth: 0
 
-      - name: Sync guild commands if registry changed
-        uses: ./.github/actions/sync-guild-commands
-        with:
-          head_ref: ${{ needs.resolve_target.outputs.target_sha }}
-          base_ref: ${{ needs.resolve_target.outputs.main_sha }}
-          bot_token: ${{ secrets.BOT_TOKEN }}
-          app_env: prod
-
-  promote_and_deploy:
-    name: Fast-forward main and deploy promoted SHA
-    needs: [resolve_target, sync_guild_commands]
-    if: needs.resolve_target.outputs.has_changes == 'true'
-    runs-on: ubuntu-latest
-    environment: prod
-    steps:
-      - name: Checkout main branch
-        uses: actions/checkout@v6
-        with:
-          ref: main
-          token: ${{ secrets.PESU_DEV_SUPERUSER_TOKEN }}
-          fetch-depth: 0
-
-      - name: Configure Git identity
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Confirm target SHA is still valid
+      - name: Confirm target SHA is still on origin/dev
         run: |
           set -euo pipefail
-
-          git fetch origin dev main --prune
-          TARGET_SHA="${{ needs.resolve_target.outputs.target_sha }}"
-
+          git fetch origin dev --prune
           if ! git merge-base --is-ancestor "${TARGET_SHA}" origin/dev; then
-            echo "Target SHA is no longer present on origin/dev."
+            echo "Target SHA ${TARGET_SHA} is no longer on origin/dev."
             exit 1
           fi
-
-          if ! git merge-base --is-ancestor main "${TARGET_SHA}"; then
-            echo "main cannot be fast-forwarded to ${TARGET_SHA}. Manual intervention required."
-            exit 1
-          fi
-
-      - name: Fast-forward merge main to promoted SHA
-        run: |
-          git merge --ff-only "${{ needs.resolve_target.outputs.target_sha }}"
-          git push origin main
 
       - name: Deploy promoted SHA to prod
         id: deploy_prod
@@ -139,7 +152,7 @@ jobs:
           username: ${{ secrets.VM_USERNAME }}
           key: ${{ secrets.VM_SSH_KEY }}
           fingerprint: ${{ secrets.VM_FINGERPRINT }}
-          script: prod ${{ needs.resolve_target.outputs.image_tag }}
+          script: prod ${{ env.TARGET_SHA }}
 
       - name: Rollback prod to last stable prod tag
         if: failure() && steps.deploy_prod.outcome == 'failure'
@@ -155,26 +168,52 @@ jobs:
         if: steps.deploy_prod.outcome == 'failure'
         run: exit 1
 
+      - name: Sync guild commands if registry changed
+        uses: ./.github/actions/sync-guild-commands
+        with:
+          head_ref: ${{ env.TARGET_SHA }}
+          base_ref: ${{ env.PROD_SHA }}
+          bot_token: ${{ secrets.BOT_TOKEN }}
+          app_env: prod
+
+      - name: Create git tag and GitHub Release if needed
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+
+          if git rev-parse -q --verify "refs/tags/${TAG}"; then
+            TAGGED_SHA="$(git rev-list -n 1 "${TAG}")"
+            if [ "${TAGGED_SHA}" = "${TARGET_SHA}" ]; then
+              echo "Git tag ${TAG} already points at ${TARGET_SHA}; skipping release create."
+              exit 0
+            fi
+            echo "Git tag ${TAG} already exists on ${TAGGED_SHA}, not ${TARGET_SHA}."
+            exit 1
+          fi
+
+          gh release create "${TAG}" --generate-notes --target "${TARGET_SHA}" --title "${TAG}"
+
       - name: GHCR login
-        if: steps.deploy_prod.outcome == 'success'
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Retag promoted commit as prod
-        if: steps.deploy_prod.outcome == 'success'
+      - name: Retag as version then prod
         run: |
-          docker pull "${IMAGE}:${{ needs.resolve_target.outputs.image_tag }}"
-          docker tag "${IMAGE}:${{ needs.resolve_target.outputs.image_tag }}" "${IMAGE}:prod"
+          set -euo pipefail
+          docker pull "${IMAGE}:${TARGET_SHA}"
+          docker tag "${IMAGE}:${TARGET_SHA}" "${IMAGE}:${TAG}"
+          docker push "${IMAGE}:${TAG}"
+          docker tag "${IMAGE}:${TARGET_SHA}" "${IMAGE}:prod"
           docker push "${IMAGE}:prod"
 
   no_changes:
     name: Skip production deploy (no changes)
-    needs: [resolve_target]
-    if: needs.resolve_target.outputs.has_changes != 'true'
+    needs: [prepare]
+    if: needs.prepare.outputs.has_changes != 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Explain skip
-        run: echo "No new commits to promote from dev to main. Deployment skipped."
+        run: echo "origin/dev already matches :prod. Nothing to do."

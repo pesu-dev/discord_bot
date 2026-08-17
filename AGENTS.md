@@ -38,16 +38,16 @@ Use `uv run …` for all Python tooling. Prefer `uv sync --frozen` only when mat
 
 ## Layout
 
-| Path                 | Purpose                                                       |
-| -------------------- | ------------------------------------------------------------- |
-| `src/bot.py`         | `DiscordBot` subclass, cog loading                            |
-| `src/cogs/<name>/`   | One package per cog (auto-discovered)                         |
-| `src/utils/`         | Shared config, decorators, helpers                            |
-| `src/data/`          | Static data (`faq.json`) + Mongo layer (`mongo/`)             |
-| `scripts/`           | CI/ops scripts (cog import check, guild command sync)         |
-| `tests/`             | pytest unit + integration suites (see `tests/README.md`)      |
-| `deploy/`            | Compose + deploy helpers                                      |
-| `.github/workflows/` | CI/CD                                                         |
+| Path                 | Purpose                                                            |
+| -------------------- | ------------------------------------------------------------------ |
+| `src/bot.py`         | `DiscordBot` subclass, cog loading                                 |
+| `src/cogs/<name>/`   | One package per cog (auto-discovered)                              |
+| `src/utils/`         | Shared config, decorators, helpers                                 |
+| `src/data/`          | Static data (`faq.json`) + Mongo layer (`mongo/`)                  |
+| `scripts/`           | CI/ops scripts (cog import check, guild command sync, semver bump) |
+| `tests/`             | pytest unit + integration suites (see `tests/README.md`)           |
+| `deploy/`            | Compose + deploy helpers                                           |
+| `.github/workflows/` | CI/CD                                                              |
 
 Human docs: `README.md`, `.github/CONTRIBUTING.md`, `tests/README.md`. Prefer those for long setup detail; keep this file operational.
 
@@ -91,7 +91,7 @@ When adding a new cog package, ensure `scripts/check_cog_imports.py` still passe
 
 - Branch: `(discord-username)/feature-description`
 - Commits: Conventional Commits — `type: short description` (`feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`, `ci`, `build`, `revert`)
-- Open PRs against **`dev`**, never `main`
+- Open PRs against **`dev`**
 - Follow `.github/PULL_REQUEST_TEMPLATE.md`
 - Do not commit unless the user asks
 
@@ -114,7 +114,7 @@ When adding a new cog package, ensure `scripts/check_cog_imports.py` still passe
 - Commit `BOT_TOKEN`, X.509 `.pem` certs, or other secrets
 - Use relative imports inside `src/`
 - Bypass hooks with `--no-verify`
-- Force-push to `main` / `dev`
+- Force-push to `dev`
 - Invent APIs or Discord.py patterns not already used nearby — mirror neighboring cogs
 
 ## Definition of done

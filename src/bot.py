@@ -14,6 +14,7 @@ from pymongo import AsyncMongoClient
 from src.data.mongo import Stores
 from src.utils.config import Config
 from src.utils.general import COGS_PACKAGE, discover_cog_extensions, get_cogs_dir
+from src.utils.health import clear_health, touch_health
 
 
 class DiscordBot(commands.Bot):
@@ -86,6 +87,15 @@ class DiscordBot(commands.Bot):
     async def before_sync_archives_loop(self) -> None:
         await self.wait_until_ready()
 
+    @tasks.loop(seconds=15)
+    async def health_task(self) -> None:
+        if self.is_ready() and not self.is_closed() and self.mongo is not None:
+            touch_health()
+
+    @health_task.before_loop
+    async def before_health_task(self) -> None:
+        await self.wait_until_ready()
+
     async def setup_hook(self) -> None:
         """Runs once at startup, before the bot is ready."""
         self.logger.info(f"Running in '{self.config.env}' environment")
@@ -97,6 +107,7 @@ class DiscordBot(commands.Bot):
         await self.load_cogs()
         self.status_task.start()
         self.sync_archives_loop.start()
+        self.health_task.start()
 
     async def on_ready(self) -> None:
         if self.user:
@@ -115,9 +126,10 @@ class DiscordBot(commands.Bot):
         except Exception as e:
             self.logger.error(f"Failed to send offline message: {e}")
 
-        for loop in (self.status_task, self.sync_archives_loop):
+        for loop in (self.status_task, self.sync_archives_loop, self.health_task):
             if loop.is_running():
                 loop.cancel()
+        clear_health()
 
         await super().close()
 

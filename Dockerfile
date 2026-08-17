@@ -22,8 +22,8 @@ COPY src/ ./src/
 # Use the project's virtual environment by default
 ENV PATH="/app/.venv/bin:$PATH"
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
-  CMD python -c "import os; os.kill(1, 0)"
+HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=4 \
+  CMD python src/utils/health.py
 
 # Run the bot as a package (python -m src) from /app
 CMD ["python", "-m", "src"]

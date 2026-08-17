@@ -205,11 +205,13 @@ async def test_bot_setup_hook(monkeypatch: pytest.MonkeyPatch) -> None:
     bot.load_cogs = AsyncMock()
     bot.status_task.start = MagicMock()
     bot.sync_archives_loop.start = MagicMock()
+    bot.health_task.start = MagicMock()
     await bot.setup_hook()
     bot.init_db.assert_awaited()
     bot.load_cogs.assert_awaited()
     bot.status_task.start.assert_called_once()
     bot.sync_archives_loop.start.assert_called_once()
+    bot.health_task.start.assert_called_once()
 
 
 async def test_bot_sync_archives_loop(monkeypatch: pytest.MonkeyPatch) -> None:

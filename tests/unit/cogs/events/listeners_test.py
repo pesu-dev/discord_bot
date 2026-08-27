@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -11,7 +12,34 @@ from src.cogs.events.listeners import EventListeners
 from src.data.mongo import Link, Student
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
     from tests.conftest import MemberFactory
+
+
+def _make_listeners(mock_bot: MagicMock) -> EventListeners:
+    listeners = EventListeners()
+    listeners.client = mock_bot
+    listeners._fafo_lock = asyncio.Lock()
+    listeners._fafo_message_id = None
+    mock_bot.user = MagicMock()
+    mock_bot.user.id = 42
+    return listeners
+
+
+async def _empty_pins(*, limit: int | None = None) -> AsyncIterator[None]:
+    return
+    yield
+
+
+def _honeypot_message(mock_bot: MagicMock, author: MagicMock, *, content: str = "spam") -> MagicMock:
+    message = MagicMock(spec=discord.Message)
+    message.author = author
+    message.author.bot = False
+    message.channel = mock_bot.config.honeypot_channel
+    message.content = content
+    message.delete = AsyncMock()
+    return message
 
 
 async def test_on_member_join_unlinked_record_deleted(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
@@ -260,3 +288,81 @@ async def test_on_message_edit_ignores_bot(mock_bot: MagicMock) -> None:
     before.author.bot = True
     await listeners.on_message_edit(before, MagicMock())
     mock_bot.config.mod_logs_channel.send.assert_not_called()
+
+
+async def test_on_message_honeypot_skips_non_member(mock_bot: MagicMock) -> None:
+    listeners = _make_listeners(mock_bot)
+    author = MagicMock(spec=discord.User)
+    author.bot = False
+    message = _honeypot_message(mock_bot, author)
+    message.reply = AsyncMock()
+    with patch("src.cogs.events.listeners.random.random", return_value=0.9):
+        await listeners.on_message(message)
+    message.delete.assert_not_called()
+    mock_bot.config.mod_logs_channel.send.assert_not_called()
+
+
+async def test_on_message_honeypot_skips_protected_user(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
+    listeners = _make_listeners(mock_bot)
+    author = member_factory(user_id=1001, roles=[mock_bot.config.admin_role])
+    message = _honeypot_message(mock_bot, author)
+    message.delete = AsyncMock(side_effect=discord.Forbidden(MagicMock(), "no"))
+
+    await listeners.on_message(message)
+
+    sent = mock_bot.config.mod_logs_channel.send.await_args.args[0]
+    assert "protected user" in sent
+
+
+async def test_on_message_honeypot_kick_success(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
+    listeners = _make_listeners(mock_bot)
+    author = member_factory(user_id=1001)
+    author.guild = MagicMock()
+    author.guild.name = "PESU"
+    author.roles = []
+    message = _honeypot_message(mock_bot, author, content="")
+    message.delete = AsyncMock(side_effect=discord.NotFound(MagicMock(), "gone"))
+
+    banner = MagicMock(spec=discord.Message)
+    banner.id = 11
+    banner.pin = AsyncMock()
+    banner.edit = AsyncMock()
+    banner.components = []
+    mock_bot.config.honeypot_channel.pins = _empty_pins
+    mock_bot.config.honeypot_channel.send = AsyncMock(return_value=banner)
+
+    with patch("src.cogs.events.helpers.ug.send_dm_safely", AsyncMock(return_value=True)):
+        await listeners.on_message(message)
+
+    author.timeout.assert_awaited()
+    author.kick.assert_awaited()
+    banner.edit.assert_awaited()
+    embed = mock_bot.config.mod_logs_channel.send.await_args.kwargs["embed"]
+    assert embed.title == "Honeypot Triggered"
+    assert any(field.value == "*No content*" for field in embed.fields)
+
+
+async def test_on_message_honeypot_forbidden(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
+    listeners = _make_listeners(mock_bot)
+    author = member_factory(user_id=1001)
+    author.roles = []
+    message = _honeypot_message(mock_bot, author)
+    listeners._apply_honeypot_action = AsyncMock(side_effect=discord.Forbidden(MagicMock(), "no"))
+
+    await listeners.on_message(message)
+
+    sent = mock_bot.config.mod_logs_channel.send.await_args.args[0]
+    assert "missing permissions" in sent
+
+
+async def test_on_message_honeypot_http_exception(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
+    listeners = _make_listeners(mock_bot)
+    author = member_factory(user_id=1001)
+    author.roles = []
+    message = _honeypot_message(mock_bot, author)
+    listeners._apply_honeypot_action = AsyncMock(side_effect=discord.HTTPException(MagicMock(), "fail"))
+
+    await listeners.on_message(message)
+
+    sent = mock_bot.config.mod_logs_channel.send.await_args.args[0]
+    assert "Failed honeypot action" in sent

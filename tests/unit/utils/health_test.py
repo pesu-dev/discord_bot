@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import runpy
 import subprocess
 import sys
 import time
@@ -60,6 +61,19 @@ def test_health_probe_script_exit_codes(tmp_path: Path) -> None:
     path.touch()
     fresh = subprocess.run([sys.executable, str(_HEALTH_SCRIPT)], env=env, check=False)
     assert fresh.returncode == 0
+
+
+def test_health_probe_main_block(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    path = tmp_path / "healthy"
+    monkeypatch.setenv("HEALTHCHECK_PATH", str(path))
+    monkeypatch.setenv("HEALTHCHECK_MAX_AGE", "60")
+    with pytest.raises(SystemExit) as missing:
+        runpy.run_path(str(_HEALTH_SCRIPT), run_name="__main__")
+    assert missing.value.code == 1
+    path.touch()
+    with pytest.raises(SystemExit) as fresh:
+        runpy.run_path(str(_HEALTH_SCRIPT), run_name="__main__")
+    assert fresh.value.code == 0
 
 
 def test_health_probe_does_not_import_src_package(tmp_path: Path) -> None:

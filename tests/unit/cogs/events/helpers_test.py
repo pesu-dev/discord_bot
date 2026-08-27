@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import asyncio
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
 from bson import ObjectId
@@ -11,7 +13,27 @@ from src.cogs.events.listeners import EventListeners
 from src.data.mongo import Link, Student
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
     from tests.conftest import MemberFactory
+
+
+def _make_listeners(mock_bot: MagicMock) -> EventListeners:
+    listeners = EventListeners()
+    listeners.client = mock_bot
+    listeners._fafo_lock = asyncio.Lock()
+    listeners._fafo_message_id = None
+    mock_bot.user = MagicMock()
+    mock_bot.user.id = 42
+    return listeners
+
+
+def _pins(*messages: MagicMock) -> object:
+    async def _iter(*, limit: int | None = None) -> AsyncIterator[MagicMock]:
+        for message in messages:
+            yield message
+
+    return _iter
 
 
 def test_filter_reply_mentions_strips_replied_author() -> None:
@@ -228,3 +250,124 @@ def test_filter_reply_non_message_resolved() -> None:
     user = MagicMock()
     message.mentions = [user]
     assert EventHelpers._filter_reply_mentions(message) == [user]
+
+
+def test_build_fafo_banner_and_view() -> None:
+    helpers = EventHelpers()
+    embed = helpers._build_fafo_banner()
+    assert embed.title == "DO NOT SEND MESSAGES IN THIS CHANNEL"
+    view = EventHelpers._build_fafo_view(7)
+    assert view.timeout is None
+    button = view.children[0]
+    assert isinstance(button, discord.ui.Button)
+    assert button.label == "🍯 Timeouts & Kicks: 7"
+    assert button.disabled is True
+
+
+async def test_ensure_fafo_banner_fetches_cached_message(mock_bot: MagicMock) -> None:
+    listeners = _make_listeners(mock_bot)
+    listeners._fafo_message_id = 99
+    cached = MagicMock(spec=discord.Message)
+    mock_bot.config.honeypot_channel.fetch_message = AsyncMock(return_value=cached)
+    mock_bot.config.honeypot_channel.pins = _pins()
+
+    assert await listeners._ensure_fafo_banner() is cached
+    mock_bot.config.honeypot_channel.fetch_message.assert_awaited_once_with(99)
+    mock_bot.config.honeypot_channel.send.assert_not_called()
+
+
+async def test_ensure_fafo_banner_recovers_from_missing_cache(mock_bot: MagicMock) -> None:
+    listeners = _make_listeners(mock_bot)
+    listeners._fafo_message_id = 99
+    channel = mock_bot.config.honeypot_channel
+    channel.fetch_message = AsyncMock(side_effect=discord.NotFound(MagicMock(), "x"))
+
+    pinned = MagicMock(spec=discord.Message)
+    pinned.id = 501
+    pinned.author.id = mock_bot.user.id
+    pinned.embeds = [MagicMock(title="DO NOT SEND MESSAGES IN THIS CHANNEL")]
+    channel.pins = _pins(pinned)
+
+    assert await listeners._ensure_fafo_banner() is pinned
+    assert listeners._fafo_message_id == 501
+    channel.send.assert_not_called()
+
+
+async def test_ensure_fafo_banner_skips_non_matching_pins(mock_bot: MagicMock) -> None:
+    listeners = _make_listeners(mock_bot)
+    channel = mock_bot.config.honeypot_channel
+
+    other_author = MagicMock(spec=discord.Message)
+    other_author.author.id = 7
+    other_author.embeds = [MagicMock(title="DO NOT SEND MESSAGES IN THIS CHANNEL")]
+
+    no_embeds = MagicMock(spec=discord.Message)
+    no_embeds.author.id = mock_bot.user.id
+    no_embeds.embeds = []
+
+    wrong_title = MagicMock(spec=discord.Message)
+    wrong_title.author.id = mock_bot.user.id
+    wrong_title.embeds = [MagicMock(title="something else")]
+
+    channel.pins = _pins(other_author, no_embeds, wrong_title)
+    created = MagicMock(spec=discord.Message)
+    created.id = 808
+    created.pin = AsyncMock()
+    channel.send = AsyncMock(return_value=created)
+
+    assert await listeners._ensure_fafo_banner() is created
+    created.pin.assert_awaited_once_with(reason="FAFO honeypot banner")
+    assert listeners._fafo_message_id == 808
+
+
+async def test_update_fafo_banner_count_branches(mock_bot: MagicMock) -> None:
+    listeners = _make_listeners(mock_bot)
+    banner = MagicMock(spec=discord.Message)
+    banner.edit = AsyncMock()
+    listeners._ensure_fafo_banner = AsyncMock(return_value=banner)
+
+    banner.components = []
+    await listeners._update_fafo_banner()
+    first_view = banner.edit.await_args.kwargs["view"]
+    assert first_view.children[0].label == "🍯 Timeouts & Kicks: 1"
+
+    banner.components = [object()]
+    await listeners._update_fafo_banner()
+    banner.components = [SimpleNamespace(children=[])]
+    await listeners._update_fafo_banner()
+    banner.components = [SimpleNamespace(children=[object()])]
+    await listeners._update_fafo_banner()
+    banner.components = [SimpleNamespace(children=[SimpleNamespace(label="")])]
+    await listeners._update_fafo_banner()
+    banner.components = [SimpleNamespace(children=[SimpleNamespace(label="no digits")])]
+    await listeners._update_fafo_banner()
+    banner.components = [SimpleNamespace(children=[SimpleNamespace(label="🍯 Timeouts & Kicks: 4")])]
+    await listeners._update_fafo_banner()
+    last_view = banner.edit.await_args.kwargs["view"]
+    assert last_view.children[0].label == "🍯 Timeouts & Kicks: 5"
+
+
+async def test_apply_honeypot_action_kick_and_ban(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
+    listeners = _make_listeners(mock_bot)
+    member = member_factory(user_id=1001)
+    member.guild = MagicMock()
+    member.guild.name = "PESU"
+    member.ban = AsyncMock()
+    source = MagicMock(spec=discord.Message)
+    source.channel = mock_bot.config.honeypot_channel
+    source.channel.id = 1525332571674902738
+
+    with patch("src.cogs.events.helpers.ug.send_dm_safely", AsyncMock(return_value=True)) as dm:
+        assert await listeners._apply_honeypot_action(member, source) == "Timed out & Kicked"
+        member.timeout.assert_awaited()
+        member.kick.assert_awaited()
+        member.ban.assert_not_called()
+        dm.assert_awaited()
+
+        listeners.HONEYPOT_ACTION = "ban"
+        member.timeout.reset_mock()
+        member.kick.reset_mock()
+        assert await listeners._apply_honeypot_action(member, source) == "Banned"
+        member.ban.assert_awaited()
+        member.kick.assert_not_called()
+        member.timeout.assert_not_called()

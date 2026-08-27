@@ -14,6 +14,7 @@ from src.utils.atlas import (
     SOURCE_LABEL_VALUE,
     AtlasAPIError,
     AtlasClient,
+    AtlasDatabaseUser,
 )
 from src.utils.config import AtlasProject, Config
 
@@ -321,6 +322,31 @@ async def test_delete_expired_eng_users() -> None:
     respx.delete(_user_url(expired_name)).mock(return_value=httpx.Response(204))
     deleted = await client.delete_expired_eng_users()
     assert deleted == [10]
+
+
+def test_from_api_rejects_non_cn_username() -> None:
+    data = _api_user(
+        "bot",
+        labels=[{"key": "source", "value": SOURCE_LABEL_VALUE}],
+        roles=["discord_ro"],
+    )
+    assert AtlasDatabaseUser.from_api(data) is None
+
+
+@respx.mock
+async def test_create_conflict_user_not_found() -> None:
+    client = _client()
+    _mock_oauth()
+    username = "CN=10"
+    respx.post(USERS_URL).mock(return_value=httpx.Response(409, json={"detail": "exists"}))
+    respx.get(_user_url(username)).mock(return_value=httpx.Response(404, json={"detail": "not found"}))
+    with pytest.raises(ValueError, match="not managed by /eng mongo"):
+        await client.create_or_update_temp_user(
+            discord_user_id=10,
+            granted_by_id=99,
+            role_name="discord_ro",
+            hours=2,
+        )
 
 
 def test_from_config_rejects_empty_strings() -> None:

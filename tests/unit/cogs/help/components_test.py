@@ -24,7 +24,7 @@ def test_help_embeds_pages(mock_bot: MagicMock) -> None:
     assert "mod" in embeds.pages
     assert len(embeds.unlink) == 1
     assert len(embeds.pages["general"]) == 3
-    assert len(embeds.pages["eng"]) == 2
+    assert len(embeds.pages["eng"]) == 3
     general_field_names = [field.name for embed in embeds.pages["general"] for field in embed.fields]
     assert "Link your Account" not in general_field_names
     assert "Toggle Role" in general_field_names

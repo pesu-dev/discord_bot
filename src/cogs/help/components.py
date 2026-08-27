@@ -22,6 +22,9 @@ HELP_PAGES: dict[str, tuple[str, list[dict]]] = {
             {"name": "Uptime", "value": "`/eng uptime`"},
             {"name": "Support", "value": "`/eng support`"},
             {"name": "Reload Cogs", "value": "`/eng reload`"},
+            {"name": "Mongo Access", "value": "`/eng mongo access`"},
+            {"name": "Mongo List", "value": "`/eng mongo list`"},
+            {"name": "Mongo Revoke", "value": "`/eng mongo revoke`"},
         ],
     ),
     "general": (

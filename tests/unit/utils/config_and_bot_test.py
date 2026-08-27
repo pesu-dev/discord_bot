@@ -37,6 +37,11 @@ def test_config_guild_object() -> None:
     assert config.mongo_uri == Config.ENVIRONMENTS["local"]["mongo_uri"]
     assert config.mongo_uri == Config.ENVIRONMENTS["dev"]["mongo_uri"]
     assert Config.ENVIRONMENTS["prod"]["mongo_uri"] != Config.ENVIRONMENTS["dev"]["mongo_uri"]
+    assert config.atlas_projects["dev"].group_id == "6a6bf379b0da6a50da88c661"
+    assert config.atlas_projects["dev"].cluster_name == "pesudev"
+    prod = Config(bot, env="prod")
+    assert prod.atlas_projects["prod"].group_id is None
+    assert prod.atlas_projects["prod"].cluster_name is None
 
 
 def test_config_get_role_and_channel() -> None:

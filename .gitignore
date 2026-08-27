@@ -137,3 +137,10 @@ dmypy.json
 
 # Misc files
 scratch/
+
+# Local PKI for Atlas CUSTOMER X.509
+*.key
+*.crt
+*.srl
+*.pem
+*.csr

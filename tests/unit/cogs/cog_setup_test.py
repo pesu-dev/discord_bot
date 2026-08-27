@@ -33,7 +33,11 @@ async def test_cog_setups(mock_bot: MagicMock) -> None:
 
         await mod_setup(mock_bot)
 
-    await eng_setup(mock_bot)
+    with patch(
+        "src.cogs.eng.SlashEng.__init__",
+        lambda self, client: setattr(self, "client", client),
+    ):
+        await eng_setup(mock_bot)
     await events_setup(mock_bot)
     await general_setup(mock_bot)
     await help_setup(mock_bot)

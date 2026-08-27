@@ -5,12 +5,23 @@ Configuration data classes for the Discord bot.
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import discord
 
 if TYPE_CHECKING:
     from src.bot import DiscordBot
+
+
+@dataclass(frozen=True, slots=True)
+class AtlasProject:
+    """Admin API settings for one Atlas project."""
+
+    group_id: str | None
+    cluster_name: str | None
+    client_id: str | None
+    client_secret: str | None
 
 
 class Config:
@@ -22,7 +33,7 @@ class Config:
     # Different clusters, same DB name.
     DB_NAME = "discord"
 
-    # Per-APP_ENV settings (command prefix + Atlas cluster).
+    # Per-APP_ENV settings (command prefix + Mongo URI).
     ENVIRONMENTS = {
         "prod": {
             "prefix": "!",
@@ -35,6 +46,22 @@ class Config:
         "local": {
             "prefix": "?",
             "mongo_uri": "mongodb+srv://pesudev.andmjbp.mongodb.net/",
+        },
+    }
+
+    # Atlas Admin API targets for /eng mongo.
+    ATLAS_PROJECTS = {
+        "dev": {
+            "group_id": "6a6bf379b0da6a50da88c661",
+            "cluster_name": "pesudev",
+            "client_id_env": "ATLAS_DEV_CLIENT_ID",
+            "client_secret_env": "ATLAS_DEV_CLIENT_SECRET",
+        },
+        "prod": {
+            "group_id": None,
+            "cluster_name": None,
+            "client_id_env": "ATLAS_PROD_CLIENT_ID",
+            "client_secret_env": "ATLAS_PROD_CLIENT_SECRET",
         },
     }
 
@@ -105,7 +132,17 @@ class Config:
         self.guild_id = self.GUILD_ID
         self.env = env
         self.db_name = self.DB_NAME
-        self.mongo_uri = self.ENVIRONMENTS[env]["mongo_uri"]
+        env_cfg = self.ENVIRONMENTS[env]
+        self.mongo_uri = env_cfg["mongo_uri"]
+        self.atlas_projects = {
+            name: AtlasProject(
+                group_id=spec["group_id"],
+                cluster_name=spec["cluster_name"],
+                client_id=os.getenv(spec["client_id_env"]),
+                client_secret=os.getenv(spec["client_secret_env"]),
+            )
+            for name, spec in self.ATLAS_PROJECTS.items()
+        }
 
     @property
     def guild(self) -> discord.Guild:

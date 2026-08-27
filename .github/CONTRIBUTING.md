@@ -14,7 +14,7 @@ Thank you for your interest in contributing to the PESU Discord Bot! This docume
   - [Prerequisites](#prerequisites)
   - [Setting Up Your Environment](#setting-up-your-environment)
   - [Set Up Environment Variables](#set-up-environment-variables)
-  - [Database Setup](#database-setup)
+  - [MongoDB Atlas access](#mongodb-atlas-access)
 - [Running the Bot](#-running-the-bot)
 - [Running Tests](#-running-tests)
 - [Submitting Changes](#-submitting-changes)
@@ -129,20 +129,87 @@ This section provides instructions for setting up your development environment t
    - `MONGO_X509_CERT_PATH`: path to your Atlas X.509 client certificate (`.pem`).
      Defaults to `scratch/mongo-dev.pem` when unset.
 
-### Database Setup
+### MongoDB Atlas access
 
-The bot uses MongoDB to store various data including:
+Production MongoDB runs on Atlas with **self-managed CUSTOMER X.509** auth ([Atlas docs](https://www.mongodb.com/docs/atlas/security-self-managed-x509/)). A team CA is uploaded under **Security → Advanced → Self-Managed X.509**. Client certificates must be **signed by that CA**; self-signed client certs are rejected.
 
-- User linking records
-- Anonymous message ban records
-- Moderation logs
-- Mute records
+The certificate subject must be **`CN=<value>`**. Atlas matches the cert subject to the database username exactly (RFC 2253, e.g. `CN=123456789012345678`).
 
-Ensure you have:
+DB grants are **temporary** (1–8 hours) and are created by a maintainer via `/eng mongo access` bot. You need a CA-signed client certificate before anyone can grant access.
 
-1. A MongoDB instance running (local or cloud)
-2. Proper connection string in your `.env` file
-3. Appropriate database permissions for read/write operations
+#### One-time setup
+
+1. **Get your Discord user ID**  
+   Enable Developer Mode in Discord → right-click your name → **Copy User ID**.
+
+2. **Generate a private key and CSR** (CN = your Discord user ID):
+
+   ```bash
+   DISCORD_ID="123456789012345678"
+   openssl genrsa -out scratch/client.key 4096
+   openssl req -new -key scratch/client.key -out scratch/client.csr -subj "/CN=${DISCORD_ID}"
+   ```
+
+3. **Get the CSR signed by a maintainer**  
+   Send `scratch/client.csr` to a maintainer (Discord or another private channel). They sign it with the team CA:
+
+   ```bash
+   # This command is run by the maintainer
+   openssl x509 -req -days 825 -in scratch/client.csr \
+     -CA scratch/ca.crt -CAkey scratch/ca.key -CAcreateserial \
+     -out scratch/client.crt
+   ```
+
+   This generated a client.crt file which is sent back to you. Combine key + cert into one PEM and remove intermediates:
+
+   ```bash
+   cat scratch/client.key scratch/client.crt > scratch/client.pem
+   chmod 600 scratch/client.pem
+   rm -f scratch/client.key scratch/client.crt scratch/client.csr
+   ```
+
+   You only repeat this if your cert expires or you rotate keys.
+
+4. **Point local tooling at the cert**  
+   In `src/.env`:
+
+   ```env
+   MONGO_X509_CERT_PATH="/absolute/path/to/scratch/client.pem"
+   ```
+
+5. **Request access from a maintainer**  
+   Ask someone with **Bot Dev** to run `/eng mongo access`:
+
+   - **environment:** `dev` (for local/dev work)
+   - **member:** you
+   - **role:** `discord_ro` (read) or `discord_rw` (read/write)
+   - **duration:** 1–8 hours
+
+   `/eng mongo` creates an Atlas user with username `CN=<your-discord-id>`. When the grant expires, Atlas removes the user automatically; request access again if you still need it.
+
+##### MongoDB Compass
+
+1. Open Compass → **New Connection**.
+2. Paste this URI (dev cluster):
+
+   ```text
+   mongodb+srv://pesudev.andmjbp.mongodb.net/?authSource=$external&authMechanism=MONGODB-X509
+   ```
+
+3. Open **Advanced Connection Options** → **TLS/SSL** (or **Authentication**):
+   - Enable TLS.
+   - Under **Client Certificate**, select your combined `.pem` (certificate + private key), same file as `MONGO_X509_CERT_PATH`.
+4. Connect. You should see the `discord` database after a maintainer has granted access.
+
+#### What engineers do *not* need
+
+- Atlas service account credentials (`ATLAS_*_CLIENT_*`) — those are for the bot’s Admin API integration only; maintainers configure them on the server.
+- To run `/eng mongo` yourself unless you are a maintainer — those commands are restricted to **Bot Dev** role.
+
+#### Security
+
+- Never commit `.pem`, `.key`, or `.csr` files (see `.gitignore`).
+- Keep your private key local; send only the `.csr` to a maintainer for signing.
 
 ---
 

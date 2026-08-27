@@ -12,10 +12,10 @@ license-files = [
     "LICENSE"
 ]
 dependencies = [
-    "discord-py==2.7.1",
-    "httpx==0.28.1",
-    "pymongo==4.17.0",
-    "python-dotenv==1.2.2",
+    "discord-py~=2.7.1",
+    "httpx~=0.28.1",
+    "pymongo~=4.17.0",
+    "python-dotenv~=1.2.3",
 ]
 
 [project.optional-dependencies]
@@ -25,7 +25,7 @@ dev = [
     "pytest-cov>=6.0",
     "pytest-mock>=3.14",
     "respx>=0.22",
-    "ruff>=0.15.0",
+    "ruff>=0.16.5",
     "testcontainers>=4.0",
 ]
 

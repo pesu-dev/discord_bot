@@ -20,7 +20,6 @@ def _cmd(mock_bot: MagicMock) -> EngMongoCommands:
     return commands
 
 
-
 async def test_access_unconfigured(
     mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
 ) -> None:
@@ -203,9 +202,7 @@ async def test_expire_eng_mongo_users_deletes_and_logs(mock_bot: MagicMock) -> N
         await cmd._expire_eng_mongo_users()
     atlas.delete_expired_eng_users.assert_awaited_once()
 
-    atlas.delete_expired_eng_users = AsyncMock(
-        side_effect=AtlasAPIError(httpx.Response(500, json={"detail": "boom"}))
-    )
+    atlas.delete_expired_eng_users = AsyncMock(side_effect=AtlasAPIError(httpx.Response(500, json={"detail": "boom"})))
     with patch("src.cogs.eng.mongo.AtlasClient.from_config", side_effect=from_config):
         await cmd._expire_eng_mongo_users()
     mock_bot.logger.error.assert_called()

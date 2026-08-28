@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 from pymongo import AsyncMongoClient
-from testcontainers.mongodb import MongoDbContainer
+from testcontainers.community.mongodb import MongoDbContainer
 
 from src.data.mongo import Stores
 
@@ -46,6 +46,6 @@ async def wired_bot(
     """mock_bot wired to real typed stores from Testcontainers Mongo."""
     mock_bot.config = fake_config
     mock_bot.config.db_name = "pesu_test"
-    mock_bot.stores = Stores(mongo_db)
+    mock_bot.stores = await Stores.create(mongo_db)
     mock_bot.anon_cache = {}
     yield mock_bot

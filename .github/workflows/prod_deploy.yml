@@ -108,7 +108,7 @@ jobs:
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
   await_approval:
-    name: Approve ${{ needs.prepare.outputs.tag }} at ${{ needs.prepare.outputs.target_sha }}
+    name: Approve ${{ needs.prepare.outputs.tag }}
     needs: [prepare]
     if: needs.prepare.outputs.has_changes == 'true'
     runs-on: ubuntu-latest

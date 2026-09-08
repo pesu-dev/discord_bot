@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 
-from src.cogs.eng.mongo import EngMongoCommands
+from src.cogs.eng.mongo import _ENV_ROLES, EngMongoCommands
 from src.utils.atlas import AtlasAPIError, AtlasDatabaseUser
 from tests.helpers import get_callback
 
@@ -60,8 +60,8 @@ async def test_access_rejects_disallowed_role(
         await get_callback(cmd.eng_mongo_access)(cmd, interaction, "dev", member, "atlasAdmin", 2)
     content = interaction.followup.send.await_args.kwargs["content"]
     assert "Role must be one of" in content
-    assert "`discord_ro`" in content
-    assert "`discord_rw`" in content
+    for role in _ENV_ROLES["dev"]:
+        assert f"`{role}`" in content
     atlas.create_or_update_temp_user.assert_not_called()
 
 
@@ -106,7 +106,10 @@ async def test_access_role_autocomplete(mock_bot: MagicMock, interaction_factory
 
     interaction.namespace = SimpleNamespace(environment="dev")
     roles = await cmd.eng_mongo_access_role_autocomplete(interaction, "rw")
-    assert [choice.value for choice in roles] == ["discord_rw"]
+    assert [choice.value for choice in roles] == [role for role in _ENV_ROLES["dev"] if "rw" in role]
+
+    oauth_roles = await cmd.eng_mongo_access_role_autocomplete(interaction, "oauth")
+    assert [choice.value for choice in oauth_roles] == ["oauth2_ro", "oauth2_rw"]
 
 
 async def test_list_paths(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:

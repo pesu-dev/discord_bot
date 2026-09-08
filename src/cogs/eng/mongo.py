@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from src.bot import DiscordBot
 
 _ENV_ROLES = {
-    "dev": ("discord_ro", "discord_rw"),
+    "dev": ("discord_ro", "discord_rw", "oauth2_ro", "oauth2_rw"),
     # "prod": ("default",), # This is not set up yet
 }
 _ENV_CHOICES = [app_commands.Choice(name=name, value=name) for name in _ENV_ROLES]

@@ -1,6 +1,10 @@
 # PESU Discord Bot
 
+[![CI Checks](https://img.shields.io/github/actions/workflow/status/pesu-dev/discord_bot/ci_checks.yml?branch=dev&label=CI%20Checks)](https://github.com/pesu-dev/discord_bot/actions/workflows/ci_checks.yml)
+[![Release](https://img.shields.io/github/v/release/pesu-dev/discord_bot)](https://github.com/pesu-dev/discord_bot/releases)
+[![GHCR Image](https://img.shields.io/badge/GHCR-Docker%20Image-2496ED?logo=docker&logoColor=white)](https://github.com/pesu-dev/discord_bot/pkgs/container/discord_bot)
 [![License](https://img.shields.io/github/license/pesu-dev/discord_bot)](https://github.com/pesu-dev/discord_bot/blob/dev/LICENSE)
+[![Discord](https://img.shields.io/badge/Discord-Join%20PESU%20Server-5865F2?logo=discord&logoColor=white)](https://discord.gg/eZ3uFs2)
 [![Contributors](https://img.shields.io/github/contributors/pesu-dev/discord_bot)](https://github.com/pesu-dev/discord_bot/graphs/contributors)
 [![Issues](https://img.shields.io/github/issues/pesu-dev/discord_bot)](https://github.com/pesu-dev/discord_bot/issues)
 [![Project Board](https://img.shields.io/badge/project-board-blue)](https://github.com/orgs/pesu-dev/projects/4/views/8)

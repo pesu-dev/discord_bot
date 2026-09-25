@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v9.0.0
@@ -76,7 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v9.0.0
@@ -97,7 +97,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v9.0.0
@@ -118,7 +118,7 @@ jobs:
     name: Build image on PR
     needs: [pr_source_checker]
     if: github.event_name == 'pull_request'
-    uses: ./.github/workflows/build_and_push_image.yml
+    uses: pesu-dev/actions/.github/workflows/build_push_image.yml@v1
     with:
       image_tag: ${{ github.event.pull_request.head.sha }}
       push: false

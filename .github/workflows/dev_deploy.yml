@@ -22,22 +22,47 @@ concurrency:
 jobs:
   build_and_push_image:
     name: Build and push commit image
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'dev'
-    uses: ./.github/workflows/build_and_push_image.yml
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'dev'
+    uses: pesu-dev/actions/.github/workflows/build_push_image.yml@v1
     with:
       ref: ${{ github.event.workflow_run.head_sha }}
       image_tag: ${{ github.event.workflow_run.head_sha }}
       push: true
 
+  deploy_dev:
+    name: Deploy commit image to dev
+    needs: [build_and_push_image]
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'dev'
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Trigger VM deploy gate (dev)
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USERNAME }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          fingerprint: ${{ secrets.VM_FINGERPRINT }}
+          script: dev ${{ env.SHA_TAG }}
+
   sync_guild_commands:
     name: Sync guild commands (dev)
-    needs: [build_and_push_image]
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'dev'
+    needs: [build_and_push_image, deploy_dev]
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'dev'
     runs-on: ubuntu-latest
     environment: dev
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
@@ -77,24 +102,9 @@ jobs:
           bot_token: ${{ secrets.BOT_TOKEN }}
           app_env: dev
 
-  deploy_dev:
-    name: Deploy commit image to dev
-    needs: [build_and_push_image, sync_guild_commands]
-    runs-on: ubuntu-latest
-    environment: dev
-    steps:
-      - name: Trigger VM deploy gate (dev)
-        uses: appleboy/ssh-action@v1.2.5
-        with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USERNAME }}
-          key: ${{ secrets.VM_SSH_KEY }}
-          fingerprint: ${{ secrets.VM_FINGERPRINT }}
-          script: dev ${{ env.SHA_TAG }}
-
   tag_dev:
     name: Tag deployed commit image as dev
-    needs: [deploy_dev]
+    needs: [deploy_dev, sync_guild_commands]
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -109,9 +119,9 @@ jobs:
 
       - name: Retag commit image as dev
         run: |
-          docker pull "${IMAGE}:${SHA_TAG}"
-          docker tag "${IMAGE}:${SHA_TAG}" "${IMAGE}:dev"
-          docker push "${IMAGE}:dev"
+          docker buildx imagetools create \
+            --tag "${IMAGE}:dev" \
+            "${IMAGE}:${SHA_TAG}"
 
   cleanup_ghcr:
     name: Cleanup old package versions in GHCR

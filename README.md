@@ -135,7 +135,7 @@ Key deployment files:
 
 - [`.github/workflows/dev_deploy.yml`](.github/workflows/dev_deploy.yml)
 - [`.github/workflows/prod_deploy.yml`](.github/workflows/prod_deploy.yml)
-- [`.github/workflows/build_and_push_image.yml`](.github/workflows/build_and_push_image.yml)
+- [`pesu-dev/actions/.github/workflows/build_push_image.yml`](https://github.com/pesu-dev/actions/blob/main/.github/workflows/build_push_image.yml)
 - [`.github/workflows/ghcr_cleanup.yml`](.github/workflows/ghcr_cleanup.yml)
 - [`deploy/README.md`](deploy/README.md)
 

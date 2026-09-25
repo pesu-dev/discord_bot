@@ -35,7 +35,7 @@ jobs:
       has_changes: ${{ steps.prepare.outputs.has_changes }}
     steps:
       - name: Checkout workflow ref
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
@@ -117,20 +117,89 @@ jobs:
       - name: Production promotion approved
         run: echo "Approved ${{ needs.prepare.outputs.tag }} at ${{ needs.prepare.outputs.target_sha }}"
 
-  promote:
-    name: Deploy, sync, tag, and retag
+  deploy_prod:
+    name: Deploy to prod
     needs: [prepare, await_approval]
     if: needs.prepare.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     environment: prod
+    steps:
+      - name: Trigger VM deploy gate (prod)
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USERNAME }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          fingerprint: ${{ secrets.VM_FINGERPRINT }}
+          script: prod ${{ needs.prepare.outputs.target_sha }}
+
+  sync_guild_commands:
+    name: Sync guild commands (prod)
+    needs: [prepare, deploy_prod]
+    if: needs.prepare.outputs.has_changes == 'true' && needs.deploy_prod.result == 'success'
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - name: Checkout target SHA
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.target_sha }}
+          fetch-depth: 0
+
+      - name: Sync guild commands if registry changed
+        uses: ./.github/actions/sync-guild-commands
+        with:
+          head_ref: ${{ needs.prepare.outputs.target_sha }}
+          base_ref: ${{ needs.prepare.outputs.prod_sha }}
+          bot_token: ${{ secrets.BOT_TOKEN }}
+          app_env: prod
+
+  rollback_prod:
+    name: Rollback prod to last stable prod image
+    needs: [prepare, deploy_prod, sync_guild_commands]
+    if: >-
+      always() &&
+      needs.prepare.outputs.has_changes == 'true' &&
+      (needs.deploy_prod.result == 'failure' || needs.sync_guild_commands.result == 'failure')
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - name: Trigger VM rollback gate (prod)
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USERNAME }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          fingerprint: ${{ secrets.VM_FINGERPRINT }}
+          script: prod prod
+
+  fail_after_rollback:
+    name: Mark deployment as failed after rollback
+    needs: [deploy_prod, sync_guild_commands, rollback_prod]
+    if: >-
+      always() &&
+      (needs.deploy_prod.result == 'failure' || needs.sync_guild_commands.result == 'failure')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail the workflow
+        run: exit 1
+
+  release:
+    name: Create release and retag
+    needs: [prepare, deploy_prod, sync_guild_commands]
+    if: >-
+      needs.prepare.outputs.has_changes == 'true' &&
+      needs.deploy_prod.result == 'success' &&
+      needs.sync_guild_commands.result == 'success'
+    runs-on: ubuntu-latest
+    environment: prod
     env:
       TARGET_SHA: ${{ needs.prepare.outputs.target_sha }}
-      PROD_SHA: ${{ needs.prepare.outputs.prod_sha }}
       TAG: ${{ needs.prepare.outputs.tag }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout target SHA
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ env.TARGET_SHA }}
           fetch-depth: 0
@@ -143,38 +212,6 @@ jobs:
             echo "Target SHA ${TARGET_SHA} is no longer on origin/dev."
             exit 1
           fi
-
-      - name: Deploy promoted SHA to prod
-        id: deploy_prod
-        uses: appleboy/ssh-action@v1.2.5
-        with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USERNAME }}
-          key: ${{ secrets.VM_SSH_KEY }}
-          fingerprint: ${{ secrets.VM_FINGERPRINT }}
-          script: prod ${{ env.TARGET_SHA }}
-
-      - name: Rollback prod to last stable prod tag
-        if: failure() && steps.deploy_prod.outcome == 'failure'
-        uses: appleboy/ssh-action@v1.2.5
-        with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USERNAME }}
-          key: ${{ secrets.VM_SSH_KEY }}
-          fingerprint: ${{ secrets.VM_FINGERPRINT }}
-          script: prod prod
-
-      - name: Mark deployment as failed after rollback
-        if: steps.deploy_prod.outcome == 'failure'
-        run: exit 1
-
-      - name: Sync guild commands if registry changed
-        uses: ./.github/actions/sync-guild-commands
-        with:
-          head_ref: ${{ env.TARGET_SHA }}
-          base_ref: ${{ env.PROD_SHA }}
-          bot_token: ${{ secrets.BOT_TOKEN }}
-          app_env: prod
 
       - name: Create git tag and GitHub Release if needed
         run: |
@@ -203,11 +240,8 @@ jobs:
       - name: Retag as version then prod
         run: |
           set -euo pipefail
-          docker pull "${IMAGE}:${TARGET_SHA}"
-          docker tag "${IMAGE}:${TARGET_SHA}" "${IMAGE}:${TAG}"
-          docker push "${IMAGE}:${TAG}"
-          docker tag "${IMAGE}:${TARGET_SHA}" "${IMAGE}:prod"
-          docker push "${IMAGE}:prod"
+          docker buildx imagetools create --tag "${IMAGE}:${TAG}" "${IMAGE}:${TARGET_SHA}"
+          docker buildx imagetools create --tag "${IMAGE}:prod" "${IMAGE}:${TARGET_SHA}"
 
   no_changes:
     name: Skip production deploy (no changes)

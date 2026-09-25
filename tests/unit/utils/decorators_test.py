@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
+from discord import app_commands
 
 from src.utils import decorators as bot_decorators
 
@@ -252,6 +253,20 @@ def test_propagate_defer_ephemeral_copies_attr() -> None:
 
     bot_decorators._propagate_defer_ephemeral(wrapper, wrapped)
     assert wrapper._defer_ephemeral is True  # type: ignore[attr-defined]
+
+
+def test_wrapped_callback_annotations_use_original_globals() -> None:
+    @app_commands.command()
+    @bot_decorators.defer(ephemeral=True)
+    async def handler(
+        interaction: discord.Interaction,
+        reason: app_commands.Range[str, 1, 400],
+    ) -> None:
+        return None
+
+    parameter = handler.parameters[0]
+    assert parameter.min_value == 1
+    assert parameter.max_value == 400
 
 
 async def test_requires_location_dm(mock_bot: MagicMock, interaction_factory: InteractionFactory) -> None:

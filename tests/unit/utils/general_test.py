@@ -13,9 +13,11 @@ from src.utils.general import (
     discover_cog_extensions,
     handle_command_error,
     mod_target_error,
+    normalize_prn,
     parse_time,
     resolve_cog_extension,
     send_dm_safely,
+    validate_prn,
 )
 
 if TYPE_CHECKING:
@@ -167,6 +169,49 @@ def test_mod_target_error_allow_mod(fake_config: MagicMock, member_factory: Memb
 def test_mod_target_error_ok(fake_config: MagicMock, member_factory: MemberFactory) -> None:
     member = member_factory()
     assert mod_target_error(member, fake_config) is None
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("PES1202100001", "PES1202100001"),
+        ("pes1202100001", "PES1202100001"),
+        (" pes1202100001 ", "PES1202100001"),
+        ("PES1UG26AM412", "PES1UG26AM412"),
+        ("pes1ug26am412", "PES1UG26AM412"),
+        ("", None),
+        ("   ", None),
+        (None, None),
+        (123, None),
+        (["PES1202100001"], None),
+    ],
+)
+def test_normalize_prn(raw: object, expected: str | None) -> None:
+    assert normalize_prn(raw) == expected
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("PES1202100001", "PES1202100001"),
+        (" pes1202100001 ", "PES1202100001"),
+        ("pes1ug26am412", "PES1UG26AM412"),
+        ("PES1201800001", "PES1201800001"),
+        ("hello", None),
+        ("123", None),
+        ("!!!", None),
+        ("random-user", None),
+        ("PES120210001", None),
+        ("PES12021000012", None),
+        ("PES1UG26AM41", None),
+        ("", None),
+        ("   ", None),
+        (None, None),
+        (12345, None),
+    ],
+)
+def test_validate_prn(raw: object, expected: str | None) -> None:
+    assert validate_prn(raw) == expected
 
 
 def test_discover_and_resolve_cogs(tmp_path: Path) -> None:

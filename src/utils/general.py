@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -15,6 +16,45 @@ if TYPE_CHECKING:
 
 COGS_PACKAGE = "src.cogs"
 DM_AUTO_GENERATED_NOTICE = "(Do not reply to this bot. This message was auto-generated, and replies are not monitored.)"
+
+# Canonical PESU PRN/SRN shapes (same source as the link-flow username check):
+# e.g. PES1202100001 (numeric) or PES1UG26AM412 (program) — always stored uppercase.
+_PRN_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"^PES[12]\d{9}$"),
+    re.compile(r"^PES[12](UG|PG)\d{2}[A-Z]{2}\d{3}$"),
+)
+
+
+def normalize_prn(prn: object) -> str | None:
+    """Canonicalize a candidate PRN: require a string, strip whitespace, uppercase.
+
+    Returns None for non-string, empty, or whitespace-only input. Never validates
+    the format itself — pair with :func:`validate_prn` before trusting a value.
+    """
+    if not isinstance(prn, str):
+        return None
+    cleaned = prn.strip().upper()
+    return cleaned or None
+
+
+def validate_prn(prn: object) -> str | None:
+    """Return the canonical PRN when ``prn`` is a well-formed PESU identity, else None."""
+    canonical = normalize_prn(prn)
+    if canonical is None:
+        return None
+    if any(pattern.match(canonical) for pattern in _PRN_PATTERNS):
+        return canonical
+    return None
+
+
+def prn_year(prn: object) -> str | None:
+    """Return the admission year encoded by a validated canonical PRN/SRN."""
+    canonical = validate_prn(prn)
+    if canonical is None:
+        return None
+    if canonical[4:6].isdigit():
+        return canonical[4:8]
+    return f"20{canonical[6:8]}"
 
 
 def parse_time(time_str: str) -> int:
@@ -151,7 +191,7 @@ def mod_target_error(
 ) -> str | None:
     """Return user-facing error string, or None if target is valid."""
     if member.bot:
-        return "You dare target one of my kind nin amn"
+        return "Nope, not doing that again."
     if not allow_mod_target and any(
         role in member.roles for role in (config.admin_role, config.mod_role, config.junior_mod_role)
     ):

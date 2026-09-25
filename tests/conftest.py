@@ -209,6 +209,11 @@ def mock_bot(fake_config: MagicMock) -> MagicMock:
     stores.anon_bans = AsyncMock()
     stores.anon_mutes = AsyncMock()
     stores.mutes = AsyncMock()
+    stores.server_bans = AsyncMock()
+    # Banned PRNs are the exception; default to unbanned so existing flows behave normally.
+    stores.server_bans.has_active = AsyncMock(return_value=False)
+    stores.server_bans.find_one = AsyncMock(return_value=None)
+    stores.pending_server_bans = AsyncMock()
     bot.stores = stores
     bot.wait_until_ready = AsyncMock()
     bot.load_extension = AsyncMock()

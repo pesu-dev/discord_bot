@@ -6,10 +6,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
 from bson import ObjectId
+from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from src.cogs.mod.helpers import ModHelpers
 from src.cogs.mod.link import LinkCommands
-from src.data.mongo import AnonBan, Link, Mute
+from src.data.mongo import AnonBan, Link, Mute, PendingServerBan
 from tests.helpers import get_callback
 
 if TYPE_CHECKING:
@@ -459,3 +460,162 @@ async def test_slash_mod_skips_start_when_running(mock_bot: MagicMock) -> None:
     ):
         SlashMod(mock_bot)
     start.assert_not_called()
+
+
+def _pending(op: str, prn: str = "PES1UG21CS001") -> PendingServerBan:
+    return PendingServerBan(
+        id=ObjectId(),
+        op=op,
+        prn=prn,
+        discord_user_id="9",
+        reason="spam",
+        failed_at=datetime.now(UTC),
+    )
+
+
+def _reconcile_cog(mock_bot: MagicMock) -> MagicMock:
+    from src.cogs.mod import SlashMod
+
+    mock_bot.config.guild = MagicMock()
+    mock_bot.config.guild.fetch_ban = AsyncMock(return_value=MagicMock())
+    with patch.object(
+        SlashMod,
+        "__init__",
+        lambda self, client: setattr(self, "client", client) or setattr(self, "tasks", []),
+    ):
+        return SlashMod(mock_bot)
+
+
+async def test_reconcile_pending_ban_op_uses_current_discord_state(mock_bot: MagicMock) -> None:
+    from src.cogs.mod import SlashMod
+
+    cog = _reconcile_cog(mock_bot)
+    record = _pending("ban")
+    mock_bot.stores.pending_server_bans.list_pending = AsyncMock(return_value=[record])
+    mock_bot.stores.server_bans.insert_one = AsyncMock()
+    mock_bot.stores.pending_server_bans.delete_if_current = AsyncMock(return_value=True)
+
+    await SlashMod.reconcile_pending_bans_loop(cog)
+
+    mock_bot.stores.server_bans.insert_one.assert_awaited_once()
+    inserted = mock_bot.stores.server_bans.insert_one.await_args.args[0]
+    assert inserted.prn == "PES1UG21CS001"
+    mock_bot.stores.pending_server_bans.delete_if_current.assert_awaited_once_with(record)
+
+
+async def test_reconcile_pending_ban_duplicate_converges(mock_bot: MagicMock) -> None:
+    from src.cogs.mod import SlashMod
+
+    cog = _reconcile_cog(mock_bot)
+    record = _pending("ban")
+    mock_bot.stores.pending_server_bans.list_pending = AsyncMock(return_value=[record])
+    mock_bot.stores.server_bans.insert_one = AsyncMock(side_effect=DuplicateKeyError("dup"))
+    mock_bot.stores.pending_server_bans.delete_if_current = AsyncMock(return_value=True)
+
+    await SlashMod.reconcile_pending_bans_loop(cog)
+
+    mock_bot.stores.pending_server_bans.delete_if_current.assert_awaited_once_with(record)
+
+
+async def test_reconcile_pending_ban_failure_keeps_record(mock_bot: MagicMock) -> None:
+    from src.cogs.mod import SlashMod
+
+    cog = _reconcile_cog(mock_bot)
+    record = _pending("ban")
+    mock_bot.stores.pending_server_bans.list_pending = AsyncMock(return_value=[record])
+    mock_bot.stores.server_bans.insert_one = AsyncMock(side_effect=PyMongoError("still down"))
+    mock_bot.stores.pending_server_bans.mark_retry_failure = AsyncMock()
+
+    await SlashMod.reconcile_pending_bans_loop(cog)
+
+    mock_bot.stores.pending_server_bans.mark_retry_failure.assert_awaited_once()
+
+
+async def test_reconcile_pending_unban_state_removes_identity(mock_bot: MagicMock) -> None:
+    from src.cogs.mod import SlashMod
+
+    cog = _reconcile_cog(mock_bot)
+    record = _pending("unban")
+    mock_bot.stores.pending_server_bans.list_pending = AsyncMock(return_value=[record])
+    mock_bot.config.guild.fetch_ban = AsyncMock(side_effect=discord.NotFound(MagicMock(), "not banned"))
+    mock_bot.stores.server_bans.remove_ban_for_user = AsyncMock(return_value=True)
+    mock_bot.stores.pending_server_bans.delete_if_current = AsyncMock(return_value=True)
+
+    await SlashMod.reconcile_pending_bans_loop(cog)
+
+    mock_bot.stores.server_bans.remove_ban_for_user.assert_awaited_once_with("PES1UG21CS001", "9")
+    mock_bot.stores.pending_server_bans.delete_if_current.assert_awaited_once_with(record)
+
+
+async def test_stale_pending_unban_cannot_override_newer_ban(mock_bot: MagicMock) -> None:
+    from src.cogs.mod import SlashMod
+
+    cog = _reconcile_cog(mock_bot)
+    record = _pending("unban")
+    mock_bot.stores.pending_server_bans.list_pending = AsyncMock(return_value=[record])
+    mock_bot.stores.server_bans.insert_one = AsyncMock()
+    mock_bot.stores.server_bans.remove_ban_for_user = AsyncMock()
+    mock_bot.stores.pending_server_bans.delete_if_current = AsyncMock(return_value=True)
+
+    await SlashMod.reconcile_pending_bans_loop(cog)
+
+    mock_bot.stores.server_bans.insert_one.assert_awaited_once()
+    mock_bot.stores.server_bans.remove_ban_for_user.assert_not_called()
+
+
+async def test_stale_pending_ban_cannot_override_newer_unban(mock_bot: MagicMock) -> None:
+    from src.cogs.mod import SlashMod
+
+    cog = _reconcile_cog(mock_bot)
+    record = _pending("ban")
+    mock_bot.config.guild.fetch_ban = AsyncMock(side_effect=discord.NotFound(MagicMock(), "not banned"))
+    mock_bot.stores.pending_server_bans.list_pending = AsyncMock(return_value=[record])
+    mock_bot.stores.server_bans.insert_one = AsyncMock()
+    mock_bot.stores.server_bans.remove_ban_for_user = AsyncMock(return_value=True)
+    mock_bot.stores.pending_server_bans.delete_if_current = AsyncMock(return_value=True)
+
+    await SlashMod.reconcile_pending_bans_loop(cog)
+
+    mock_bot.stores.server_bans.insert_one.assert_not_called()
+    mock_bot.stores.server_bans.remove_ban_for_user.assert_awaited_once_with("PES1UG21CS001", "9")
+
+
+async def test_reconcile_pending_missing_id_skipped(mock_bot: MagicMock) -> None:
+    from src.cogs.mod import SlashMod
+
+    cog = _reconcile_cog(mock_bot)
+    record = _pending("ban")
+    record.id = None
+    mock_bot.stores.pending_server_bans.list_pending = AsyncMock(return_value=[record])
+    mock_bot.stores.server_bans.insert_one = AsyncMock()
+    mock_bot.stores.pending_server_bans.delete_if_current = AsyncMock()
+
+    await SlashMod.reconcile_pending_bans_loop(cog)
+
+    mock_bot.stores.server_bans.insert_one.assert_not_called()
+    mock_bot.stores.pending_server_bans.delete_if_current.assert_not_called()
+
+
+async def test_before_reconcile_pending_bans_loop(mock_bot: MagicMock) -> None:
+    from src.cogs.mod import SlashMod
+
+    cog = _reconcile_cog(mock_bot)
+    mock_bot.wait_until_ready = AsyncMock()
+    await SlashMod.before_reconcile_pending_bans_loop(cog)
+    mock_bot.wait_until_ready.assert_awaited()
+
+
+async def test_reconcile_pending_empty_noop(mock_bot: MagicMock) -> None:
+    from src.cogs.mod import SlashMod
+
+    cog = _reconcile_cog(mock_bot)
+    mock_bot.stores.pending_server_bans.list_pending = AsyncMock(return_value=[])
+    mock_bot.stores.server_bans.insert_one = AsyncMock()
+    mock_bot.stores.server_bans.remove_ban_for_user = AsyncMock()
+    mock_bot.stores.pending_server_bans.delete_if_current = AsyncMock()
+
+    await SlashMod.reconcile_pending_bans_loop(cog)
+
+    mock_bot.stores.server_bans.insert_one.assert_not_called()
+    mock_bot.stores.server_bans.remove_ban_for_user.assert_not_called()
+    mock_bot.stores.pending_server_bans.delete_if_current.assert_not_called()

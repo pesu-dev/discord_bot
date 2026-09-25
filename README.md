@@ -93,6 +93,17 @@ The bot maintains several MongoDB collections. Document shapes and typed CRUD li
 - `student`: Student linking data (`Student` / `StudentStore`)
 - `anonban`: Anonymous messaging ban records (`AnonBan` / `AnonBanStore`)
 - `mute`: Server mute records (`Mute` / `MuteStore`)
+- `server_bans`: Identity-level PRN bans (`ServerBan` / `ServerBanStore`)
+- `pending_server_bans`: Durable retry records for identity-ban operations that survived a partial failure (`PendingServerBan` / `PendingServerBanStore`)
+
+### PRN Identity Bans (Ban-Evasion Prevention)
+
+A Discord ban applies to one Discord account. To stop a banned user from evading it with a new account, the bot additionally bans their verified PESU identity:
+
+- **Identity key**: the canonical PRN (see `normalize_prn` / `validate_prn` in `src/utils/general.py`: trimmed, uppercased, format-checked). The Discord user ID is only audit history.
+- **Lifecycle**: `/mod ban` records the PRN from the existing verified `links` row into `server_bans` (unique on PRN); `/link` rejects any PESU profile whose PRN is banned, before creating links or assigning roles; `/mod unban` resolves the canonical PRN from `server_bans` by Discord user ID first, then lifts both restrictions. `links` is only a fallback for legacy data.
+- **Discord ban vs PRN identity ban**: the former blocks a Discord account; the latter blocks the PESU identity from linking any account. They are managed together but stored independently, so leaving/deleting `links` rows never lifts protection.
+- **Failure handling**: Discord and MongoDB cannot share a transaction. If the Discord operation succeeds but the identity write fails, the moderator gets one explicit response naming the PRN, the failure is logged, and one durable `pending_server_bans` record is retained per Discord account. The background loop queries the *current* Discord ban state before changing `server_bans`; it never blindly replays the historical `ban`/`unban` operation. Conditional operation IDs and retry backoff prevent old jobs from deleting newer intent or spinning on a persistent failure. Deleting a `links` row never lifts an identity ban.
 
 ## Configuration
 

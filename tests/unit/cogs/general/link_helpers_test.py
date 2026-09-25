@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
+import pytest
 import respx
+from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from src.cogs.general.helpers import (
     ONBOARDING_CHECKLIST,
@@ -182,6 +184,101 @@ async def test_link_prn_already_taken(mock_bot: MagicMock, member_factory: Membe
 
 
 @respx.mock
+async def test_link_banned_prn_rejected(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
+    respx.post(AUTH_URL).mock(return_value=httpx.Response(200, json=_auth_ok()))
+    mock_bot.stores.server_bans.has_active = AsyncMock(return_value=True)
+    mock_bot.stores.links.insert_one = AsyncMock()
+    member = member_factory(roles=[])
+    member.add_roles = AsyncMock()
+
+    message, followup = await _helpers(mock_bot).link_account(member, "PES1UG21CS001", "x")
+
+    assert message == LinkMessage.PRN_BANNED
+    assert followup is None
+    mock_bot.stores.server_bans.has_active.assert_awaited_once_with("PES1202100001")
+    mock_bot.stores.links.insert_one.assert_not_called()
+    mock_bot.stores.students.upsert_by_prn.assert_not_called()
+    member.add_roles.assert_not_awaited()
+
+
+@respx.mock
+async def test_link_ban_check_normalizes_prn(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
+    profile = {**PROFILE, "prn": " pes1202100001 "}
+    respx.post(AUTH_URL).mock(return_value=httpx.Response(200, json=_auth_ok(profile)))
+    mock_bot.stores.server_bans.has_active = AsyncMock(return_value=True)
+
+    message, followup = await _helpers(mock_bot).link_account(member_factory(), "PES1UG21CS001", "x")
+
+    assert message == LinkMessage.PRN_BANNED
+    assert followup is None
+    mock_bot.stores.server_bans.has_active.assert_awaited_once_with("PES1202100001")
+
+
+@respx.mock
+async def test_link_invalid_prn_skips_ban_check(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
+    profile = {**PROFILE, "prn": "hello"}
+    respx.post(AUTH_URL).mock(return_value=httpx.Response(200, json=_auth_ok(profile)))
+    mock_bot.stores.server_bans.has_active = AsyncMock(return_value=False)
+
+    message, followup = await _helpers(mock_bot).link_account(member_factory(), "PES1UG21CS001", "x")
+
+    assert message == LinkMessage.INVALID_PRN
+    assert followup is None
+    mock_bot.stores.server_bans.has_active.assert_not_called()
+
+
+@respx.mock
+async def test_link_different_prn_succeeds_despite_other_ban(
+    mock_bot: MagicMock, member_factory: MemberFactory
+) -> None:
+    respx.post(AUTH_URL).mock(return_value=httpx.Response(200, json=_auth_ok()))
+    mock_bot.stores.server_bans.has_active = AsyncMock(return_value=False)
+    mock_bot.stores.links.exists = AsyncMock(return_value=False)
+    mock_bot.stores.students.upsert_by_prn = AsyncMock()
+    mock_bot.stores.links.insert_one = AsyncMock()
+    member = member_factory(roles=[mock_bot.config.just_joined_role])
+    member.add_roles = AsyncMock()
+    member.remove_roles = AsyncMock()
+
+    with patch("src.cogs.general.helpers.ug.send_dm_safely", AsyncMock(return_value=True)):
+        message, followup = await _helpers(mock_bot).link_account(member, "PES1UG21CS001", "secret")
+
+    assert message == LinkMessage.SUCCESS
+    assert followup is not None
+    mock_bot.stores.links.insert_one.assert_awaited()
+    member.add_roles.assert_awaited()
+
+
+@respx.mock
+async def test_link_banned_beats_prn_taken(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
+    respx.post(AUTH_URL).mock(return_value=httpx.Response(200, json=_auth_ok()))
+    mock_bot.stores.server_bans.has_active = AsyncMock(return_value=True)
+    mock_bot.stores.links.exists = AsyncMock(return_value=True)
+    mock_bot.stores.links.insert_one = AsyncMock()
+
+    message, followup = await _helpers(mock_bot).link_account(member_factory(), "PES1UG21CS001", "x")
+
+    assert message == LinkMessage.PRN_BANNED
+    assert followup is None
+    mock_bot.stores.links.insert_one.assert_not_called()
+
+
+@respx.mock
+async def test_link_ban_check_failure_propagates(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
+    respx.post(AUTH_URL).mock(return_value=httpx.Response(200, json=_auth_ok()))
+    mock_bot.stores.server_bans.has_active = AsyncMock(side_effect=PyMongoError("db down"))
+    mock_bot.stores.links.insert_one = AsyncMock()
+    member = member_factory(roles=[])
+    member.add_roles = AsyncMock()
+
+    with pytest.raises(PyMongoError):
+        await _helpers(mock_bot).link_account(member, "PES1UG21CS001", "x")
+
+    mock_bot.stores.links.insert_one.assert_not_called()
+    member.add_roles.assert_not_awaited()
+
+
+@respx.mock
 async def test_link_success_runs_parallel_side_effects(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
     respx.post(AUTH_URL).mock(return_value=httpx.Response(200, json=_auth_ok()))
     mock_bot.stores.links.exists = AsyncMock(return_value=False)
@@ -232,6 +329,38 @@ async def test_link_side_effect_failure_still_succeeds(mock_bot: MagicMock, memb
     assert followup is not None
     await asyncio.sleep(0)
     mock_bot.config.error_logs_channel.send.assert_awaited()
+
+
+@respx.mock
+async def test_link_persistence_failure_does_not_assign_roles(
+    mock_bot: MagicMock, member_factory: MemberFactory
+) -> None:
+    respx.post(AUTH_URL).mock(return_value=httpx.Response(200, json=_auth_ok()))
+    mock_bot.stores.links.exists = AsyncMock(return_value=False)
+    mock_bot.stores.links.insert_one = AsyncMock(side_effect=PyMongoError("db down"))
+    member = member_factory(roles=[])
+
+    message, followup = await _helpers(mock_bot).link_account(member, "PES1UG21CS001", "secret")
+
+    assert message == LinkMessage.LINK_PERSISTENCE_FAILED
+    assert followup is None
+    member.add_roles.assert_not_awaited()
+
+
+@respx.mock
+async def test_link_duplicate_insert_is_rejected_without_roles(
+    mock_bot: MagicMock, member_factory: MemberFactory
+) -> None:
+    respx.post(AUTH_URL).mock(return_value=httpx.Response(200, json=_auth_ok()))
+    mock_bot.stores.links.exists = AsyncMock(return_value=False)
+    mock_bot.stores.links.insert_one = AsyncMock(side_effect=DuplicateKeyError("duplicate"))
+    member = member_factory(roles=[])
+
+    message, followup = await _helpers(mock_bot).link_account(member, "PES1UG21CS001", "secret")
+
+    assert message == LinkMessage.PRN_TAKEN
+    assert followup is None
+    member.add_roles.assert_not_awaited()
 
 
 @respx.mock

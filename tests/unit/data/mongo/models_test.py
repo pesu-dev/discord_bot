@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Self
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -18,6 +18,10 @@ from src.data.mongo import (
     LinkStore,
     Mute,
     MuteStore,
+    PendingServerBan,
+    PendingServerBanStore,
+    ServerBan,
+    ServerBanStore,
     Stores,
     Student,
     StudentStore,
@@ -113,6 +117,33 @@ def test_anonban_unbanned_round_trip() -> None:
     assert ban.to_document()["unbanned_at"] == now
 
 
+def test_serverban_round_trip() -> None:
+    oid = ObjectId()
+    banned_at = datetime.now(UTC)
+    ban = ServerBan(
+        id=oid,
+        prn="PES1UG21CS001",
+        discord_user_id="9",
+        reason="spam",
+        banned_at=banned_at,
+    )
+    doc = ban.to_document()
+    assert doc["prn"] == "PES1UG21CS001"
+    assert doc["discord_user_id"] == "9"
+    assert doc["_id"] == oid
+    restored = ServerBan.from_document(doc)
+    assert restored.prn == "PES1UG21CS001"
+    assert restored.reason == "spam"
+    assert restored.banned_at == banned_at
+    assert restored.id == oid
+
+
+def test_serverban_to_document_omits_none_id() -> None:
+    ban = ServerBan(prn="PES1UG21CS001", discord_user_id="9", reason="x", banned_at=datetime.now(UTC))
+    doc = ban.to_document()
+    assert "_id" not in doc
+
+
 def test_mute_round_trip() -> None:
     oid = ObjectId()
     now = datetime.now(UTC)
@@ -193,6 +224,9 @@ class _FakeCursor:
             return next(self._iter)
         except StopIteration as exc:
             raise StopAsyncIteration from exc
+
+    def sort(self, keys: list[tuple[str, int]]) -> Self:
+        return self
 
     async def to_list(self, length: int | None) -> list[dict[str, Any]]:
         return self._docs[:length] if length is not None else list(self._docs)
@@ -320,6 +354,123 @@ async def test_anonban_store_helpers() -> None:
     coll.delete_many.assert_awaited()
 
 
+async def test_serverban_store_helpers() -> None:
+    now = datetime.now(UTC)
+    doc = {
+        "prn": "PES1UG21CS001",
+        "discord_user_id": "55",
+        "reason": "spam",
+        "banned_at": now,
+    }
+    coll = _collection([doc])
+    store = ServerBanStore(coll)
+
+    assert await store.has_active("PES1UG21CS001") is True
+    found = await store.find_one(prn="PES1UG21CS001")
+    assert found is not None
+    assert found.discord_user_id == "55"
+
+    empty = ServerBanStore(_collection([]))
+    assert await empty.has_active("PES1UG21CS001") is False
+
+
+async def test_serverban_has_active_normalizes() -> None:
+    doc = {
+        "prn": "PES1UG21CS001",
+        "discord_user_id": "55",
+        "reason": "spam",
+        "banned_at": datetime.now(UTC),
+    }
+    coll = _collection([doc])
+    store = ServerBanStore(coll)
+    assert await store.has_active(" pes1ug21cs001 ") is True
+    assert coll.find_one.await_args.args[0] == {"prn": "PES1UG21CS001"}
+    assert await store.has_active("hello") is False
+    assert await store.has_active("") is False
+    assert await store.has_active(None) is False
+
+
+async def test_serverban_remove_ban() -> None:
+    store = ServerBanStore(_collection())
+    assert await store.remove_ban("PES1UG21CS001") is True
+
+    gone = ServerBanStore(_collection())
+    gone.delete_one = AsyncMock(return_value=MagicMock(deleted_count=0))
+    assert await gone.remove_ban("PES1UG21CS001") is False
+
+    assert await store.remove_ban("hello") is False
+    assert await store.remove_ban(None) is False
+
+    scoped = ServerBanStore(_collection())
+    scoped.delete_one = AsyncMock(return_value=MagicMock(deleted_count=1))
+    assert await scoped.remove_ban_for_user("pes1ug21cs001", "55") is True
+    scoped.delete_one.assert_awaited_once_with(prn="PES1UG21CS001", discord_user_id="55")
+
+
+async def test_pending_serverban_round_trip() -> None:
+    oid = ObjectId()
+    failed_at = datetime.now(UTC)
+    pending = PendingServerBan(
+        id=oid,
+        op="ban",
+        prn="PES1UG21CS001",
+        discord_user_id="9",
+        reason="spam",
+        failed_at=failed_at,
+    )
+    doc = pending.to_document()
+    assert doc["op"] == "ban"
+    assert doc["prn"] == "PES1UG21CS001"
+    assert doc["_id"] == oid
+    restored = PendingServerBan.from_document(doc)
+    assert restored.op == "ban"
+    assert restored.failed_at == failed_at
+    assert restored.id == oid
+
+
+def test_identity_ban_models_reject_invalid_prns() -> None:
+    with pytest.raises(ValueError, match="valid canonical"):
+        ServerBan(prn="invalid", discord_user_id="9", reason="x", banned_at=datetime.now(UTC)).to_document()
+    with pytest.raises(ValueError, match="valid canonical"):
+        PendingServerBan(
+            op="ban", prn="invalid", discord_user_id="9", reason="x", failed_at=datetime.now(UTC)
+        ).to_document()
+
+
+def test_pending_serverban_to_document_omits_none_id() -> None:
+    pending = PendingServerBan(
+        op="unban",
+        prn="PES1UG21CS001",
+        discord_user_id="9",
+        reason="",
+        failed_at=datetime.now(UTC),
+    )
+    assert "_id" not in pending.to_document()
+
+
+async def test_pending_serverban_list_pending() -> None:
+    now = datetime.now(UTC)
+    docs = [
+        {
+            "op": "unban",
+            "prn": "PES1202100002",
+            "discord_user_id": "2",
+            "reason": "",
+            "failed_at": now,
+        },
+        {
+            "op": "ban",
+            "prn": "PES1202100001",
+            "discord_user_id": "1",
+            "reason": "spam",
+            "failed_at": now - timedelta(hours=1),
+        },
+    ]
+    store = PendingServerBanStore(_collection(docs))
+    pending = await store.list_pending()
+    assert [record.prn for record in pending] == ["PES1202100001", "PES1202100002"]
+
+
 async def test_mute_store_helpers() -> None:
     oid = ObjectId()
     now = datetime.now(UTC)
@@ -401,11 +552,15 @@ async def test_student_store_and_stores_container() -> None:
     assert isinstance(stores.anon_bans, AnonBanStore)
     assert isinstance(stores.anon_mutes, AnonMuteStore)
     assert isinstance(stores.mutes, MuteStore)
-    # 5 hot collections + 3 archive twins
-    assert len(stores._stores) == 8
+    assert isinstance(stores.server_bans, ServerBanStore)
+    assert isinstance(stores.pending_server_bans, PendingServerBanStore)
+    # 7 hot collections + 3 archive twins
+    assert len(stores._stores) == 10
     assert isinstance(stores.mutes.archive, MuteStore)
     assert stores.mutes.archive.has_archive is False
     assert stores.links.archive is None
+    assert stores.server_bans.archive is None
+    assert stores.pending_server_bans.archive is None
 
 
 async def test_store_index_specs() -> None:
@@ -413,6 +568,14 @@ async def test_store_index_specs() -> None:
     assert StudentStore.indexes[0][1]["name"] == "students_prn_key"
     assert any(spec[1]["name"].startswith("mutes_") for spec in MuteStore.indexes)
     assert any(spec[1]["name"].startswith("anon_mutes_") for spec in AnonMuteStore.indexes)
+    assert ServerBanStore.indexes[0][1] == {"unique": True, "name": "server_bans_prn_key"}
+    assert ServerBanStore.indexes[1][1] == {"name": "server_bans_discord_user_id_idx"}
+    assert ServerBanStore.has_archive is False
+    assert PendingServerBanStore.indexes[0][1]["unique"] is True
+    assert PendingServerBanStore.indexes[0][1]["name"] == "pending_server_bans_discord_user_id_key"
+    assert PendingServerBanStore.indexes[1][1] == {"name": "pending_server_bans_failed_at_idx"}
+    assert PendingServerBanStore.indexes[2][1] == {"name": "pending_server_bans_next_retry_at_idx"}
+    assert PendingServerBanStore.has_archive is False
     assert MuteStore.has_archive is True
     assert AnonMuteStore.has_archive is True
     assert AnonBanStore.has_archive is True

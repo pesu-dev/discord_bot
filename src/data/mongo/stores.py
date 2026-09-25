@@ -7,6 +7,8 @@ from src.data.mongo.collections.anon_bans import AnonBanStore
 from src.data.mongo.collections.anon_mutes import AnonMuteStore
 from src.data.mongo.collections.links import LinkStore
 from src.data.mongo.collections.mutes import MuteStore
+from src.data.mongo.collections.pending_server_bans import PendingServerBanStore
+from src.data.mongo.collections.server_bans import ServerBanStore
 from src.data.mongo.collections.students import StudentStore
 
 if TYPE_CHECKING:
@@ -23,6 +25,8 @@ class Stores:
     mutes: MuteStore
     anon_mutes: AnonMuteStore
     anon_bans: AnonBanStore
+    server_bans: ServerBanStore
+    pending_server_bans: PendingServerBanStore
     _stores: list[TypedCollection]
 
     def __init__(self, db: AsyncDatabase) -> None:
@@ -32,6 +36,8 @@ class Stores:
         self.mutes = self._bind(db, "mutes", MuteStore)
         self.anon_mutes = self._bind(db, "anon_mutes", AnonMuteStore)
         self.anon_bans = self._bind(db, "anon_bans", AnonBanStore)
+        self.server_bans = self._bind(db, "server_bans", ServerBanStore)
+        self.pending_server_bans = self._bind(db, "pending_server_bans", PendingServerBanStore)
 
     def _bind(self, db: AsyncDatabase, name: str, store_cls: type[StoreT]) -> StoreT:
         """Open ``name``; if the store sets ``has_archive``, also open its archive twin."""

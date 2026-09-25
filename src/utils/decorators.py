@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import contextvars
 import functools
+import sys
 from enum import StrEnum
+from types import FunctionType
 from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
 
 import discord
 from discord.ext import commands
 
-from src.utils.general import handle_command_error
+from src.utils.general import handle_command_error  # noqa: F401 - rebound wrappers access this through _MODULE.
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -19,6 +21,7 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 _defer_ephemeral: contextvars.ContextVar[bool] = contextvars.ContextVar("defer_ephemeral", default=True)
+_MODULE = sys.modules[__name__]
 
 
 class CommandLocation(StrEnum):
@@ -97,6 +100,27 @@ def _propagate_defer_ephemeral(wrapper: Callable[..., Any], wrapped: Callable[..
         wrapper._defer_ephemeral = wrapped._defer_ephemeral  # type: ignore[attr-defined]
 
 
+def _preserve_callback_globals(wrapper: Callable[..., Any], callback: Callable[..., Any]) -> Callable[..., Any]:
+    """Bind a wrapper to globals that can resolve its callback's annotations.
+
+    discord.py evaluates postponed annotation strings against a command
+    callback's ``__globals__``. ``functools.wraps`` copies those strings but not
+    globals, so rebuild the wrapper with an overlay containing both this module's
+    runtime helpers and the original callback's module names. This avoids eager
+    resolution (which would break annotations that use function-local names).
+    """
+    wrapper_globals = {**globals(), **callback.__globals__}
+    rebound = FunctionType(
+        wrapper.__code__,
+        wrapper_globals,
+        wrapper.__name__,
+        wrapper.__defaults__,
+        wrapper.__closure__,
+    )
+    rebound.__kwdefaults__ = wrapper.__kwdefaults__
+    return functools.update_wrapper(rebound, wrapper)
+
+
 async def _send_rejection(
     ctx_or_interaction: discord.Interaction | commands.Context,
     message: str,
@@ -123,8 +147,8 @@ def defer(*, ephemeral: bool = True) -> Callable[[Callable[P, Awaitable[R]]], Ca
     def decorator(func: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R | None]]:
         @functools.wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R | None:
-            ctx_or_interaction = _resolve_context(args)
-            token = _defer_ephemeral.set(ephemeral)
+            ctx_or_interaction = _MODULE._resolve_context(args)
+            token = _MODULE._defer_ephemeral.set(ephemeral)
             try:
                 if isinstance(ctx_or_interaction, discord.Interaction):
                     await ctx_or_interaction.response.defer(ephemeral=ephemeral)
@@ -132,10 +156,10 @@ def defer(*, ephemeral: bool = True) -> Callable[[Callable[P, Awaitable[R]]], Ca
                     await ctx_or_interaction.defer(ephemeral=ephemeral)
                 return await func(*args, **kwargs)
             finally:
-                _defer_ephemeral.reset(token)
+                _MODULE._defer_ephemeral.reset(token)
 
         wrapper._defer_ephemeral = ephemeral  # type: ignore[attr-defined]
-        return wrapper
+        return _preserve_callback_globals(wrapper, func)  # type: ignore[return-value]
 
     return decorator
 
@@ -150,22 +174,22 @@ def requires_location(
     def decorator(func: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R | None]]:
         @functools.wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R | None:
-            ctx_or_interaction = _resolve_context(args)
-            channel = _get_channel(ctx_or_interaction)
-            ephemeral = _get_ephemeral()
+            ctx_or_interaction = _MODULE._resolve_context(args)
+            channel = _MODULE._get_channel(ctx_or_interaction)
+            ephemeral = _MODULE._get_ephemeral()
 
             if location == CommandLocation.GUILD:
-                if not _is_guild_messageable(channel) or _get_member(ctx_or_interaction) is None:
-                    await _send_rejection(ctx_or_interaction, rejection_message, ephemeral=ephemeral)
+                if not _MODULE._is_guild_messageable(channel) or _MODULE._get_member(ctx_or_interaction) is None:
+                    await _MODULE._send_rejection(ctx_or_interaction, rejection_message, ephemeral=ephemeral)
                     return None
-            elif not _is_dm_messageable(channel):
-                await _send_rejection(ctx_or_interaction, rejection_message, ephemeral=ephemeral)
+            elif not _MODULE._is_dm_messageable(channel):
+                await _MODULE._send_rejection(ctx_or_interaction, rejection_message, ephemeral=ephemeral)
                 return None
 
             return await func(*args, **kwargs)
 
         _propagate_defer_ephemeral(wrapper, func)
-        return wrapper
+        return _preserve_callback_globals(wrapper, func)  # type: ignore[return-value]
 
     return decorator
 
@@ -185,28 +209,28 @@ def requires_roles(
     def decorator(func: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R | None]]:
         @functools.wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R | None:
-            ctx_or_interaction = _resolve_context(args)
-            member = _get_member(ctx_or_interaction)
-            ephemeral = _get_ephemeral()
+            ctx_or_interaction = _MODULE._resolve_context(args)
+            member = _MODULE._get_member(ctx_or_interaction)
+            ephemeral = _MODULE._get_ephemeral()
 
             if member is None:
-                await _send_rejection(ctx_or_interaction, rejection_message, ephemeral=ephemeral)
+                await _MODULE._send_rejection(ctx_or_interaction, rejection_message, ephemeral=ephemeral)
                 return None
 
             config: Config = args[0].client.config  # type: ignore[attr-defined, union-attr]
-            has_role = any(_member_has_role(member, role, config) for role in roles)
+            has_role = any(_MODULE._member_has_role(member, role, config) for role in roles)
             if forbid:
                 if has_role:
-                    await _send_rejection(ctx_or_interaction, rejection_message, ephemeral=ephemeral)
+                    await _MODULE._send_rejection(ctx_or_interaction, rejection_message, ephemeral=ephemeral)
                     return None
             elif not has_role:
-                await _send_rejection(ctx_or_interaction, rejection_message, ephemeral=ephemeral)
+                await _MODULE._send_rejection(ctx_or_interaction, rejection_message, ephemeral=ephemeral)
                 return None
 
             return await func(*args, **kwargs)
 
         _propagate_defer_ephemeral(wrapper, func)
-        return wrapper
+        return _preserve_callback_globals(wrapper, func)  # type: ignore[return-value]
 
     return decorator
 
@@ -228,12 +252,12 @@ def requires_env(
             config: Config = args[0].client.config  # type: ignore[attr-defined, union-attr]
             if config.env not in allowed:
                 if len(args) >= 2 and isinstance(args[1], discord.Interaction | commands.Context):
-                    await _send_rejection(args[1], rejection_message, ephemeral=_get_ephemeral())
+                    await _MODULE._send_rejection(args[1], rejection_message, ephemeral=_MODULE._get_ephemeral())
                 return None
             return await func(*args, **kwargs)
 
         _propagate_defer_ephemeral(wrapper, func)
-        return wrapper
+        return _preserve_callback_globals(wrapper, func)  # type: ignore[return-value]
 
     return decorator
 
@@ -246,12 +270,12 @@ def handle_command_errors(
     def decorator(func: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R | None]]:
         @functools.wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R | None:
-            ctx_or_interaction = _resolve_context(args)
-            ephemeral = _get_ephemeral()
+            ctx_or_interaction = _MODULE._resolve_context(args)
+            ephemeral = _MODULE._get_ephemeral()
             try:
                 return await func(*args, **kwargs)
             except Exception as error:
-                await handle_command_error(
+                await _MODULE.handle_command_error(
                     ctx_or_interaction,
                     error,
                     not_found=not_found,
@@ -261,6 +285,6 @@ def handle_command_errors(
                 return None
 
         _propagate_defer_ephemeral(wrapper, func)
-        return wrapper
+        return _preserve_callback_globals(wrapper, func)  # type: ignore[return-value]
 
     return decorator

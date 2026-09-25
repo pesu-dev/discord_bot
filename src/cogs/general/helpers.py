@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Self
 
 import discord
 import httpx
+from pymongo.errors import DuplicateKeyError
 
 from src.data.mongo import Link, Student
 from src.utils import general as ug
@@ -40,6 +41,12 @@ class LinkMessage(StrEnum):
     UNRECOGNIZED_BRANCH = "Unrecognized branch. Mods are notified and will get back to you soon."
     MISSING_ROLES = "Missing role IDs for branch, campus, or year. Mods are notified and will get back to you soon."
     PRN_TAKEN = "PRN already linked with a different user. If you think this is a mistake, contact us."
+    PRN_BANNED = (
+        "This PESU account is not eligible to be linked to this server. "
+        "If you believe this is an error, please contact the moderation team."
+    )
+    INVALID_PRN = "The verified PESU profile contains an invalid PRN. Please contact the moderation team."
+    LINK_PERSISTENCE_FAILED = "Unable to securely save this link right now. Please try again shortly."
     SUCCESS = "User linked successfully"
 
 
@@ -343,51 +350,22 @@ class GeneralHelpers:
         # `_fetch_link_profile` already validated these; re-check so `-O` cannot strip safety.
         if prn is None or branch_full is None or campus_short is None or campus_code is None:
             return LinkMessage.MISSING_PROFILE_FIELDS, None
-        year = prn[4:8]
 
-        branch_short = self._resolve_branch_short(branch_full)
-        if not branch_short:
-            self._send_link_error_log(
-                content=member.mention,
-                title="Branch to short code mapping not found",
-                fields=[
-                    {"name": "Username", "value": member.name, "inline": True},
-                    {"name": "User ID", "value": str(member.id), "inline": True},
-                    {"name": "PRN", "value": prn, "inline": True},
-                    {"name": "Branch", "value": branch_full, "inline": True},
-                    {"name": "Campus", "value": campus_short, "inline": True},
-                    {"name": "Year", "value": year, "inline": True},
-                ],
-            )
-            return LinkMessage.UNRECOGNIZED_BRANCH, None
+        canonical_prn, year, identity_error = await self._resolve_link_identity(member, prn)
+        if identity_error is not None:
+            return identity_error, None
 
-        try:
-            academic_roles = [
-                self.client.config.resolve_academic_role(branch_short),
-                self.client.config.resolve_academic_role(campus_short),
-                self.client.config.resolve_academic_role(year),
-            ]
-        except ValueError as exc:
-            self._send_link_error_log(
-                content=member.mention,
-                title="Roles missing",
-                fields=[
-                    {"name": "Username", "value": member.name, "inline": True},
-                    {"name": "User ID", "value": str(member.id), "inline": True},
-                    {"name": "PRN", "value": prn, "inline": True},
-                    {"name": "Branch", "value": branch_short, "inline": True},
-                    {"name": "Campus", "value": campus_short, "inline": True},
-                    {"name": "Year", "value": year, "inline": True},
-                    {"name": "Error", "value": str(exc)},
-                ],
-            )
-            return LinkMessage.MISSING_ROLES, None
+        branch_short, academic_roles, role_error = self._resolve_link_roles(
+            member, canonical_prn, branch_full, campus_short, year
+        )
+        if role_error is not None:
+            return role_error, None
 
-        if await self.client.stores.links.exists(prn=prn):
+        if await self.client.stores.links.exists(prn=canonical_prn):
             return LinkMessage.PRN_TAKEN, None
 
         student = Student(
-            prn=prn,
+            prn=canonical_prn,
             branch_long=branch_full,
             branch_short=branch_short,
             year=year,
@@ -401,17 +379,14 @@ class GeneralHelpers:
             lobby=self.client.config.lobby_channel,
         )
 
+        persistence_error = await self._persist_link(member, student, canonical_prn)
+        if persistence_error is not None:
+            return persistence_error, None
+
         results = await asyncio.gather(
             # Upsert student record by PRN
             self.client.stores.students.upsert_by_prn(student),
             # Insert Discord↔PESU link record
-            self.client.stores.links.insert_one(
-                Link(
-                    discord_user_id=str(member.id),
-                    prn=student.prn,
-                    linked_at=datetime.now(UTC),
-                )
-            ),
             # Assign Linked + academic roles
             member.add_roles(
                 self.client.config.linked_role,
@@ -431,7 +406,7 @@ class GeneralHelpers:
                     fields=[
                         {"name": "Username", "value": member.name, "inline": True},
                         {"name": "User ID", "value": str(member.id), "inline": True},
-                        {"name": "PRN", "value": prn, "inline": True},
+                        {"name": "PRN", "value": canonical_prn, "inline": True},
                         {"name": "Branch", "value": branch_short, "inline": True},
                         {"name": "Campus", "value": campus_short, "inline": True},
                         {"name": "Year", "value": year, "inline": True},
@@ -450,12 +425,94 @@ class GeneralHelpers:
                     fields=[
                         {"name": "Usename", "value": member.name, "inline": True},
                         {"name": "User ID", "value": str(member.id), "inline": True},
-                        {"name": "PRN", "value": prn, "inline": True},
+                        {"name": "PRN", "value": canonical_prn, "inline": True},
                         {"name": "Error", "value": f"{type(result).__name__}: {result}"[:1000]},
                     ],
                 )
 
         return LinkMessage.SUCCESS, welcome
+
+    async def _resolve_link_identity(self, member: discord.Member, prn: str) -> tuple[str, str, LinkMessage | None]:
+        """Validate a profile PRN and reject it before any link side effect."""
+        canonical_prn = ug.validate_prn(prn)
+        if canonical_prn is None:
+            self._send_link_error_log(
+                content=member.mention,
+                title="Invalid PRN from PESU Auth",
+                fields=[{"name": "PRN", "value": str(prn)[:1000]}],
+            )
+            return "", "", LinkMessage.INVALID_PRN
+        if await self.client.stores.server_bans.has_active(canonical_prn):
+            return "", "", LinkMessage.PRN_BANNED
+        year = ug.prn_year(canonical_prn)
+        if year is None:
+            return "", "", LinkMessage.INVALID_PRN
+        return canonical_prn, year, None
+
+    async def _persist_link(self, member: discord.Member, student: Student, prn: str) -> LinkMessage | None:
+        """Commit the link before role changes, using Mongo unique indexes as the race guard."""
+        try:
+            await self.client.stores.links.insert_one(
+                Link(discord_user_id=str(member.id), prn=student.prn, linked_at=datetime.now(UTC))
+            )
+        except DuplicateKeyError:
+            return LinkMessage.PRN_TAKEN
+        except Exception as exc:
+            self.client.logger.error("Failed to persist verified link for user %s", member.id, exc_info=exc)
+            self._send_link_error_log(
+                content=member.mention,
+                title="Link Persistence Failure",
+                fields=[
+                    {"name": "User ID", "value": str(member.id), "inline": True},
+                    {"name": "PRN", "value": prn, "inline": True},
+                    {"name": "Error", "value": f"{type(exc).__name__}: {exc}"[:1000]},
+                ],
+            )
+            return LinkMessage.LINK_PERSISTENCE_FAILED
+        return None
+
+    def _resolve_link_roles(
+        self,
+        member: discord.Member,
+        prn: str,
+        branch_full: str,
+        campus_short: str,
+        year: str,
+    ) -> tuple[str, list[discord.Role], LinkMessage | None]:
+        """Resolve required academic roles while keeping link_account transactional."""
+        branch_short = self._resolve_branch_short(branch_full)
+        if not branch_short:
+            self._send_link_error_log(
+                content=member.mention,
+                title="Branch to short code mapping not found",
+                fields=self._link_audit_fields(member, prn, branch_full, campus_short, year),
+            )
+            return "", [], LinkMessage.UNRECOGNIZED_BRANCH
+        try:
+            roles = [
+                self.client.config.resolve_academic_role(branch_short),
+                self.client.config.resolve_academic_role(campus_short),
+                self.client.config.resolve_academic_role(year),
+            ]
+        except ValueError as exc:
+            fields = self._link_audit_fields(member, prn, branch_short, campus_short, year)
+            fields.append({"name": "Error", "value": str(exc)})
+            self._send_link_error_log(content=member.mention, title="Roles missing", fields=fields)
+            return "", [], LinkMessage.MISSING_ROLES
+        return branch_short, roles, None
+
+    @staticmethod
+    def _link_audit_fields(
+        member: discord.Member, prn: str, branch: str, campus: str, year: str
+    ) -> list[dict[str, str | bool]]:
+        return [
+            {"name": "Username", "value": member.name, "inline": True},
+            {"name": "User ID", "value": str(member.id), "inline": True},
+            {"name": "PRN", "value": prn, "inline": True},
+            {"name": "Branch", "value": branch, "inline": True},
+            {"name": "Campus", "value": campus, "inline": True},
+            {"name": "Year", "value": year, "inline": True},
+        ]
 
     async def _fetch_link_profile(self, member: discord.Member, username: str, password: str) -> PesuAuthProfile:
         """Authenticate and return a profile with required link fields.

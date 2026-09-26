@@ -240,8 +240,8 @@ jobs:
       - name: Retag as version then prod
         run: |
           set -euo pipefail
-          docker buildx imagetools create --tag "${IMAGE}:${TAG}" "${IMAGE}:${TARGET_SHA}"
-          docker buildx imagetools create --tag "${IMAGE}:prod" "${IMAGE}:${TARGET_SHA}"
+          docker buildx imagetools create --prefer-index=false --tag "${IMAGE}:${TAG}" "${IMAGE}:${TARGET_SHA}"
+          docker buildx imagetools create --prefer-index=false --tag "${IMAGE}:prod" "${IMAGE}:${TARGET_SHA}"
 
   no_changes:
     name: Skip production deploy (no changes)

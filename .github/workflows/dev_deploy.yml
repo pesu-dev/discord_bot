@@ -120,6 +120,7 @@ jobs:
       - name: Retag commit image as dev
         run: |
           docker buildx imagetools create \
+            --prefer-index=false \
             --tag "${IMAGE}:dev" \
             "${IMAGE}:${SHA_TAG}"
 

@@ -40,6 +40,7 @@ class FunctionalRole(StrEnum):
     LINKED = "LINKED"
     JUST_JOINED = "JUST_JOINED"
     MUTED = "MUTED"
+    DEV_ENGINEER = "DEV_ENGINEER"
 
     @property
     def config_attr(self) -> str:

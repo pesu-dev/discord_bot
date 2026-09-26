@@ -6,6 +6,7 @@ from discord.ext import tasks
 from discord.ext.commands import Cog
 
 from src.cogs.eng.commands import EngCommands
+from src.cogs.eng.git import EngGitCommands
 from src.cogs.eng.groups import EngGroups
 from src.cogs.eng.mongo import EngMongoCommands
 
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
     from src.bot import DiscordBot
 
 
-class SlashEng(EngGroups, EngCommands, EngMongoCommands, Cog):
+class SlashEng(EngGroups, EngCommands, EngMongoCommands, EngGitCommands, Cog):
     def __init__(self, client: DiscordBot) -> None:
         self.client = client
         self.tasks = [self.expire_eng_mongo_loop]

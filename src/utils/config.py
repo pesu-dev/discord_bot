@@ -73,6 +73,7 @@ class Config:
         "LINKED": 749683320941445250,
         "JUST_JOINED": 798765678739062804,
         "MUTED": 775981947079491614,
+        "DEV_ENGINEER": 810507351063920671,
     }
 
     # Guild academic roles use this color (#818689).
@@ -103,6 +104,8 @@ class Config:
     # AskPESU API (used by /ask).
     ASKPESU_API = "https://pesu-dev-askpesu.hf.space/ask"
 
+    # PESU Discord bot service (used by /eng add)
+    TEAM_ID = "(TEAM ID IN INTEGER HERE)"
     # Channel IDs
     CHANNELS = {
         "BOT_LOGS": 786084620944146504,
@@ -131,9 +134,11 @@ class Config:
         self.bot = bot
         self.guild_id = self.GUILD_ID
         self.env = env
+        self.team_id = self.TEAM_ID
         self.db_name = self.DB_NAME
         env_cfg = self.ENVIRONMENTS[env]
         self.mongo_uri = env_cfg["mongo_uri"]
+        self.github_org_token = os.getenv("GITHUB_ORG_TOKEN")
         self.atlas_projects = {
             name: AtlasProject(
                 group_id=spec["group_id"],
@@ -260,3 +265,8 @@ class Config:
     def honeypot_channel(self) -> discord.TextChannel | discord.Thread:
         """Get honeypot channel."""
         return self.get_channel("HONEYPOT")
+
+    @property
+    def dev_engineer_role(self) -> discord.Role:
+        """Get bot engineer role."""
+        return self.get_role("DEV_ENGINEER")

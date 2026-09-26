@@ -10,3 +10,4 @@ class EngGroups:
         description="Temporary MongoDB access",
         parent=eng,
     )
+    eng_git = app_commands.Group(name="git", description="GitHub org commands", parent=eng)

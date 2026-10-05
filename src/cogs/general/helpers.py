@@ -75,7 +75,7 @@ ONBOARDING_CHECKLIST = (
     "\n"
     "Before authenticating, let's check if your profile *can* be authenticated.\n"
     "\n"
-    "1. Visit [PESUAuth](https://pesu-auth.onrender.com/). Click on `/authenticate`, and then on "
+    "1. Visit [PESUAuth](https://pesuauth.onrender.com/). Click on `/authenticate`, and then on "
     "`Try it out`. Select `Authentication with Full Profile`.\n"
     "2. Enter the following in the request body under `Edit Value`, and click on `Execute`.\n"
     "```json\n"

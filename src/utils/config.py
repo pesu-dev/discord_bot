@@ -111,7 +111,7 @@ class Config:
     }
 
     # PESU Academy auth service (used by /link).
-    PESU_AUTH_URL = "https://pesu-auth.onrender.com/authenticate"
+    PESU_AUTH_URL = "https://pesuauth.onrender.com/authenticate"
 
     # AskPESU API (used by /ask).
     ASKPESU_API = "https://pesu-dev-askpesu.hf.space/ask"

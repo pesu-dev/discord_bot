@@ -75,7 +75,7 @@ ONBOARDING_CHECKLIST = (
     "\n"
     "Before authenticating, let's check if your profile *can* be authenticated.\n"
     "\n"
-    "1. Visit [PESUAuth](https://pesu-auth.onrender.com/). Click on `/authenticate`, and then on "
+    "1. Visit [PESUAuth](https://pesuauth.onrender.com/). Click on `/authenticate`, and then on "
     "`Try it out`. Select `Authentication with Full Profile`.\n"
     "2. Enter the following in the request body under `Edit Value`, and click on `Execute`.\n"
     "```json\n"
@@ -338,10 +338,9 @@ class GeneralHelpers:
 
         prn = profile.prn
         branch_full = profile.branch
-        campus_short = profile.campus
         campus_code = profile.campus_code
         # `_fetch_link_profile` already validated these; re-check so `-O` cannot strip safety.
-        if prn is None or branch_full is None or campus_short is None or campus_code is None:
+        if prn is None or branch_full is None or campus_code is None:
             return LinkMessage.MISSING_PROFILE_FIELDS, None
         year = prn[4:8]
 
@@ -355,11 +354,30 @@ class GeneralHelpers:
                     {"name": "User ID", "value": str(member.id), "inline": True},
                     {"name": "PRN", "value": prn, "inline": True},
                     {"name": "Branch", "value": branch_full, "inline": True},
-                    {"name": "Campus", "value": campus_short, "inline": True},
+                    {"name": "Campus", "value": str(campus_code), "inline": True},
                     {"name": "Year", "value": year, "inline": True},
                 ],
             )
             return LinkMessage.UNRECOGNIZED_BRANCH, None
+
+        campus_short = {1: "RR", 2: "EC"}.get(campus_code)
+        if not campus_short:
+            self._send_link_error_log(
+                content=member.mention,
+                title="Campus mapping not found",
+                fields=[
+                    {"name": "Username", "value": member.name, "inline": True},
+                    {"name": "User ID", "value": str(member.id), "inline": True},
+                    {"name": "PRN", "value": prn, "inline": True},
+                    {"name": "Branch", "value": branch_full, "inline": True},
+                    {"name": "Campus", "value": str(campus_code), "inline": True},
+                    {"name": "Year", "value": year, "inline": True},
+                ],
+            )
+            return (
+                "Unable to map your campus to a recognized short code. Please try again or contact a moderator.",
+                None,
+            )
 
         try:
             academic_roles = [

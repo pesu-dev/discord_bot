@@ -41,25 +41,21 @@ jobs:
             def tags: (.metadata.container.tags // []);
             def has_stable: any(tags[]?; . == "dev" or . == "prod" or . == "latest" or test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"));
             def has_commit_sha_tag: any(tags[]?; test("^[0-9a-f]{40}$"));
-            def is_untagged: ((tags | length) == 0);
 
             {
-              sha_candidates: ([ .[] | select(has_commit_sha_tag and (has_stable | not)) ] | sort_by(.created_at) | reverse),
-              untagged_candidates: ([ .[] | select(is_untagged) ] | sort_by(.created_at) | reverse)
+              sha_candidates: ([ .[] | select(has_commit_sha_tag and (has_stable | not)) ] | sort_by(.created_at) | reverse)
             }
             | {
               sha_total: (.sha_candidates | length),
-              untagged_total: (.untagged_candidates | length),
-              delete_ids: ((.sha_candidates[$keep_sha:] + .untagged_candidates) | map(.id) | unique)
+              delete_ids: (.sha_candidates[$keep_sha:] | map(.id) | unique)
             }
           ')"
 
           sha_candidates_total="$(echo "${cleanup_plan}" | jq -r '.sha_total')"
-          untagged_candidates_total="$(echo "${cleanup_plan}" | jq -r '.untagged_total')"
           to_delete_ids="$(echo "${cleanup_plan}" | jq -r '.delete_ids[]?')"
           delete_count="$(echo "${cleanup_plan}" | jq -r '.delete_ids | length')"
 
-          echo "Found ${sha_candidates_total} sha-tag versions (keeping ${KEEP_SHA_TAGS}) and ${untagged_candidates_total} untagged versions (keeping 0); deleting ${delete_count} total."
+          echo "Found ${sha_candidates_total} sha-tag versions (keeping ${KEEP_SHA_TAGS}); deleting ${delete_count} total."
 
           if [ -z "${to_delete_ids}" ]; then
             echo "No stale package versions to delete."

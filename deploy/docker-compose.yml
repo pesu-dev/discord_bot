@@ -8,5 +8,7 @@ services:
     environment:
       APP_ENV: ${TARGET_ENV:-local}
       MONGO_X509_CERT_PATH: /run/secrets/mongo.pem
+      GITHUB_APP_PRIVATE_KEY_PATH: /run/secrets/github-app.pem
     volumes:
       - /srv/discord_bot/certs/mongo-${TARGET_ENV}.pem:/run/secrets/mongo.pem:ro
+      - /srv/discord_bot/certs/github-app.pem:/run/secrets/github-app.pem:ro

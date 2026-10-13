@@ -325,3 +325,38 @@ async def test_link_error_log_send_failure(mock_bot: MagicMock, member_factory: 
     assert followup is None
     await asyncio.sleep(0)
     mock_bot.logger.exception.assert_called()
+
+
+@respx.mock
+async def test_link_campus_code_ec(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
+    ec_profile = {
+        **PROFILE,
+        "campusCode": 2,
+        "campus": "PES University (Electronic City)",
+    }
+    respx.post(AUTH_URL).mock(return_value=httpx.Response(200, json=_auth_ok(ec_profile)))
+    mock_bot.stores.links.exists = AsyncMock(return_value=False)
+    mock_bot.stores.students.upsert_by_prn = AsyncMock()
+    mock_bot.stores.links.insert_one = AsyncMock()
+    member = member_factory(roles=[])
+    member.add_roles = AsyncMock()
+    member.remove_roles = AsyncMock()
+
+    with patch("src.cogs.general.helpers.ug.send_dm_safely", AsyncMock(return_value=True)):
+        message, followup = await _helpers(mock_bot).link_account(member, "PES1UG21CS001", "x")
+
+    assert message == LinkMessage.SUCCESS
+    student_arg = mock_bot.stores.students.upsert_by_prn.await_args.args[0]
+    assert student_arg.campus == "EC"
+
+
+@respx.mock
+async def test_link_unrecognized_campus_code(mock_bot: MagicMock, member_factory: MemberFactory) -> None:
+    bad = {**PROFILE, "campusCode": 99, "campus": "Unknown Campus"}
+    respx.post(AUTH_URL).mock(return_value=httpx.Response(200, json=_auth_ok(bad)))
+    mock_bot.config.resolve_academic_role = MagicMock(side_effect=ValueError("nope"))
+    message, followup = await _helpers(mock_bot).link_account(member_factory(), "PES1UG21CS001", "x")
+    assert message == "Unable to map your campus to a recognized short code. Please try again or contact a moderator."
+    assert followup is None
+    await asyncio.sleep(0)
+    mock_bot.config.error_logs_channel.send.assert_awaited()

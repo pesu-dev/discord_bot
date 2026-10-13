@@ -44,7 +44,7 @@ class EngMongoCommands:
     @app_commands.choices(environment=_ENV_CHOICES)
     @bot_decorators.defer(ephemeral=False)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
-    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.BOT_DEV)
+    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.DEV_STAFF)
     @bot_decorators.handle_command_errors()
     async def eng_mongo_access(
         self,
@@ -104,7 +104,7 @@ class EngMongoCommands:
     @app_commands.choices(environment=_ENV_CHOICES)
     @bot_decorators.defer(ephemeral=False)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
-    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.BOT_DEV)
+    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.DEV_STAFF)
     @bot_decorators.handle_command_errors()
     async def eng_mongo_list(self, interaction: discord.Interaction, environment: str) -> None:
         atlas = AtlasClient.from_config(self.client.config, environment)
@@ -141,7 +141,7 @@ class EngMongoCommands:
     @app_commands.choices(environment=_ENV_CHOICES)
     @bot_decorators.defer(ephemeral=False)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
-    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.BOT_DEV)
+    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.DEV_STAFF)
     @bot_decorators.handle_command_errors()
     async def eng_mongo_revoke(
         self, interaction: discord.Interaction, environment: str, member: discord.Member

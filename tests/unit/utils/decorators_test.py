@@ -223,7 +223,7 @@ async def test_handle_command_errors_catches(mock_bot: MagicMock, interaction_fa
 
 
 def test_functional_role_config_attr() -> None:
-    assert bot_decorators.FunctionalRole.BOT_DEV.config_attr == "bot_dev_role"
+    assert bot_decorators.FunctionalRole.DEV_STAFF.config_attr == "dev_staff_role"
     assert bot_decorators.FunctionalRole.JUNIOR_MOD.config_attr == "junior_mod_role"
 
 

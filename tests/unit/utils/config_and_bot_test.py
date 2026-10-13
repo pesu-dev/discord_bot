@@ -354,7 +354,7 @@ def test_config_role_channel_properties() -> None:
     assert config.admin_role is role
     assert config.mod_role is role
     assert config.junior_mod_role is role
-    assert config.bot_dev_role is role
+    assert config.dev_staff_role is role
     assert config.linked_role is role
     assert config.just_joined_role is role
     assert config.muted_role is role

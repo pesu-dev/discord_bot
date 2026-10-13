@@ -81,7 +81,7 @@ class Config:
         "ADMIN": 742800061280550923,
         "MOD": 742798158966292640,
         "JUNIOR_MOD": 1518781529600295113,
-        "BOT_DEV": 750556082371559485,
+        "DEV_STAFF": 750556082371559485,
         "LINKED": 749683320941445250,
         "JUST_JOINED": 798765678739062804,
         "MUTED": 775981947079491614,
@@ -227,9 +227,9 @@ class Config:
         return self.get_role("JUNIOR_MOD")
 
     @property
-    def bot_dev_role(self) -> discord.Role:
-        """Get bot developer role."""
-        return self.get_role("BOT_DEV")
+    def dev_staff_role(self) -> discord.Role:
+        """Get developer staff role."""
+        return self.get_role("DEV_STAFF")
 
     @property
     def linked_role(self) -> discord.Role:

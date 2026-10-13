@@ -117,7 +117,7 @@ class EngGitCommands:
     )
     @bot_decorators.defer(ephemeral=True)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
-    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.BOT_DEV)
+    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.DEV_STAFF)
     @bot_decorators.handle_command_errors()
     async def who(
         self,

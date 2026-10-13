@@ -50,7 +50,7 @@ class EngCommands(EngHelpers):
     @app_commands.describe(cog="Cog to reload (e.g. mod or src.cogs.mod; leave empty to reload all)")
     @bot_decorators.defer(ephemeral=True)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
-    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.BOT_DEV)
+    @bot_decorators.requires_roles(bot_decorators.FunctionalRole.DEV_STAFF)
     @bot_decorators.handle_command_errors()
     async def eng_reload(self, interaction: discord.Interaction, cog: str | None = None) -> None:
         if cog:

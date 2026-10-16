@@ -28,7 +28,7 @@ class GitLink:
             discord_user_id=str(doc["discord_user_id"]),
             invited_at=doc["invited_at"],
             github_username=doc["github_username"],
-            github_user_id=int(doc["github_user_id"]),
+            github_user_id=str(doc["github_user_id"]),
         )
 
     def to_document(self) -> dict[str, Any]:

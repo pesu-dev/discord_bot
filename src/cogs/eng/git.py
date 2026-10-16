@@ -88,7 +88,7 @@ class EngGitCommands:
                         discord_user_id=str(user),
                         invited_at=datetime.now(UTC),
                         github_username=username,
-                        github_user_id=int(user_id),
+                        github_user_id=str(user_id),
                     )
                     await self.client.stores.git_links.insert_one(git_record)
                     await interaction.followup.send(content="Sent invitation for organisation!")
@@ -130,7 +130,7 @@ class EngGitCommands:
             linked = await self.client.stores.git_links.find_one(github_username=username)
             target = github_user
         elif member is not None:
-            disc_id = member.id
+            disc_id = str(member.id)
             linked = await self.client.stores.git_links.find_one(discord_user_id=disc_id)
             target = member.mention
         elif github_user is None and member is None:

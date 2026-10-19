@@ -24,6 +24,7 @@ class EngGitCommands:
         github_username="Your GitHub username",
     )
     @bot_decorators.defer(ephemeral=False)
+    @bot_decorators.requires_env(bot_decorators.AppEnvironment.PROD)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
     @bot_decorators.requires_roles(bot_decorators.FunctionalRole.DEV_ENGINEER)
     @bot_decorators.handle_command_errors()
@@ -116,6 +117,7 @@ class EngGitCommands:
         github_user="GitHub username to look up",
     )
     @bot_decorators.defer(ephemeral=True)
+    @bot_decorators.requires_env(bot_decorators.AppEnvironment.PROD)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
     @bot_decorators.requires_roles(bot_decorators.FunctionalRole.BOT_DEV)
     @bot_decorators.handle_command_errors()

@@ -1,9 +1,16 @@
 # High level team ownership
-* @pesu-dev/bot-maintainers
+* @pesu-dev/discord-bot-maintainers
 
 # Specific file ownership
 .github/ @sach-12
+.githooks/ @sach-12
+AGENTS.md @sach-12
+Dockerfile @sach-12
 LICENSE @sach-12
 README.md @sach-12
+deploy/ @sach-12
 pyproject.toml @sach-12
+scripts/ @sach-12
+src/.env.example @sach-12
+src/utils/config.py @sach-12
 uv.lock @sach-12

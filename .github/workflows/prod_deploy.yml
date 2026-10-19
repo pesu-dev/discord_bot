@@ -33,6 +33,7 @@ jobs:
       prod_sha: ${{ steps.prepare.outputs.prod_sha }}
       tag: ${{ steps.prepare.outputs.tag }}
       has_changes: ${{ steps.prepare.outputs.has_changes }}
+      diff_url: ${{ steps.diff_summary.outputs.diff_url }}
     steps:
       - name: Checkout workflow ref
         uses: actions/checkout@v7
@@ -107,6 +108,26 @@ jobs:
           echo "has_changes=true" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
+      - name: Output promotion diff summary
+        id: diff_summary
+        if: steps.prepare.outputs.has_changes == 'true'
+        run: |
+          DIFF_URL="${{ github.server_url }}/${{ github.repository }}/compare/${{ steps.prepare.outputs.prod_sha }}...${{ steps.prepare.outputs.target_sha }}"
+          echo "diff_url=${DIFF_URL}" >> "$GITHUB_OUTPUT"
+          echo "Diff URL: ${DIFF_URL}"
+          {
+            echo "## 🚀 Production Promotion: \`${{ steps.prepare.outputs.tag }}\`"
+            echo ""
+            echo "| Item | Value |"
+            echo "| --- | --- |"
+            echo "| **Tag** | \`${{ steps.prepare.outputs.tag }}\` |"
+            echo "| **Target SHA** | [\`${{ steps.prepare.outputs.target_sha }}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.prepare.outputs.target_sha }}) |"
+            echo "| **Prod SHA** | [\`${{ steps.prepare.outputs.prod_sha }}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.prepare.outputs.prod_sha }}) |"
+            echo "| **Diff** | [View changes on GitHub](${DIFF_URL}) |"
+            echo ""
+            echo "🔗 **Compare URL:** ${DIFF_URL}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   await_approval:
     name: Approve ${{ needs.prepare.outputs.tag }}
     needs: [prepare]
@@ -115,7 +136,9 @@ jobs:
     environment: prod-promote
     steps:
       - name: Production promotion approved
-        run: echo "Approved ${{ needs.prepare.outputs.tag }} at ${{ needs.prepare.outputs.target_sha }}"
+        run: |
+          echo "Approved ${{ needs.prepare.outputs.tag }} at ${{ needs.prepare.outputs.target_sha }}"
+          echo "Diff URL: ${{ needs.prepare.outputs.diff_url }}"
 
   deploy_prod:
     name: Deploy to prod

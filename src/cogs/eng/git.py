@@ -23,7 +23,7 @@ class EngGitCommands:
     @app_commands.describe(
         github_username="Your GitHub username",
     )
-    @bot_decorators.defer(ephemeral=False)
+    @bot_decorators.defer(ephemeral=True)
     @bot_decorators.requires_env(bot_decorators.AppEnvironment.PROD)
     @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
     @bot_decorators.requires_roles(bot_decorators.FunctionalRole.DEV_ENGINEER)

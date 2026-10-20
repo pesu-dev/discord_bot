@@ -20,6 +20,7 @@ async def test_eng_git_join_requires_prod_env(
     interaction = interaction_factory(user=member)
 
     await cmd.join.callback(cmd, interaction, github_username="testuser")
+    interaction.response.defer.assert_awaited_once_with(ephemeral=True)
     interaction.followup.send.assert_awaited_once()
     assert "not available in this environment" in interaction.followup.send.await_args.kwargs["content"]
 
@@ -49,6 +50,7 @@ async def test_eng_git_join_allows_prod_env(
     mock_bot.stores.git_links.find_one = AsyncMock(return_value=MagicMock())
 
     await cmd.join.callback(cmd, interaction, github_username="testuser")
+    interaction.response.defer.assert_awaited_once_with(ephemeral=True)
     interaction.followup.send.assert_awaited_once()
     content = interaction.followup.send.await_args.args[0]
     assert "already exists" in content
@@ -66,3 +68,8 @@ async def test_eng_git_who_allows_prod_env(
     await cmd.who.callback(cmd, interaction, member=None, github_user=None)
     interaction.followup.send.assert_awaited_once()
     assert "Please provide either" in interaction.followup.send.await_args.kwargs["content"]
+
+
+def test_eng_git_join_is_ephemeral() -> None:
+    cmd = EngGitCommands()
+    assert getattr(cmd.join.callback, "_defer_ephemeral", None) is True

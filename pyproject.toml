@@ -14,7 +14,7 @@ license-files = [
 dependencies = [
     "discord-py~=2.7.1",
     "httpx~=0.28.1",
-    "pymongo~=4.17.0",
+    "pymongo~=4.19.0",
     "python-dotenv~=1.2.3",
     "pyjwt[crypto]"
 ]

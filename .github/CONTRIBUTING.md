@@ -277,13 +277,14 @@ Use descriptive commit messages that explain what the change does.
 We follow a lightweight Conventional Commits style for commit subjects. The hooks will warn if the format is not followed.
 
 - Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`, `ci`, `build`, `revert`
-- Format: `type: short description`
+- Format: `type: short description` or `type(scope): short description`
 - Constraints: minimum 10 characters total; description up to 50 characters
 
 Examples:
 
 ```text
 feat: add user authentication
+feat(mod): add timeout command
 fix: handle None guild_id in moderation log
 docs: update setup instructions to use uv
 ```

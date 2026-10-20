@@ -115,7 +115,7 @@ maybe_install_packages() {
 # Validate commit message
 validate_commit_message() {
     local commit_msg="$1"
-    local commit_regex='^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert): .{1,50}'
+    local commit_regex='^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\([a-zA-Z0-9_/-]+\))?: .{1,50}'
     
     print_action "Validating commit message..."
     
@@ -128,9 +128,9 @@ validate_commit_message() {
     # Check format (warning only)
     if [[ ! $commit_msg =~ $commit_regex ]]; then
         print_warning "Commit message doesn't follow conventional format"
-        print_info "Expected: 'type: description' where type is one of:"
+        print_info "Expected: 'type: description' or 'type(scope): description' where type is one of:"
         print_info "feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert"
-        print_info "Example: 'feat: add user authentication'"
+        print_info "Example: 'feat: add user authentication' or 'feat(mod): add timeout command'"
     else
         print_success "Commit message follows conventional format"
     fi

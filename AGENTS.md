@@ -90,7 +90,7 @@ When adding a new cog package, ensure `scripts/check_cog_imports.py` still passe
 ## Git / PR workflow
 
 - Branch: `(discord-username)/feature-description`
-- Commits: Conventional Commits — `type: short description` (`feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`, `ci`, `build`, `revert`)
+- Commits: Conventional Commits — `type: short description` or `type(scope): short description` (`feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`, `ci`, `build`, `revert`)
 - Open PRs against **`dev`**
 - Follow `.github/PULL_REQUEST_TEMPLATE.md`
 - Do not commit unless the user asks

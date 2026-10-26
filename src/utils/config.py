@@ -26,9 +26,10 @@ class AtlasProject:
 
 @dataclass(frozen=True, slots=True)
 class GitProject:
-    team_id: int | None
-    app_id: int | None
-    installation_id: int | None
+    team_id: str | None
+    app_id: str | None
+    installation_id: str | None
+    client_id: str | None = None
 
 
 class Config:
@@ -73,9 +74,10 @@ class Config:
     }
     # GitHub App (/eng git join)
     GITHUB = {
-        "team_id": 13721979,
-        "app_id": 5114851,
-        "installation_id": 165960075,
+        "team_id": "13721979",
+        "app_id": "5114851",
+        "installation_id": "165960075",
+        "client_id": "Iv23lip3F2Ob6w5QsQXZ",
     }
     ROLES = {
         "ADMIN": 742800061280550923,
@@ -145,7 +147,10 @@ class Config:
         self.guild_id = self.GUILD_ID
         self.env = env
         self.github = GitProject(
-            team_id=self.GITHUB["team_id"], app_id=self.GITHUB["app_id"], installation_id=self.GITHUB["installation_id"]
+            team_id=self.GITHUB["team_id"],
+            app_id=self.GITHUB["app_id"],
+            installation_id=self.GITHUB["installation_id"],
+            client_id=self.GITHUB["client_id"],
         )
         self.github_app_private_key_path = os.getenv(
             "GITHUB_APP_PRIVATE_KEY_PATH",

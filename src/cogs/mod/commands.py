@@ -8,7 +8,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from src.cogs.mod.groups import ModGroups
-from src.cogs.mod.helpers import ModHelpers
+from src.cogs.mod.helpers import ACCESS_HELP_CHECKLIST, ACCESS_HELP_INTRO, ModHelpers
 from src.data.mongo import Mute
 from src.utils import decorators as bot_decorators
 from src.utils import general as ug
@@ -257,6 +257,48 @@ class ModCommands(ModHelpers):
             title="Messages Purged",
             color=discord.Color.green(),
             description=f"{interaction.user.mention} deleted {len(deleted)} messages in {interaction.channel.mention}",
+        )
+        await self.client.config.mod_logs_channel.send(embed=embed)
+
+    @ModGroups.mod.command(
+        name="cleanup", description="Purge all messages in a channel and repost initial help messages"
+    )
+    @app_commands.describe(channel="Channel to clean up (only #access-help is supported)")
+    @bot_decorators.defer(ephemeral=True)
+    @bot_decorators.requires_location(bot_decorators.CommandLocation.GUILD)
+    @bot_decorators.requires_roles(
+        bot_decorators.FunctionalRole.ADMIN,
+        bot_decorators.FunctionalRole.MOD,
+        bot_decorators.FunctionalRole.JUNIOR_MOD,
+    )
+    @bot_decorators.handle_command_errors(
+        forbidden="I am unable to manage messages in this channel at this time",
+        not_found="This channel doesn't exist or has been deleted",
+    )
+    async def cleanup(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
+        if channel.id != Config.CHANNELS["ACCESS_HELP"]:
+            await interaction.followup.send(
+                content="Currently, cleanup is only supported for the #access-help channel.", ephemeral=True
+            )
+            return
+
+        deleted = await channel.purge(limit=None)
+        for content in (ACCESS_HELP_INTRO, ACCESS_HELP_CHECKLIST):
+            message = await channel.send(content)
+            await message.pin()
+        await self._delete_pin_notices(channel)
+
+        await interaction.followup.send(
+            content=(
+                f"Successfully cleaned up {channel.mention}. "
+                f"Purged {len(deleted)} messages and posted initial messages."
+            ),
+            ephemeral=True,
+        )
+        embed = ug.build_embed(
+            title="Channel Cleaned Up",
+            color=discord.Color.green(),
+            description=f"{interaction.user.mention} cleaned up {channel.mention} and deleted {len(deleted)} messages",
         )
         await self.client.config.mod_logs_channel.send(embed=embed)
 

@@ -459,3 +459,27 @@ async def test_slash_mod_skips_start_when_running(mock_bot: MagicMock) -> None:
     ):
         SlashMod(mock_bot)
     start.assert_not_called()
+
+
+async def test_delete_pin_notices_only_removes_pin_messages(mock_bot: MagicMock) -> None:
+    helpers = _Helpers()
+    helpers.client = mock_bot
+    pin_notice = MagicMock()
+    pin_notice.type = discord.MessageType.pins_add
+    pin_notice.delete = AsyncMock()
+    normal = MagicMock()
+    normal.type = discord.MessageType.default
+    normal.delete = AsyncMock()
+
+    async def _history(limit: int):  # noqa: ANN202
+        assert limit == 10
+        for message in (pin_notice, normal):
+            yield message
+
+    channel = MagicMock(spec=discord.TextChannel)
+    channel.history = _history
+
+    await helpers._delete_pin_notices(channel)
+
+    pin_notice.delete.assert_awaited_once()
+    normal.delete.assert_not_awaited()

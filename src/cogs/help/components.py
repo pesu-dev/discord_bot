@@ -53,6 +53,7 @@ HELP_PAGES: dict[str, tuple[str, list[dict]]] = {
             {"name": "Mute a User", "value": "`/mod mute`"},
             {"name": "Unmute a User", "value": "`/mod unmute`"},
             {"name": "Purge Messages", "value": "`/mod purge`"},
+            {"name": "Clean Up a Channel", "value": "`/mod cleanup`"},
             {"name": "Lock a Channel", "value": "`/mod lock`"},
             {"name": "Unlock a Channel", "value": "`/mod unlock`"},
             {"name": "Timeout a User", "value": "`/mod timeout`"},

@@ -12,6 +12,49 @@ if TYPE_CHECKING:
     from src.bot import DiscordBot
 
 
+ACCESS_HELP_INTRO = (
+    "This channel is only to request help accessing the server. "
+    "You can only join and verify if you have pesuacademy credentials. \n\n"
+    "**If you are a future student ie: you don't have the credentials yet, "
+    "you will not be able to access this server!**\n\n"
+    "Messages unrelated to accessing the server will be deleted with prejudice. "
+    "Run </link:1532610288950448129> to get started with auth-linking."
+)
+
+ACCESS_HELP_CHECKLIST = (
+    "## PESU Discord Authentication Checklist ✅ \n\n"
+    "### New Student On-boarding [If you are joining *this* year] ℹ️ \n\n"
+    "1. Login to [PESU Academy](https://www.pesuacademy.com/Academy/). "
+    "If your assigned credentials do not work, reset your password.\n"
+    "2. You will be redirected to complete your student profile the *first* time you log in "
+    "(find post-counseling instructions in your email). Fill out your details, log out and log back in. "
+    "Visit the `Profile` page and ensure *all* your details load; you *should not* see any `NA`s or missing fields.\n"
+    "    - If you are *not* auto-redirected, you will see a blank welcome screen and *no* `Profile` tab "
+    "on the left sidebar. You can force a redirection by using the PESU Academy app and navigating to "
+    "student grievances.\n\n"
+    "### Test your Credentials ⚙️ \n\n"
+    "Before authenticating, let's check if your profile *can* be authenticated. \n\n"
+    "1. Visit [PESUAuth](https://pesu-auth.onrender.com/). Click on `/authenticate`, and then on `Try it out`. "
+    "Select `Authentication with Full Profile`.\n"
+    "2. Enter the following in the request body under `Edit Value`, and click on `Execute`. \n"
+    "FENCEjson\n"
+    "{\n"
+    '    "username": "PRN",\n'
+    '    "password": "password",\n'
+    '    "profile": true\n'
+    "}\n"
+    "FENCE\n"
+    "3. Check the response returned in the server response under `Response body`. "
+    'If you can see `"status": true` and the `"profile"` field shows *all* your details, '
+    "then you are ready to authenticate with this server.\n"
+    "    - Specifically, check for these details: `branch`, `campus`, `PRN`, since we need these these fields. "
+    "If you see any `NA`s, it means you have *not* completed on-boarding step (2). "
+    "Come back to this step after finishing the previous section. \n\n"
+    "If you are still unable to authenticate, DM <@543143780925177857> with screenshots/details "
+    "on which step failed and the error you faced."
+).replace("FENCE", "`" * 3)
+
+
 class ModHelpers:
     client: DiscordBot
 
@@ -185,3 +228,9 @@ class ModHelpers:
         )
         if not await ug.send_dm_safely(user_to_mute, mute_embed):
             await interaction.followup.send(content="DMs were closed", ephemeral=True)
+
+    async def _delete_pin_notices(self, channel: discord.TextChannel) -> None:
+        """Delete the system "pinned a message" notices Discord adds to a channel after pinning."""
+        async for message in channel.history(limit=10):
+            if message.type == discord.MessageType.pins_add:
+                await message.delete()

@@ -8,7 +8,8 @@ import discord
 from discord.ext import commands
 
 from src.cogs.mod.commands import ModCommands
-from src.cogs.mod.helpers import ModHelpers
+from src.cogs.mod.helpers import ACCESS_HELP_CHECKLIST, ACCESS_HELP_INTRO, ModHelpers
+from src.utils.config import Config
 from tests.helpers import get_callback
 
 if TYPE_CHECKING:
@@ -131,6 +132,86 @@ async def test_purge_invalid_amount(
     interaction = interaction_factory(user=member_factory(roles=[mock_bot.config.mod_role]))
     await get_callback(cmd.purge)(cmd, interaction, 0)
     assert "between 1 and 100" in interaction.followup.send.await_args.kwargs["content"]
+
+
+def _access_help_channel(sent_messages: list[MagicMock] | None = None, deleted: int = 3) -> MagicMock:
+    channel = MagicMock(spec=discord.TextChannel)
+    channel.id = Config.CHANNELS["ACCESS_HELP"]
+    channel.mention = "<#access-help>"
+    channel.purge = AsyncMock(return_value=[MagicMock() for _ in range(deleted)])
+
+    async def _send(_content: str) -> MagicMock:
+        message = MagicMock()
+        message.pin = AsyncMock()
+        if sent_messages is not None:
+            sent_messages.append(message)
+        return message
+
+    channel.send = AsyncMock(side_effect=_send)
+    return channel
+
+
+async def test_cleanup_rejects_other_channels(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
+    cmd = ModCommands()
+    cmd.client = mock_bot
+    interaction = interaction_factory(user=member_factory(roles=[mock_bot.config.mod_role]))
+    channel = _access_help_channel()
+    channel.id = Config.CHANNELS["LOBBY"]
+
+    await get_callback(cmd.cleanup)(cmd, interaction, channel)
+
+    kwargs = interaction.followup.send.await_args.kwargs
+    assert "only supported for the #access-help channel" in kwargs["content"]
+    assert kwargs["ephemeral"] is True
+    channel.purge.assert_not_awaited()
+    channel.send.assert_not_awaited()
+
+
+async def test_cleanup_requires_a_moderator_role(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
+    cmd = ModCommands()
+    cmd.client = mock_bot
+    interaction = interaction_factory(user=member_factory(roles=[]))
+    channel = _access_help_channel()
+
+    await cmd.cleanup.callback(cmd, interaction, channel)
+
+    channel.purge.assert_not_awaited()
+    channel.send.assert_not_awaited()
+
+
+async def test_cleanup_purges_posts_pins_and_logs(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
+    cmd = ModCommands()
+    cmd.client = mock_bot
+    mod = member_factory(user_id=7, roles=[mock_bot.config.mod_role])
+    interaction = interaction_factory(user=mod)
+    sent: list[MagicMock] = []
+    channel = _access_help_channel(sent, deleted=3)
+    mock_bot.config.mod_logs_channel.send = AsyncMock()
+
+    with patch.object(ModCommands, "_delete_pin_notices", new=AsyncMock()) as delete_notices:
+        await get_callback(cmd.cleanup)(cmd, interaction, channel)
+
+    channel.purge.assert_awaited_once_with(limit=None)
+    assert [call.args[0] for call in channel.send.await_args_list] == [ACCESS_HELP_INTRO, ACCESS_HELP_CHECKLIST]
+    for message in sent:
+        message.pin.assert_awaited_once()
+    delete_notices.assert_awaited_once_with(channel)
+    assert "Purged 3 messages" in interaction.followup.send.await_args.kwargs["content"]
+    embed = mock_bot.config.mod_logs_channel.send.await_args.kwargs["embed"]
+    assert mod.mention in embed.description
+    assert channel.mention in embed.description
+    assert "3 messages" in embed.description
+
+
+def test_access_help_messages_fit_in_one_discord_message() -> None:
+    assert len(ACCESS_HELP_INTRO) <= 2000
+    assert len(ACCESS_HELP_CHECKLIST) <= 2000
 
 
 async def test_lock_unlock_channel(

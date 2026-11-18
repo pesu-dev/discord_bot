@@ -2,7 +2,7 @@
 
 FROM python:3.13-slim-bookworm AS builder
 
-COPY --from=ghcr.io/astral-sh/uv:0.11.21 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.13.9 /uv /uvx /bin/
 
 ENV UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=0

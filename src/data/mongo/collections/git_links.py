@@ -17,7 +17,7 @@ class GitLink:
 
     discord_user_id: str
     github_username: str
-    github_user_id: int
+    github_user_id: str
     invited_at: datetime
     id: ObjectId | None = None
 

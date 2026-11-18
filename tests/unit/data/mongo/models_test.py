@@ -14,6 +14,7 @@ from src.data.mongo import (
     AnonBanStore,
     AnonMute,
     AnonMuteStore,
+    GitLink,
     GitLinkStore,
     Link,
     LinkStore,
@@ -147,6 +148,43 @@ def test_mute_to_document_omits_none_id() -> None:
     doc = mute.to_document()
     assert "_id" not in doc
     assert "unmuted_at" not in doc
+
+
+def test_git_link_round_trip() -> None:
+    oid = ObjectId()
+    now = datetime.now(UTC)
+    git_link = GitLink(
+        id=oid,
+        discord_user_id="123456789",
+        github_username="octocat",
+        github_user_id="987654321",
+        invited_at=now,
+    )
+    doc = git_link.to_document()
+    assert doc["discord_user_id"] == "123456789"
+    assert doc["github_username"] == "octocat"
+    assert doc["github_user_id"] == "987654321"
+    assert doc["invited_at"] == now
+    assert doc["_id"] == oid
+    restored = GitLink.from_document(doc)
+    assert restored.discord_user_id == "123456789"
+    assert restored.github_username == "octocat"
+    assert restored.github_user_id == "987654321"
+    assert restored.invited_at == now
+    assert restored.id == oid
+
+
+def test_git_link_to_document_omits_none_id() -> None:
+    now = datetime.now(UTC)
+    git_link = GitLink(
+        discord_user_id="123456789",
+        github_username="octocat",
+        github_user_id="987654321",
+        invited_at=now,
+    )
+    doc = git_link.to_document()
+    assert "_id" not in doc
+    assert doc["discord_user_id"] == "123456789"
 
 
 def test_anon_mute_round_trip() -> None:

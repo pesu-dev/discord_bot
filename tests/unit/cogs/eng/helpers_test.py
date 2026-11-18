@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -260,6 +261,44 @@ async def test_poll_device_token_timeout() -> None:
     helpers = EngHelpers()
     with pytest.raises(TimeoutError, match="timed out"):
         await helpers._poll_device_token(client_id="cid", device_code="dcode", interval=5, timeout=0.0)
+
+
+@respx.mock
+async def test_poll_device_token_timeout_after_post(monkeypatch: pytest.MonkeyPatch) -> None:
+    helpers = EngHelpers()
+    loop = asyncio.get_running_loop()
+    current_time = 1000.0
+
+    def mock_time() -> float:
+        return current_time
+
+    def on_post(request: httpx.Request) -> httpx.Response:
+        nonlocal current_time
+        current_time = 2000.0
+        return httpx.Response(200, json={"error": "authorization_pending"})
+
+    respx.post("https://github.com/login/oauth/access_token").mock(side_effect=on_post)
+    monkeypatch.setattr(loop, "time", mock_time)
+
+    with pytest.raises(TimeoutError, match="timed out"):
+        await helpers._poll_device_token(client_id="cid", device_code="dcode", interval=5, timeout=10.0)
+
+
+async def test_await_authorization_missing_client_id() -> None:
+    helpers = EngHelpers()
+    mock_bot = MagicMock()
+    mock_bot.config.github.client_id = None
+    helpers.client = mock_bot
+    interaction = MagicMock()
+    device_code = DeviceCodeResponse(
+        device_code="dc",
+        user_code="uc",
+        verification_uri="https://github.com/login/device",
+        expires_in=900,
+        interval=5,
+    )
+    result = await helpers._await_authorization(interaction, device_code)
+    assert result is None
 
 
 @respx.mock

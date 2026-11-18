@@ -58,19 +58,20 @@ class EngGitCommands(EngHelpers):
         member: discord.Member | None = None,
         github_user: str | None = None,
     ) -> None:
-        if github_user is not None:
-            username = (github_user.strip()).lower()
-            linked = await self.client.stores.git_links.find_one(github_username=username)
-            target = github_user
-        elif member is not None:
-            disc_id = str(member.id)
-            linked = await self.client.stores.git_links.find_one(discord_user_id=disc_id)
-            target = member.mention
-        elif github_user is None and member is None:
+        if (github_user is None) == (member is None):
             await interaction.followup.send(
                 content="Please provide either a member or a github_username, not both or neither."
             )
             return
+
+        if github_user is not None:
+            username = (github_user.strip()).lower()
+            linked = await self.client.stores.git_links.find_one(github_username=username)
+            target = github_user
+        else:
+            disc_id = str(member.id)
+            linked = await self.client.stores.git_links.find_one(discord_user_id=disc_id)
+            target = member.mention
         if linked is None:
             await interaction.followup.send(
                 content=f"No linked GitHub account found for {target}.",

@@ -484,6 +484,21 @@ async def test_eng_git_who_allows_prod_env(
     assert "Please provide either" in interaction.followup.send.await_args.kwargs["content"]
 
 
+async def test_eng_git_who_both_provided(
+    mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
+) -> None:
+    cmd = EngGitCommands()
+    cmd.client = mock_bot
+    mock_bot.config.env = bot_decorators.AppEnvironment.PROD
+    member = member_factory(roles=[mock_bot.config.bot_dev_role])
+    target_member = member_factory(user_id=2002)
+    interaction = interaction_factory(user=member)
+
+    await cmd.who.callback(cmd, interaction, member=target_member, github_user="octocat")
+    interaction.followup.send.assert_awaited_once()
+    assert "Please provide either" in interaction.followup.send.await_args.kwargs["content"]
+
+
 async def test_eng_git_who_by_github_user_found(
     mock_bot: MagicMock, interaction_factory: InteractionFactory, member_factory: MemberFactory
 ) -> None:
